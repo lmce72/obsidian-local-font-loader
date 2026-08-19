@@ -1054,12 +1054,11 @@ class LocalFontLoaderPlugin extends Plugin {
         await this.saveData(this.settings);
     }
 
-    // Scan font directory (using built-in metadata parsing)
-    // Scan font directory (based on folders + .fontfamily.json)
+    // 扫描字体目录（使用内置元数据解析）
     async scanFonts() {
         const startTime = performance.now();
 
-        // 🟢 Bug #5 修复：添加并发锁
+        // 并发锁：防止同时触发多次扫描
         if (this._isScanning) {
             this._log('[Local Font Loader] Scan already in progress, ignoring duplicate call');
             return;
@@ -1078,7 +1077,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
             this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
 
-            // 🟢 Bug #4 修复：统一路径格式，使用文件名匹配
+            // 统一路径格式，使用文件名匹配
             let b64Files = [];
             try {
                 const b64List = await this.app.vault.adapter.list(this.settings.b64OutputDir);
@@ -1096,16 +1095,16 @@ class LocalFontLoaderPlugin extends Plugin {
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
 
-            // 🟢 Bug #6 修复：使用 Map 去重
+            // 使用 Map 去重
             const fontMap = new Map(); // key: font.name, value: fontInfo
 
-            // 扫描每font family folders
+            // 扫描每个 font family 文件夹
             for (const fontDir of fontDirs) {
                 try {
                     const folderName = fontDir.split('/').pop();
                     const metadataPath = `${fontDir}/.fontfamily.json`;
 
-                    // Try to read metadata file
+                    // 尝试读取元数据文件
                     let metadata = null;
                     try {
                         const metadataContent = await this.app.vault.adapter.read(metadataPath);
@@ -1115,7 +1114,7 @@ class LocalFontLoaderPlugin extends Plugin {
                         this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
                     }
 
-                    // 🟢 Bug #3 修复：优先使用元数据的 familyName
+                    // 优先使用元数据的 familyName
                     const family = {
                         familyName: metadata?.familyName || folderName,
                         folderPath: fontDir,
@@ -1138,7 +1137,7 @@ class LocalFontLoaderPlugin extends Plugin {
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
                                 const ext = basename.split('.').pop().toLowerCase();
 
-                                // 🟢 Bug #4 修复：使用文件名匹配
+                                // 使用文件名匹配
                                 const hasB64 = b64Files.includes(name);
                                 const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
 
@@ -1153,7 +1152,7 @@ class LocalFontLoaderPlugin extends Plugin {
                                     b64Path
                                 };
 
-                                // 🟢 Bug #6 修复：去重
+                                // 去重：避免添加重复字体
                                 if (!fontMap.has(name)) {
                                     fontMap.set(name, fontInfo);
                                 }
@@ -1170,7 +1169,7 @@ class LocalFontLoaderPlugin extends Plugin {
                             }
                         }
                     } else {
-                        // 🟢 Bug #2 修复：并行读取字体文件元数据
+                        // 并行读取字体文件元数据
                         const files = await this.app.vault.adapter.list(fontDir);
                         const fontFiles = files.files.filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
 
@@ -1187,11 +1186,11 @@ class LocalFontLoaderPlugin extends Plugin {
                                 const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
                                 const fontMetadata = parseFontMetadata(arrayBuffer);
 
-                                // 🟢 Bug #3 修复：使用字体内部的 familyName（如果存在）
+                                // 使用字体内部的 familyName（如果存在）
                                 const realFamilyName = fontMetadata?.familyName || family.familyName;
                                 const variantType = fontMetadata?.variantType || 'regular';
 
-                                // 🟢 Bug #4 修复：使用文件名匹配
+                                // 使用文件名匹配
                                 const hasB64 = b64Files.includes(name);
                                 const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
 
@@ -1219,7 +1218,7 @@ class LocalFontLoaderPlugin extends Plugin {
                         // 收集成功扫描的字体
                         for (const result of scanResults) {
                             if (result.success) {
-                                // 🟢 Bug #6 修复：去重
+                                // 去重：避免添加重复字体
                                 if (!fontMap.has(result.fontInfo.name)) {
                                     fontMap.set(result.fontInfo.name, result.fontInfo);
                                 }
@@ -1243,22 +1242,21 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
             }
 
-            // 🟢 Bug #6 修复：从 Map 转换为数组
+            // 从 Map 转换为数组
             this.settings.availableFonts = Array.from(fontMap.values());
 
             await this.saveSettings();
 
             const endTime = performance.now();
-            this._log(`[Local Font Loader] ✓ Scan completed: ${this.settings.fontFamilies.length} font families, ${this.settings.availableFonts.length} variants, took ${(endTime - startTime).toFixed(2)}ms`);
+            this._log(`[Local Font Loader] Scan completed: ${this.settings.fontFamilies.length} font families, ${this.settings.availableFonts.length} variants, took ${(endTime - startTime).toFixed(2)}ms`);
 
         } catch (error) {
             const endTime = performance.now();
             this._logError(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
-            this.settings.availableFonts = [];
-            this.settings.fontFamilies = [];
+            // 保持原有数据，避免清空导致 UI 问题
             await this.saveSettings();
         } finally {
-            // 🟢 Bug #5 修复：释放锁
+            // 释放锁
             this._isScanning = false;
         }
     }
@@ -1269,9 +1267,11 @@ class LocalFontLoaderPlugin extends Plugin {
      * @returns {boolean} 字体是否存在
      */
     isFontAvailable(fontName) {
+        // 特殊选项（use-text-font、use-ui-font）和空字符串始终有效
         if (!fontName || fontName === 'use-text-font' || fontName === 'use-ui-font') {
-            return true; // 特殊选项始终有效
+            return true;
         }
+        // 检查 availableFonts 数组中是否存在匹配的字体家族名或文件名
         return this.settings.availableFonts.some(f =>
             (f.familyName || f.name) === fontName
         );
@@ -1284,20 +1284,21 @@ class LocalFontLoaderPlugin extends Plugin {
             this._log('[Local Font Loader] Starting to apply fonts...');
 
             const usedFonts = new Set();
-            const usedFamilies = new Set(); // Font family names (to support multiple variants)
+            const usedFamilies = new Set(); // 字体家族名（支持多变体）
             const missingFonts = []; // 记录缺失的字体
 
+            // 遍历所有已配置的字体，检查存在性
             for (const fontName of Object.values(this.settings.fonts)) {
                 if (fontName) {
-                    // 🟢 字体存在性检查
+                    // 检查字体是否存在于 vault 中
                     if (!this.isFontAvailable(fontName)) {
                         missingFonts.push(fontName);
                         this._log(`[Local Font Loader] ⚠️ Font "${fontName}" not found in vault, will fallback to system default`);
-                        continue; // 跳过缺失的字体
+                        continue; // 跳过缺失的字体，回退到系统默认
                     }
 
                     usedFonts.add(fontName);
-                    // Find corresponding font family
+                    // 查找对应的字体家族
                     const fonts = this.settings.availableFonts.filter(f =>
                         f.name === fontName || f.familyName === fontName
                     );
@@ -1308,7 +1309,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
             }
 
-            // 🟢 显示缺失字体的 Notice
+            // 显示缺失字体的提示（5秒）
             if (missingFonts.length > 0) {
                 new Notice(t('fontMissingWarning'), 5000);
             }
@@ -1345,7 +1346,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
                     this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
 
-                    // 🟢 Bug #1 修复：并行读取所有变体（而非顺序 await）
+                    // 并行读取所有变体，提升加载性能
                     const readPromises = familyFonts
                         .filter(font => font.hasB64 && font.b64Path)
                         .map(async (font) => {
@@ -1509,7 +1510,7 @@ class LocalFontLoaderPlugin extends Plugin {
             if (this.settings.fonts.math) {
                 varsCss += `/* LaTeX Math Font - 修正 MathJax CHTML 的 content */\n`;
 
-                // 🟢 Performance optimization: Pre-build CSS rules for all math characters (avoid runtime loops)
+                // 性能优化：预构建所有数学字符的 CSS 规则，避免运行时循环
                 const mathItalicUpperStart = 0x1D434; // A-Z
                 const mathItalicLowerStart = 0x1D44E; // a-z
 
@@ -1951,7 +1952,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                     });
                 });
 
-            // 🟢 字体缺失警告：在下拉框后显示警告图标
+            // 字体缺失警告：在下拉框后显示警告图标
             const selectedFont = this.plugin.settings.fonts[fontType.key];
             if (selectedFont && !this.plugin.isFontAvailable(selectedFont)) {
                 const warningIcon = settingItem.controlEl.createSpan({
@@ -2011,12 +2012,12 @@ class FontManagerSettingTab extends PluginSettingTab {
                 }
             }
 
-            // 如果是Body Text Font，添加Latin字体分离选项
+            // 如果是 Body Text Font，添加 Latin 字体分离选项
             if (fontType.supportsLatin) {
                 this.addLatinFontOptions(containerEl);
             }
 
-            // 如果是Heading Font，添加文件名标题选项（仅当未选择use-text-font时显示）
+            // 如果是 Heading Font，添加"应用到文件名标题"选项（仅当未选择 use-text-font 时显示）
             if (fontType.supportsFileTitle) {
                 const currentValue = this.plugin.settings.fonts[fontType.key];
                 if (currentValue && currentValue !== 'use-text-font') {
@@ -2237,7 +2238,10 @@ class FontManagerSettingTab extends PluginSettingTab {
                         await this.plugin.applyFonts();
 
                         // 刷新界面以显示警告
-                        this.display();
+                        // 使用 requestAnimationFrame 确保 DOM 操作在下一帧执行，避免重复渲染
+                        requestAnimationFrame(() => {
+                            this.display();
+                        });
                     });
                 });
 

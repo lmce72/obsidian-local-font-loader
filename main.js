@@ -97,6 +97,46 @@ const TRANSLATIONS = {
         variantWarningBody: 'The selected Body Text font "{fontFamily}" only has {variantCount} variant(s) ({variantList}).\n\nFor proper italic and bold rendering in Latin-script content, it\'s recommended to use a font family with Regular, Italic, Bold, and Bold Italic variants. Missing variants may cause faux italic/bold rendering issues.',
         variantWarningContinue: 'Continue anyway',
         variantWarningCancel: 'Cancel',
+        nonLatinFontNote: 'Non-Latin fonts (Chinese, Japanese, Korean, etc.) can ignore this warning',
+
+        // Performance Warning
+        performanceWarningTitle: 'Performance Considerations',
+        performanceWarningContent: 'Avoid mixing too many languages in a single line of text. Dense multilingual mixing (e.g., Chinese + Japanese + Korean + Arabic + Russian in one line) may trigger font fallback mechanisms that can freeze the rendering engine.\n\nRecommendation: Keep content from different languages in separate paragraphs or sections for optimal performance.',
+
+        // Settings Page Callouts
+        incompleteVariantTitle: 'Font Variant Incomplete',
+        incompleteVariantBody: 'The selected font "{fontFamily}" only has {variantCount} variant(s) ({variantList}).\nRecommendation: Choose a font family with Regular, Italic, Bold, and Bold Italic variants to ensure proper italic and bold rendering.\nNon-Latin fonts typically do not require full Italic/Bold variants and can ignore this warning.',
+        monospaceRequirement: 'Monospace Font Required',
+        monospaceRequirementBody: 'Code fonts must be monospace. Regular Latin fonts will cause code alignment issues.',
+        mathFontRequirement: 'Math Font Required',
+        mathFontRequirementBody: 'LaTeX math fonts must be dedicated math fonts (e.g., Latin Modern Math, XITS Math). Regular fonts cannot render math symbols correctly.',
+        missingVariantTitle: 'Missing Font Variants',
+        missingVariantBody: '{latinFont} is missing the following variants: {missingList}. Missing styles will use browser synthesis (lower quality).',
+
+        // UI Text
+        variantsSuffix: 'variants',
+        variantsWithCheckmark: '{familyName} ✓ ({variantCount} variants)',
+        variantsWithoutCheckmark: '{familyName} ({variantCount} variants)',
+        converted: 'Converted',
+        notFoundFontFamily: 'Font family not found. Please verify font folder structure.',
+        importFont: 'Import Font',
+        convertAllFonts: 'Convert All Fonts (Make Usable)',
+        recommendedLatinFontsLabel: '--- Recommended Latin Fonts ---',
+        otherFontsLabel: '--- Other Fonts ---',
+        expandCollapse: 'Expand/Collapse',
+        reconvertFont: 'Reconvert this font',
+        deleteThisFont: 'Delete this font',
+        confirmDeleteFont: 'Are you sure you want to delete font "{fontName}"?',
+        deletedFont: '✓ Deleted {fontName}',
+        deleteFailedError: '⚠️ Delete failed: {error}',
+        noUnusedFonts: 'No unused fonts',
+        confirmDeleteUnusedFonts: 'Found {count} unused fonts. Are you sure you want to delete them?',
+        deletedUnusedFonts: '✓ Deleted {count} unused fonts',
+        deleteError: '⚠️ Error deleting fonts',
+        importedFonts: '✓ Imported {count} font files',
+        importFailedError: '⚠️ Import failed: {error}',
+        punctuationDesc: '.,!?;: and other common punctuation',
+        symbolsDesc: '@#$%&* and other special characters',
 
         // Notices
         fontsApplied: '✓ Fonts applied',
@@ -136,7 +176,7 @@ const TRANSLATIONS = {
         headerFontFileConfig: '字体文件配置',
         headerFallback: '备用操作',
 
-        // 目录配置
+        // Directory Configuration
         fontSourceDir: '字体源目录',
         fontSourceDirDesc: '包含字体家族文件夹的目录',
         cacheDir: 'Base64 缓存目录',
@@ -199,6 +239,46 @@ const TRANSLATIONS = {
         variantWarningBody: '所选正文字体 "{fontFamily}" 仅有 {variantCount} 个变体（{variantList}）。\n\n为确保拉丁文字内容的斜体和粗体正常显示，建议使用包含 Regular、Italic、Bold 和 Bold Italic 四种变体的字体家族。缺少变体可能导致伪斜体/伪粗体渲染问题。',
         variantWarningContinue: '仍然继续',
         variantWarningCancel: '取消',
+        nonLatinFontNote: '非拉丁语言字体（中文、日文、韩文等）请忽略此警告',
+
+        // 性能警告
+        performanceWarningTitle: '性能注意事项',
+        performanceWarningContent: '避免在单行内混合过多语言文字。密集的多语言混排（例如在同一行内混合中文+日文+韩文+阿拉伯文+俄文）可能触发字体回退机制，导致渲染引擎卡死。\n\n建议：将不同语言的内容分段显示，以获得最佳性能。',
+
+        // 设置页面 Callout
+        incompleteVariantTitle: '字体变体不完整',
+        incompleteVariantBody: '所选字体 "{fontFamily}" 仅有 {variantCount} 个变体（{variantList}）。\n建议：选择包含 Regular、Italic、Bold 和 Bold Italic 四种变体的字体家族，以确保斜体和粗体正常显示。\n非拉丁语言字体通常不需要完整的 Italic/Bold 变体，可以忽略此警告。',
+        monospaceRequirement: '等宽字体要求',
+        monospaceRequirementBody: '代码字体必须选择等宽字体（Monospace），普通拉丁字体会导致代码对齐错乱。',
+        mathFontRequirement: '数学字体要求',
+        mathFontRequirementBody: 'LaTeX 数学字体必须选择专用数学字体（如 Latin Modern Math、XITS Math），普通字体无法正确渲染数学符号。',
+        missingVariantTitle: '缺少字体变体',
+        missingVariantBody: '{latinFont} 缺少以下变体：{missingList}。缺失的样式将使用浏览器合成（效果较差）。',
+
+        // 界面文本
+        variantsSuffix: '变体',
+        variantsWithCheckmark: '{familyName} ✓ ({variantCount} 个变体)',
+        variantsWithoutCheckmark: '{familyName} ({variantCount} 个变体)',
+        converted: '已转换',
+        notFoundFontFamily: '未找到字体家族，请确认字体文件夹结构正确',
+        importFont: '导入字体',
+        convertAllFonts: '转换所有字体（使其可用）',
+        recommendedLatinFontsLabel: '--- 推荐的拉丁字体 ---',
+        otherFontsLabel: '--- 其他字体 ---',
+        expandCollapse: '展开/收起',
+        reconvertFont: '重新转换此字体',
+        deleteThisFont: '删除此字体',
+        confirmDeleteFont: '确定要删除字体 "{fontName}" 吗？',
+        deletedFont: '✓ 已删除 {fontName}',
+        deleteFailedError: '⚠️ 删除失败: {error}',
+        noUnusedFonts: '没有未使用的字体',
+        confirmDeleteUnusedFonts: '发现 {count} 个未使用的字体，确定要删除吗？',
+        deletedUnusedFonts: '✓ 已删除 {count} 个未使用的字体',
+        deleteError: '⚠️ 删除字体时出错',
+        importedFonts: '✓ 已导入 {count} 个字体文件',
+        importFailedError: '⚠️ 导入失败: {error}',
+        punctuationDesc: '.,!?;: 等常用标点',
+        symbolsDesc: '@#$%&* 等特殊字符',
 
         // 通知
         fontsApplied: '✓ 字体已应用',
@@ -536,11 +616,21 @@ const TRANSLATIONS = {
 /**
  * Get translation for a key
  * @param {string} key - Translation key
- * @param {string} [locale] - Language code (defaults to system language)
- * @param {Object} [params] - Parameters for string interpolation
+ * @param {string|Object} [localeOrParams] - Language code OR params object (auto-detect)
+ * @param {Object} [params] - Parameters for string interpolation (when locale is provided)
  * @returns {string} Translated string
  */
-function t(key, locale = null, params = {}) {
+function t(key, localeOrParams = null, params = {}) {
+    let locale = null;
+
+    // Smart detection: if second arg is an object, treat it as params
+    if (localeOrParams && typeof localeOrParams === 'object') {
+        params = localeOrParams;
+        locale = null;
+    } else {
+        locale = localeOrParams;
+    }
+
     // Auto-detect locale from Obsidian if not provided
     if (!locale) {
         locale = (window.localStorage.getItem('language') || 'en').split('-')[0];
@@ -741,7 +831,7 @@ function parseFontMetadata(arrayBuffer) {
         };
 
     } catch (error) {
-        console.error('[Font Metadata] Parse failed:', error);
+        this._logError('[Font Metadata] Parse failed:', error);
         return null;
     }
 }
@@ -778,6 +868,31 @@ const DEFAULT_SETTINGS = {
 
 class LocalFontLoaderPlugin extends Plugin {
 
+    // 日志级别控制
+    _logEnabled = false; // 默认关闭日志输出
+
+    _log(...args) {
+        if (this._logEnabled) {
+            console.log(...args);
+        }
+    }
+
+    _logError(...args) {
+        console.error(...args); // 错误日志始终输出
+    }
+
+    // saveSettings 防抖优化
+    _saveSettingsTimer = null;
+    _debouncedSaveSettings() {
+        if (this._saveSettingsTimer) {
+            clearTimeout(this._saveSettingsTimer);
+        }
+        this._saveSettingsTimer = setTimeout(() => {
+            this.saveData(this.settings);
+            this._saveSettingsTimer = null;
+        }, 300); // 300ms 防抖延迟
+    }
+
     // Generate unicode-range (based on scope configuration)
     getUnicodeRange(scope) {
         const ranges = [];
@@ -806,7 +921,7 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     async onload() {
-        console.log('[Local Font Loader] Plugin loading...');
+        this._log('[Local Font Loader] Plugin loading...');
 
         // Load settings
         await this.loadSettings();
@@ -875,11 +990,18 @@ class LocalFontLoaderPlugin extends Plugin {
             await this.applyFonts();
         }
 
-        console.log('[Local Font Loader] ✓ Plugin loaded');
+        this._log('[Local Font Loader] ✓ Plugin loaded');
     }
 
     onunload() {
-        console.log('[Local Font Loader] Plugin unloading');
+        this._log('[Local Font Loader] Plugin unloading');
+
+        // 清理防抖计时器
+        if (this._saveSettingsTimer) {
+            clearTimeout(this._saveSettingsTimer);
+            this._saveSettingsTimer = null;
+        }
+
         this.removeFontStyles();
     }
 
@@ -891,29 +1013,29 @@ class LocalFontLoaderPlugin extends Plugin {
         await this.saveData(this.settings);
     }
 
-    // 扫描字体目录（使用内置元数据解析）
-    // 扫描字体目录（基于文件夹 + .fontfamily.json）
+    // Scan font directory (using built-in metadata parsing)
+    // Scan font directory (based on folders + .fontfamily.json)
     async scanFonts() {
         const startTime = performance.now();
 
         // 🟢 Bug #5 修复：添加并发锁
         if (this._isScanning) {
-            console.warn('[Local Font Loader] 扫描已在进行中，忽略重复调用');
+            this._log('[Local Font Loader] Scan already in progress, ignoring duplicate call');
             return;
         }
         this._isScanning = true;
 
         try {
-            console.log('[Local Font Loader] Scanning font family folders...');
+            this._log('[Local Font Loader] Scanning font family folders...');
 
-            // 获取字体目录下的所有子文件夹
+            // Get all subfolders in font directory
             const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
             const fontDirs = dirList.folders.filter(dir => {
                 const basename = dir.split('/').pop();
                 return basename !== 'B64Font'; // Exclude cache directory
             });
 
-            console.log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
+            this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
 
             // 🟢 Bug #4 修复：统一路径格式，使用文件名匹配
             let b64Files = [];
@@ -924,9 +1046,9 @@ class LocalFontLoaderPlugin extends Plugin {
                     const basename = f.split('/').pop().replace('.css', '');
                     return basename;
                 });
-                console.log(`[Local Font Loader] Found ${b64Files.length} cached fonts`);
+                this._log(`[Local Font Loader] Found ${b64Files.length} cached fonts`);
             } catch (err) {
-                console.warn('[Local Font Loader] B64 cache directory does not exist, will be created during conversion');
+                this._log('[Local Font Loader] B64 cache directory does not exist, will be created during conversion');
             }
 
             // 重置数据
@@ -947,9 +1069,9 @@ class LocalFontLoaderPlugin extends Plugin {
                     try {
                         const metadataContent = await this.app.vault.adapter.read(metadataPath);
                         metadata = JSON.parse(metadataContent);
-                        console.log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
+                        this._log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
                     } catch (err) {
-                        console.warn(`[Local Font Loader] 未找到元数据文件: ${metadataPath}，will auto-scan`);
+                        this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
                     }
 
                     // 🟢 Bug #3 修复：优先使用元数据的 familyName
@@ -1001,9 +1123,9 @@ class LocalFontLoaderPlugin extends Plugin {
                                 else if (variantType === 'bold') family.hasBold = true;
                                 else if (variantType === 'bolditalic') family.hasBoldItalic = true;
 
-                                console.log(`[Local Font Loader] Identified font: ${family.familyName} (${variantType})`);
+                                this._log(`[Local Font Loader] Identified font: ${family.familyName} (${variantType})`);
                             } catch (err) {
-                                console.warn(`[Local Font Loader] Font file does not exist: ${fontPath}`);
+                                this._log(`[Local Font Loader] Font file does not exist: ${fontPath}`);
                             }
                         }
                     } else {
@@ -1011,7 +1133,7 @@ class LocalFontLoaderPlugin extends Plugin {
                         const files = await this.app.vault.adapter.list(fontDir);
                         const fontFiles = files.files.filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
 
-                        console.log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
+                        this._log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
 
                         // 并行读取所有字体文件的元数据
                         const scanPromises = fontFiles.map(async (fontPath) => {
@@ -1043,10 +1165,10 @@ class LocalFontLoaderPlugin extends Plugin {
                                     b64Path
                                 };
 
-                                console.log(`[Local Font Loader] 自动识别: ${realFamilyName} (${variantType})`);
+                                this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
                                 return { success: true, fontInfo, variantType };
                             } catch (error) {
-                                console.error(`[Local Font Loader] Failed to scan font: ${fontPath}`, error);
+                                this._logError(`[Local Font Loader] Failed to scan font: ${fontPath}`, error);
                                 return { success: false, fontPath, error };
                             }
                         });
@@ -1076,7 +1198,7 @@ class LocalFontLoaderPlugin extends Plugin {
                     }
 
                 } catch (error) {
-                    console.error(`[Local Font Loader] Failed to process font family: ${fontDir}`, error);
+                    this._logError(`[Local Font Loader] Failed to process font family: ${fontDir}`, error);
                 }
             }
 
@@ -1086,11 +1208,11 @@ class LocalFontLoaderPlugin extends Plugin {
             await this.saveSettings();
 
             const endTime = performance.now();
-            console.log(`[Local Font Loader] ✓ 扫描完成：${this.settings.fontFamilies.length} font families，${this.settings.availableFonts.length} variants，耗时 ${(endTime - startTime).toFixed(2)}ms`);
+            this._log(`[Local Font Loader] ✓ Scan completed: ${this.settings.fontFamilies.length} font families, ${this.settings.availableFonts.length} variants, took ${(endTime - startTime).toFixed(2)}ms`);
 
         } catch (error) {
             const endTime = performance.now();
-            console.error(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
+            this._logError(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
         } finally {
@@ -1103,7 +1225,7 @@ class LocalFontLoaderPlugin extends Plugin {
     async applyFonts() {
         const startTime = performance.now();
         try {
-            console.log('[Local Font Loader] 开始Apply fonts...');
+            this._log('[Local Font Loader] Starting to apply fonts...');
 
             const usedFonts = new Set();
             const usedFamilies = new Set(); // Font family names (to support multiple variants)
@@ -1123,16 +1245,13 @@ class LocalFontLoaderPlugin extends Plugin {
             }
 
             if (usedFonts.size === 0) {
-                console.log('[Local Font Loader] No fonts configured');
+                this._log('[Local Font Loader] No fonts configured');
                 this.removeFontStyles();
                 return;
             }
 
-            console.log('[Local Font Loader] Fonts to load:', Array.from(usedFonts));
-            console.log('[Local Font Loader] Font families involved:', Array.from(usedFamilies));
-
-            // 移除旧的 <link> 标签
-            document.querySelectorAll('link[data-local-font-loader]').forEach(link => link.remove());
+            this._log('[Local Font Loader] Fonts to load:', Array.from(usedFonts));
+            this._log('[Local Font Loader] Font families involved:', Array.from(usedFamilies));
 
             // 初始化 @font-face CSS
             let fontFaceCss = '/* Local Font Loader - Font Faces */\n\n';
@@ -1150,12 +1269,12 @@ class LocalFontLoaderPlugin extends Plugin {
                     );
 
                     if (familyFonts.length === 0) {
-                        console.warn(`[Local Font Loader] 未找到字体家族: ${familyOrFontName}`);
+                        this._log(`[Local Font Loader] Font family not found: ${familyOrFontName}`);
                         failedFonts.push(`${familyOrFontName} (未找到)`);
                         continue;
                     }
 
-                    console.log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
+                    this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
 
                     // 🟢 Bug #1 修复：并行读取所有变体（而非顺序 await）
                     const readPromises = familyFonts
@@ -1163,10 +1282,10 @@ class LocalFontLoaderPlugin extends Plugin {
                         .map(async (font) => {
                             try {
                                 const b64Css = await this.app.vault.adapter.read(font.b64Path);
-                                console.log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB)`);
+                                this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB)`);
                                 return { success: true, css: b64Css, font };
                             } catch (error) {
-                                console.error(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
+                                this._logError(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
                                 return { success: false, font, error };
                             }
                         });
@@ -1186,17 +1305,17 @@ class LocalFontLoaderPlugin extends Plugin {
                     // 处理未缓存的字体
                     const uncachedFonts = familyFonts.filter(f => !f.hasB64 || !f.b64Path);
                     for (const font of uncachedFonts) {
-                        console.warn(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
+                        this._log(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
                         failedFonts.push(`${font.name} (not converted)`);
                     }
 
                 } catch (error) {
-                    console.error(`[Local Font Loader] ✗ 无法加载字体家族 ${familyOrFontName}:`, error);
+                    this._logError(`[Local Font Loader] ✗ 无法加载字体家族 ${familyOrFontName}:`, error);
                     failedFonts.push(`${familyOrFontName} (读取失败: ${error.message})`);
                 }
             }
 
-            console.log(`[Local Font Loader] @font-face CSS 总大小: ${(fontFaceCss.length / 1024 / 1024).toFixed(2)} MB`);
+            this._log(`[Local Font Loader] @font-face CSS total size: ${(fontFaceCss.length / 1024 / 1024).toFixed(2)} MB`);
 
             // Apply @font-face CSS
             this.applyCss(fontFaceCss, 'local-font-loader-faces');
@@ -1252,7 +1371,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 if (this.settings.latinFontEnabled && this.settings.fonts.latin) {
                     // Latin font first (due to unicode-range restriction), non-Latin font as fallback
                     textFontFamily = `"${this.settings.fonts.latin}", "${this.settings.fonts.text}"`;
-                    console.log(`[Local Font Loader] Enable Latin font separation: ${this.settings.fonts.latin} (Latin) + ${this.settings.fonts.text} (Non-Latin)`);
+                    this._log(`[Local Font Loader] Enable Latin font separation: ${this.settings.fonts.latin} (Latin) + ${this.settings.fonts.text} (Non-Latin)`);
                 }
 
                 // 阅读模式
@@ -1271,22 +1390,19 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `/* Already set via :root variables above */\n\n`;
             }
 
-            // 数学字体（映射 MathJax 的 Unicode class 到正确的字符）
+            // Math fonts (map MathJax Unicode classes to correct characters)
             if (this.settings.fonts.math) {
                 varsCss += `/* LaTeX Math Font - 修正 MathJax CHTML 的 content */\n`;
 
-                // 数学斜体大写字母 A-Z (U+1D434-U+1D44D)
-                for (let i = 0; i < 26; i++) {
-                    const mathItalicCode = 0x1D434 + i;
-                    const mathItalicChar = String.fromCodePoint(mathItalicCode);
-                    varsCss += `.mjx-c${mathItalicCode.toString(16).toUpperCase()}.TEX-I::before { content: "${mathItalicChar}" !important; }\n`;
-                }
+                // 🟢 Performance optimization: Pre-build CSS rules for all math characters (avoid runtime loops)
+                const mathItalicUpperStart = 0x1D434; // A-Z
+                const mathItalicLowerStart = 0x1D44E; // a-z
 
-                // 数学斜体小写字母 a-z (U+1D44E-U+1D467)
                 for (let i = 0; i < 26; i++) {
-                    const mathItalicCode = 0x1D44E + i;
-                    const mathItalicChar = String.fromCodePoint(mathItalicCode);
-                    varsCss += `.mjx-c${mathItalicCode.toString(16).toUpperCase()}.TEX-I::before { content: "${mathItalicChar}" !important; }\n`;
+                    const upperCode = mathItalicUpperStart + i;
+                    const lowerCode = mathItalicLowerStart + i;
+                    varsCss += `.mjx-c${upperCode.toString(16).toUpperCase()}.TEX-I::before { content: "${String.fromCodePoint(upperCode)}" !important; }\n`;
+                    varsCss += `.mjx-c${lowerCode.toString(16).toUpperCase()}.TEX-I::before { content: "${String.fromCodePoint(lowerCode)}" !important; }\n`;
                 }
 
                 varsCss += `\n/* Apply fonts */\n`;
@@ -1308,21 +1424,21 @@ class LocalFontLoaderPlugin extends Plugin {
             this.applyCss(varsCss, 'local-font-loader-vars');
 
             const endTime = performance.now();
-            console.log(`[Local Font Loader] ✓ Fonts applied successfully. Loaded ${loadedCount} variants, failed ${failedFonts.length}. Time: ${(endTime - startTime).toFixed(2)}ms`);
+            this._log(`[Local Font Loader] ✓ Fonts applied successfully. Loaded ${loadedCount} variants, failed ${failedFonts.length}. Time: ${(endTime - startTime).toFixed(2)}ms`);
 
             if (failedFonts.length > 0) {
-                console.warn(`[Local Font Loader] Failed fonts:`, failedFonts);
+                this._log(`[Local Font Loader] Failed fonts:`, failedFonts);
             }
 
         } catch (error) {
             const endTime = performance.now();
-            console.error(`[Local Font Loader] Apply fonts失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
+            this._logError(`[Local Font Loader] Apply fonts失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
         }
     }
 
     // Convert all fonts to Base64
     async convertAllFonts() {
-        console.log('[Local Font Loader] Starting font conversion...');
+        this._log('[Local Font Loader] Starting font conversion...');
         let converted = 0;
         let skipped = 0;
 
@@ -1336,7 +1452,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
                 try {
                     const variantLabel = font.variantType || 'unknown';
-                    console.log(`[Local Font Loader] Converting font: ${font.name} (${font.familyName || 'Unknown'} - ${variantLabel})`);
+                    this._log(`[Local Font Loader] Converting font: ${font.name} (${font.familyName || 'Unknown'} - ${variantLabel})`);
 
                     const arrayBuffer = await this.app.vault.adapter.readBinary(font.path);
                     const base64 = this.arrayBufferToBase64(arrayBuffer);
@@ -1414,36 +1530,47 @@ class LocalFontLoaderPlugin extends Plugin {
                     font.b64Path = cachePath;
 
                     converted++;
-                    console.log(`[Local Font Loader] ✓ Converted: ${font.name} (${fontFamily} - ${variantType}, weight: ${fontWeight}, style: ${fontStyle})`);
+                    this._log(`[Local Font Loader] ✓ Converted: ${font.name} (${fontFamily} - ${variantType}, weight: ${fontWeight}, style: ${fontStyle})`);
 
                 } catch (error) {
-                    console.error(`[Local Font Loader] Conversion failed: ${font.name}`, error);
+                    this._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
                 }
             }
 
             await this.saveSettings();
 
-            console.log(`[Local Font Loader] Conversion complete：${converted} newly converted，${skipped} already cached`);
+            this._log(`[Local Font Loader] Conversion complete：${converted} newly converted，${skipped} already cached`);
 
         } catch (error) {
-            console.error('[Local Font Loader] 批量Conversion failed:', error);
+            this._logError('[Local Font Loader] 批量Conversion failed:', error);
         }
     }
 
     arrayBufferToBase64(buffer) {
-        let binary = "";
         const bytes = new Uint8Array(buffer);
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
+        const chunkSize = 8192; // 8KB 分块处理
+        let binary = "";
+
+        for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+            const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength));
+            binary += String.fromCharCode.apply(null, chunk);
         }
+
         return btoa(binary);
     }
 
     applyCss(css, cssId) {
         const existingStyle = document.getElementById(cssId);
+
+        // 如果内容相同，跳过更新
+        if (existingStyle && existingStyle.textContent === css) {
+            return;
+        }
+
         if (existingStyle) {
             existingStyle.remove();
         }
+
         if (css) {
             const style = document.createElement('style');
             style.id = cssId;
@@ -1457,9 +1584,6 @@ class LocalFontLoaderPlugin extends Plugin {
         const varsStyle = document.getElementById('local-font-loader-vars');
         if (faceStyle) faceStyle.remove();
         if (varsStyle) varsStyle.remove();
-
-        // 移除 <link> 标签
-        document.querySelectorAll('link[data-local-font-loader]').forEach(link => link.remove());
     }
 
     async clearCache() {
@@ -1481,10 +1605,10 @@ class LocalFontLoaderPlugin extends Plugin {
             }
             await this.saveSettings();
 
-            console.log(`[Local Font Loader] Cleaned ${count} cache files`);
+            this._log(`[Local Font Loader] Cleaned ${count} cache files`);
 
         } catch (error) {
-            console.error('[Local Font Loader] Clear Cache失败:', error);
+            this._logError('[Local Font Loader] Clear Cache失败:', error);
         }
     }
 }
@@ -1500,18 +1624,88 @@ class FontManagerSettingTab extends PluginSettingTab {
     constructor(app, plugin) {
         super(app, plugin);
         this.plugin = plugin;
+        this._eventListeners = [];
+    }
+
+    _addEventListener(element, event, handler, options) {
+        element.addEventListener(event, handler, options);
+        this._eventListeners.push({ element, event, handler, options });
+    }
+
+    _cleanupEventListeners() {
+        this._eventListeners.forEach(({ element, event, handler, options }) => {
+            element.removeEventListener(event, handler, options);
+        });
+        this._eventListeners = [];
+    }
+
+    /**
+     * 判断字体是否为拉丁字体（通过字体名称启发式判断）
+     * @param {string} fontName - 字体家族名
+     * @returns {boolean} 是否为拉丁字体
+     */
+    _isLatinFont(fontName) {
+        const lowerName = fontName.toLowerCase();
+
+        // 明确的非拉丁字体关键词
+        const nonLatinKeywords = [
+            // Chinese
+            '思源', 'noto sans cjk', 'noto serif cjk', 'source han', '微软雅黑', 'microsoft yahei',
+            '宋体', 'simsun', '黑体', 'simhei', '楷体', 'kaiti', '方正', 'fangzheng',
+            // Japanese
+            '源', 'genkai', 'meiryo', 'yu gothic', 'hiragino', 'msmincho', 'msgothic',
+            // Korean
+            'nanum', 'malgun', 'batang', 'dotum', 'gulim',
+            // Arabic
+            'arabic', 'nastaliq', 'kufi',
+            // Others
+            'devanagari', 'thai', 'hebrew'
+        ];
+
+        // If contains non-Latin keywords, not a Latin font
+        if (nonLatinKeywords.some(keyword => lowerName.includes(keyword))) {
+            return false;
+        }
+
+        // Explicit Latin font keywords
+        const latinKeywords = [
+            'times', 'arial', 'helvetica', 'georgia', 'verdana', 'courier',
+            'garamond', 'palatino', 'century', 'cambria', 'calibri',
+            'latin', 'roman', 'serif', 'sans'
+        ];
+
+        // If contains Latin keywords, is a Latin font
+        if (latinKeywords.some(keyword => lowerName.includes(keyword))) {
+            return true;
+        }
+
+        // Default case: assume Latin font (conservative strategy)
+        return true;
     }
 
     display() {
+        this._cleanupEventListeners();
+
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Local Font Loader' });
+        containerEl.createEl('h2', { text: t('pluginName') });
+
+        // ========================================
+        // Performance Warning Callout
+        // ========================================
+        const warningCallout = containerEl.createDiv({ cls: 'callout', attr: { 'data-callout': 'warning' } });
+        const warningTitle = warningCallout.createDiv({ cls: 'callout-title' });
+        const warningIcon = warningTitle.createDiv({ cls: 'callout-icon' });
+        setIcon(warningIcon, 'alert-triangle');
+        warningTitle.createDiv({ cls: 'callout-title-inner', text: t('performanceWarningTitle') });
+        const warningContent = warningCallout.createDiv({ cls: 'callout-content' });
+        warningContent.createEl('p', { text: t('performanceWarningContent') });
 
         // ========================================
         // Directory Configuration
         // ========================================
-        containerEl.createEl('h3', { text: 'Directory Configuration' });
+        containerEl.createEl('h3', { text: t('headerDirectoryConfig') });
 
         new Setting(containerEl)
             .setName(t('fontSourceDir'))
@@ -1560,25 +1754,25 @@ class FontManagerSettingTab extends PluginSettingTab {
         // ========================================
         // Font Application Settings
         // ========================================
-        containerEl.createEl('h3', { text: 'Font Application Settings' });
+        containerEl.createEl('h3', { text: t('headerFontApplication') });
 
         const fontTypes = [
-            { key: 'ui', name: 'UI Interface Font', desc: '侧边栏、菜单、按钮等界面元素' },
+            { key: 'ui', name: t('uiFontName'), desc: t('uiFontDesc') },
             {
                 key: 'text',
-                name: 'Body Text Font',
-                desc: '编辑器正文内容',
+                name: t('textFontName'),
+                desc: t('textFontDesc'),
                 supportsLatin: true
             },
             {
                 key: 'monospace',
-                name: 'Code Font',
-                desc: '代码块和行内代码'
+                name: t('monospaceFontName'),
+                desc: t('monospaceFontDesc')
             },
             {
                 key: 'math',
-                name: 'LaTeX Math Font',
-                desc: '数学公式渲染'
+                name: t('mathFontName'),
+                desc: t('mathFontDesc')
             }
         ];
 
@@ -1587,7 +1781,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 .setName(fontType.name)
                 .setDesc(fontType.desc)
                 .addDropdown(dropdown => {
-                    dropdown.addOption('', '-- 系统默认 --');
+                    dropdown.addOption('', t('systemDefault'));
 
                     // 使用字体家族列表（去重）
                     const uniqueFamilies = new Set();
@@ -1603,11 +1797,9 @@ class FontManagerSettingTab extends PluginSettingTab {
                         );
 
                         const allConverted = familyFonts.every(f => f.hasB64);
-                        const variantCount = familyFonts.length;
 
-                        const label = allConverted
-                            ? `${familyName} ✓ (${variantCount} 变体)`
-                            : `${familyName} (${variantCount} 变体)`;
+                        // 只显示字体名，已转换的加上勾选标记
+                        const label = allConverted ? `${familyName} ✓` : familyName;
 
                         dropdown.addOption(familyName, label);
                     });
@@ -1630,35 +1822,41 @@ class FontManagerSettingTab extends PluginSettingTab {
                     (f.familyName || f.name) === selectedFont
                 );
 
-                // Text Font: 建议 4 个变体
+                // Text Font: recommend 4 variants (only show for Latin fonts)
                 if (fontType.key === 'text' && variants.length > 0 && variants.length < 4) {
                     const variantList = variants.map(f => f.variantType || 'unknown').join(', ');
-                    const warningCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
 
-                    const warningMd = `> [!warning] 字体变体不完整
-> 所选字体 "${selectedFont}" 仅有 ${variants.length} 个变体（${variantList}）。
->
-> **建议**：选择包含 Regular、Italic、Bold 和 Bold Italic 四种变体的字体家族，以确保斜体和粗体正常显示。`;
+                    // Check if it is a Latin font
+                    const isLatin = this._isLatinFont(selectedFont);
 
-                    MarkdownRenderer.render(this.app, warningMd, warningCallout, '', this);
+                    if (isLatin) {
+                        // Latin font: show full warning with non-Latin hint inside callout
+                        const warningCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+
+                        const warningMd = `> [!warning] ${t('incompleteVariantTitle')}
+> ${t('incompleteVariantBody', { fontFamily: selectedFont, variantCount: variants.length, variantList })}`;
+
+                        MarkdownRenderer.render(this.app, warningMd, warningCallout, '', this);
+                    }
+                    // Non-Latin fonts: no warning needed
                 }
 
-                // Monospace Font: 必须是等宽字体
+                // Monospace Font: must be monospace
                 if (fontType.key === 'monospace') {
                     const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
 
-                    const infoMd = `> [!info] 等宽字体要求
-> 代码字体必须选择等宽字体（Monospace），普通拉丁字体会导致代码对齐错乱。`;
+                    const infoMd = `> [!info] ${t('monospaceRequirement')}
+> ${t('monospaceRequirementBody')}`;
 
                     MarkdownRenderer.render(this.app, infoMd, infoCallout, '', this);
                 }
 
-                // Math Font: 必须是专用数学字体
+                // Math Font: must be specialized math font
                 if (fontType.key === 'math') {
                     const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
 
-                    const infoMd = `> [!info] 数学字体要求
-> LaTeX 数学字体必须选择专用数学字体（如 Latin Modern Math、XITS Math），普通字体无法正确渲染数学符号。`;
+                    const infoMd = `> [!info] ${t('mathFontRequirement')}
+> ${t('mathFontRequirementBody')}`;
 
                     MarkdownRenderer.render(this.app, infoMd, infoCallout, '', this);
                 }
@@ -1673,7 +1871,7 @@ class FontManagerSettingTab extends PluginSettingTab {
         // ========================================
         // Font File Configuration
         // ========================================
-        containerEl.createEl('h3', { text: 'Font File Configuration' });
+        containerEl.createEl('h3', { text: t('headerFontFileConfig') });
 
         // 图例说明
         const legendEl = containerEl.createDiv({
@@ -1683,7 +1881,7 @@ class FontManagerSettingTab extends PluginSettingTab {
         });
 
         const legends = [
-            { icon: 'check', color: 'var(--color-green)', text: '已转换' },
+            { icon: 'check', color: 'var(--color-green)', text: t('converted') },
             { icon: 'circle', color: 'var(--text-muted)', text: 'not converted' }
         ];
 
@@ -1705,7 +1903,7 @@ class FontManagerSettingTab extends PluginSettingTab {
 
         if (this.plugin.settings.availableFonts.length === 0) {
             fontListEl.createEl('div', {
-                text: '未Found字体家族，请确认字体文件夹结构正确',
+                text: t('notFoundFontFamily'),
                 attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;' }
             });
         } else {
@@ -1722,24 +1920,24 @@ class FontManagerSettingTab extends PluginSettingTab {
 
         // 导入字体
         const importBtn = fontOperationsEl.createEl('button', {
-            text: '导入字体',
+            text: t('importFont'),
             attr: {
                 style: 'flex: 1; padding: 12px; cursor: pointer;',
                 class: 'mod-cta'
             }
         });
-        importBtn.addEventListener('click', async () => {
+        this._addEventListener(importBtn, 'click', async () => {
             await this.importFont();
         });
 
         // 转换所有字体
         const convertBtn = fontOperationsEl.createEl('button', {
-            text: '转换所有字体（使其可用）',
+            text: t('convertAllFonts'),
             attr: {
                 style: 'flex: 1; padding: 12px; cursor: pointer;'
             }
         });
-        convertBtn.addEventListener('click', async () => {
+        this._addEventListener(convertBtn, 'click', async () => {
             await this.plugin.convertAllFonts();
             this.display();
         });
@@ -1747,7 +1945,7 @@ class FontManagerSettingTab extends PluginSettingTab {
         // ========================================
         // Fallback 操作
         // ========================================
-        containerEl.createEl('h3', { text: 'Fallback' });
+        containerEl.createEl('h3', { text: t('headerFallback') });
 
         // Delete Unused Fonts
         new Setting(containerEl)
@@ -1829,7 +2027,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 .setName(t('latinFont'))
                 .setDesc(t('latinFontDesc'))
                 .addDropdown(dropdown => {
-                    dropdown.addOption('', '-- 系统默认 --');
+                    dropdown.addOption('', t('systemDefault'));
 
                     const uniqueFamilies = new Set();
                     this.plugin.settings.availableFonts.forEach(font => {
@@ -1845,7 +2043,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                     const otherFamilies = allFamilies.filter(name => !latinFamilies.includes(name));
 
                     if (latinFamilies.length > 0) {
-                        dropdown.addOption('', '--- 推荐的Latin字体 ---');
+                        dropdown.addOption('', t('recommendedLatinFontsLabel'));
                         latinFamilies.forEach(familyName => {
                             const familyFonts = this.plugin.settings.availableFonts.filter(f =>
                                 (f.familyName || f.name) === familyName
@@ -1860,7 +2058,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                     }
 
                     if (otherFamilies.length > 0) {
-                        dropdown.addOption('', '--- 其他字体 ---');
+                        dropdown.addOption('', t('otherFontsLabel'));
                         otherFamilies.forEach(familyName => {
                             const familyFonts = this.plugin.settings.availableFonts.filter(f =>
                                 (f.familyName || f.name) === familyName
@@ -1906,8 +2104,9 @@ class FontManagerSettingTab extends PluginSettingTab {
                         attr: { style: 'margin: 8px 0 16px 0;' }
                     });
 
-                    const warningMarkdown = `> [!warning] 缺少字体变体
-> ${latinFont} 缺少以下变体：${missing.join(', ')}。缺失的样式将使用浏览器合成（效果较差）。`;
+                    const missingList = missing.join(', ');
+                    const warningMarkdown = `> [!warning] ${t('missingVariantTitle')}
+> ${t('missingVariantBody', { latinFont, missingList })}`;
 
                     MarkdownRenderer.render(
                         this.app,
@@ -1922,8 +2121,8 @@ class FontManagerSettingTab extends PluginSettingTab {
             const scopes = [
                 { key: 'letters', name: 'Letters', desc: 'A-Z, a-z' },
                 { key: 'numbers', name: 'Numbers', desc: '0-9' },
-                { key: 'punctuation', name: 'Punctuation', desc: '.,!?;: 等常用标点' },
-                { key: 'symbols', name: 'Symbols', desc: '@#$%&* 等特殊字符' }
+                { key: 'punctuation', name: 'Punctuation', desc: t('punctuationDesc') },
+                { key: 'symbols', name: 'Symbols', desc: t('symbolsDesc') }
             ];
 
             scopes.forEach(scope => {
@@ -1980,7 +2179,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             const expandIcon = leftEl.createSpan({
                 attr: {
                     style: 'display: inline-flex; align-items: center;',
-                    'aria-label': '展开/收起'
+                    'aria-label': t('expandCollapse')
                 }
             });
             setIcon(expandIcon, 'chevron-right');
@@ -1999,7 +2198,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             });
 
             let expanded = false;
-            headerEl.addEventListener('click', () => {
+            this._addEventListener(headerEl, 'click', () => {
                 expanded = !expanded;
                 variantsEl.style.display = expanded ? 'block' : 'none';
                 // 切换图标
@@ -2052,12 +2251,12 @@ class FontManagerSettingTab extends PluginSettingTab {
                 const convertBtn = actionsEl.createEl('button', {
                     attr: {
                         style: 'padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;',
-                        title: '重新转换此字体',
-                        'aria-label': '重新转换此字体'
+                        title: t('reconvertFont'),
+                        'aria-label': t('reconvertFont')
                     }
                 });
                 setIcon(convertBtn, 'refresh-cw');
-                convertBtn.addEventListener('click', async () => {
+                this._addEventListener(convertBtn, 'click', async () => {
                     await this.convertSingleFont(font);
                     this.display();
                 });
@@ -2066,13 +2265,13 @@ class FontManagerSettingTab extends PluginSettingTab {
                 const deleteBtn = actionsEl.createEl('button', {
                     attr: {
                         style: 'padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;',
-                        title: '删除此字体',
-                        'aria-label': '删除此字体'
+                        title: t('deleteThisFont'),
+                        'aria-label': t('deleteThisFont')
                     }
                 });
                 setIcon(deleteBtn, 'trash-2');
-                deleteBtn.addEventListener('click', async () => {
-                    if (confirm(`确定要删除字体 "${font.name}" 吗？`)) {
+                this._addEventListener(deleteBtn, 'click', async () => {
+                    if (confirm(t('confirmDeleteFont', { fontName: font.name }))) {
                         await this.deleteSingleFont(font);
                         this.display();
                     }
@@ -2084,7 +2283,7 @@ class FontManagerSettingTab extends PluginSettingTab {
     // 转换单个字体
     async convertSingleFont(font) {
         try {
-            console.log(`[Local Font Loader] Converting ${font.name}...`);
+            this._log(`[Local Font Loader] Converting ${font.name}...`);
 
             const arrayBuffer = await this.plugin.app.vault.adapter.readBinary(font.path);
             const base64 = this.plugin.arrayBufferToBase64(arrayBuffer);
@@ -2150,10 +2349,10 @@ class FontManagerSettingTab extends PluginSettingTab {
             font.b64Path = cachePath;
             await this.plugin.saveSettings();
 
-            console.log(`[Local Font Loader] ${font.name} Conversion complete`);
+            this._log(`[Local Font Loader] ${font.name} Conversion complete`);
             new Notice(`✓ ${font.name} Conversion complete`);
         } catch (error) {
-            console.error(`[Local Font Loader] Conversion failed: ${font.name}`, error);
+            this._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
             new Notice(`⚠️ Conversion failed: ${error.message}`);
         }
     }
@@ -2180,10 +2379,10 @@ class FontManagerSettingTab extends PluginSettingTab {
             }
 
             await this.plugin.saveSettings();
-            new Notice(`✓ 已删除 ${font.name}`);
+            new Notice(t('deletedFont', { fontName: font.name }));
         } catch (error) {
-            console.error(`[Local Font Loader] 删除失败: ${font.name}`, error);
-            new Notice(`⚠️ 删除失败: ${error.message}`);
+            this._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
+            new Notice(t('deleteFailedError', { error: error.message }));
         }
     }
 
@@ -2196,15 +2395,15 @@ class FontManagerSettingTab extends PluginSettingTab {
         );
 
         if (unusedFonts.length === 0) {
-            new Notice('没有未使用的字体');
+            new Notice(t('noUnusedFonts'));
             return;
         }
 
-        if (!confirm(`Found ${unusedFonts.length} 个未使用的字体，确定要删除吗？\n\n${unusedFonts.map(f => f.name).join('\n')}`)) {
+        if (!confirm(t('confirmDeleteUnusedFonts', { count: unusedFonts.length }))) {
             return;
         }
 
-        console.log(`[Local Font Loader] 开始Delete Unused Fonts (${unusedFonts.length} 个)...`);
+        this._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
         let deleted = 0;
 
         try {
@@ -2231,20 +2430,20 @@ class FontManagerSettingTab extends PluginSettingTab {
                     deleted++;
 
                 } catch (error) {
-                    console.error(`[Local Font Loader] 删除失败: ${font.name}`, error);
+                    this._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
                 }
             }
 
             await this.plugin.saveSettings();
 
-            new Notice(`✓ 已删除 ${deleted} 个未使用的字体`);
-            console.log(`[Local Font Loader] 已删除 ${deleted} 个未使用的字体`);
+            new Notice(t('deletedUnusedFonts', { count: deleted }));
+            this._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
 
             this.display(); // 刷新界面
 
         } catch (error) {
-            console.error('[Local Font Loader] 批量删除失败:', error);
-            new Notice('⚠️ 删除字体时出错');
+            this._logError('[Local Font Loader] 批量删除失败:', error);
+            new Notice(t('deleteError'));
         }
     }
 
@@ -2255,11 +2454,11 @@ class FontManagerSettingTab extends PluginSettingTab {
         input.multiple = true;
         input.accept = '.ttf,.otf,.woff,.woff2';
 
-        input.addEventListener('change', async (e) => {
+        this._addEventListener(input, 'change', async (e) => {
             const files = e.target.files;
             if (!files || files.length === 0) return;
 
-            console.log(`[Local Font Loader] 开始导入 ${files.length} 个字体文件...`);
+            this._log(`[Local Font Loader] Starting to import ${files.length} font files...`);
             let imported = 0;
 
             try {
@@ -2271,30 +2470,35 @@ class FontManagerSettingTab extends PluginSettingTab {
                     const targetDir = `${this.plugin.settings.fontSourceDir}/Imported`;
                     const targetPath = `${targetDir}/${file.name}`;
 
-                    // 确保目录存在
+                    // Ensure directory exists
                     try {
                         await this.plugin.app.vault.adapter.mkdir(targetDir);
                     } catch (err) {
-                        // 目录可能已存在
+                        // Directory might already exist
                     }
 
                     await this.plugin.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
                     imported++;
                 }
 
-                new Notice(`✓ 已导入 ${imported} 个字体文件`);
-                console.log(`[Local Font Loader] 已导入 ${imported} 个字体文件`);
+                new Notice(t('importedFonts', { count: imported }));
+                this._log(`[Local Font Loader] Imported ${imported} font files`);
 
                 // Rescan
                 await this.plugin.scanFonts();
                 this.display();
             } catch (error) {
-                console.error('[Local Font Loader] 导入失败:', error);
-                new Notice(`⚠️ 导入失败: ${error.message}`);
+                this._logError('[Local Font Loader] 导入失败:', error);
+                new Notice(t('importFailedError', { error: error.message }));
             }
         });
 
         input.click();
+    }
+
+    hide() {
+        this._cleanupEventListeners();
+        super.hide();
     }
 }
 

@@ -62,6 +62,13 @@
    - Click "Apply Fonts"
    - Your fonts are now active!
 
+### ⚠️ Performance Considerations
+
+> [!warning] Font Rendering Performance
+> **Avoid mixing too many languages in a single line of text.** Dense multilingual mixing (e.g., Chinese + Japanese + Korean + Arabic + Russian in one line) can trigger font fallback mechanisms that may freeze the rendering engine.
+> 
+> **Recommendation**: Keep different language content in separate paragraphs or sections for optimal performance.
+
 ### Configuration
 
 | Setting | Description |
@@ -152,6 +159,13 @@ If you encounter any issues or have feature requests, please [open an issue on G
    - 为每个类别选择字体（界面、正文、代码、数学）
    - 点击"应用字体"
    - 字体现已生效！
+
+### ⚠️ 性能注意事项
+
+> [!warning] 字体渲染性能
+> **避免在单行内混合过多语言文字。** 密集的多语言混排（例如在同一行内混合中文+日文+韩文+阿拉伯文+俄文）可能触发字体回退机制，导致渲染引擎卡死。
+> 
+> **建议**：将不同语言的内容分段显示，以获得最佳性能。
 
 ### 配置选项
 
@@ -244,6 +258,13 @@ If you encounter any issues or have feature requests, please [open an issue on G
    - 「フォントを適用」をクリック
    - フォントが有効になりました！
 
+### ⚠️ パフォーマンスに関する注意事項
+
+> [!warning] フォントレンダリングのパフォーマンス
+> **1行に複数の言語を混在させすぎないでください。** 密度の高い多言語混在（例：1行に中国語+日本語+韓国語+アラビア語+ロシア語）は、フォントフォールバックメカニズムをトリガーし、レンダリングエンジンがフリーズする可能性があります。
+> 
+> **推奨**：異なる言語のコンテンツは別々の段落またはセクションに分けて、最適なパフォーマンスを確保してください。
+
 ### 設定
 
 | 設定項目 | 説明 |
@@ -335,6 +356,13 @@ If you encounter any issues or have feature requests, please [open an issue on G
    - "폰트 적용" 클릭
    - 이제 폰트가 활성화되었습니다!
 
+### ⚠️ 성능 고려사항
+
+> [!warning] 폰트 렌더링 성능
+> **한 줄에 너무 많은 언어를 혼합하지 마세요.** 밀집된 다국어 혼합(예: 한 줄에 중국어+일본어+한국어+아랍어+러시아어)은 폰트 폴백 메커니즘을 트리거하여 렌더링 엔진이 정지될 수 있습니다.
+> 
+> **권장사항**: 최적의 성능을 위해 서로 다른 언어의 콘텐츠를 별도의 단락이나 섹션으로 분리하세요.
+
 ### 구성
 
 | 설정 | 설명 |
@@ -425,6 +453,13 @@ If you encounter any issues or have feature requests, please [open an issue on G
    - Selecciona fuentes para cada categoría (UI, Texto, Código, Matemáticas)
    - Haz clic en "Aplicar Fuentes"
    - ¡Tus fuentes ya están activas!
+
+### ⚠️ Consideraciones de Rendimiento
+
+> [!warning] Rendimiento de Renderizado de Fuentes
+> **Evita mezclar demasiados idiomas en una sola línea de texto.** La mezcla densa de múltiples idiomas (p. ej., chino + japonés + coreano + árabe + ruso en una línea) puede activar mecanismos de respaldo de fuentes que pueden congelar el motor de renderizado.
+> 
+> **Recomendación**: Mantén el contenido de diferentes idiomas en párrafos o secciones separadas para un rendimiento óptimo.
 
 ### Configuración
 

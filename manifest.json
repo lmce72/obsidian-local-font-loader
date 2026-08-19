@@ -1,0 +1,10 @@
+{
+	"id": "local-font-loader",
+	"name": "Local Font Loader",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Load local fonts (TTF/OTF/WOFF/WOFF2) with Base64 caching. Manage UI, text, code, and math fonts separately.",
+	"author": "CoreVortex",
+	"authorUrl": "https://github.com/corevortex",
+	"isDesktopOnly": false
+}

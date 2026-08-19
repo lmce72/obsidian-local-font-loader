@@ -50,6 +50,12 @@ const TRANSLATIONS = {
         textFontName: 'Body Text Font',
         textFontDesc: 'Editor body content',
         textFontWarning: '⚠️ Recommended: Choose a font family with Regular/Italic/Bold/BoldItalic variants for proper italic and bold rendering',
+        headingFontName: 'Heading Font',
+        headingFontDesc: 'Font for markdown headings (h1-h6) in content',
+        headingUseTextFont: 'Use Text Font',
+        headingUseUIFont: 'Use UI Font',
+        headingApplyToFileTitle: 'Apply to File Name Title',
+        headingApplyToFileTitleDesc: 'Also apply heading font to the inline file title displayed at the top of notes',
         monospaceFontName: 'Code Font',
         monospaceFontDesc: 'Code blocks and inline code',
         monospaceFontWarning: '⚠️ Required: Must be a monospace font. Regular Latin fonts will cause code alignment issues',
@@ -112,6 +118,9 @@ const TRANSLATIONS = {
         mathFontRequirementBody: 'LaTeX math fonts must be dedicated math fonts (e.g., Latin Modern Math, XITS Math). Regular fonts cannot render math symbols correctly.',
         missingVariantTitle: 'Missing Font Variants',
         missingVariantBody: '{latinFont} is missing the following variants: {missingList}. Missing styles will use browser synthesis (lower quality).',
+
+        // Font Missing Warning
+        fontMissingWarning: 'Font file is missing, fallback to system default',
 
         // UI Text
         variantsSuffix: 'variants',
@@ -192,6 +201,12 @@ const TRANSLATIONS = {
         textFontName: '正文字体',
         textFontDesc: '编辑器正文内容',
         textFontWarning: '⚠️ 建议选择包含 Regular/Italic/Bold/BoldItalic 四种变体的字体家族，以确保斜体和粗体正常显示',
+        headingFontName: '标题字体',
+        headingFontDesc: '用于正文内的 Markdown 标题（h1-h6）',
+        headingUseTextFont: '使用正文字体',
+        headingUseUIFont: '使用UI字体',
+        headingApplyToFileTitle: '应用到文件名标题',
+        headingApplyToFileTitleDesc: '同时将标题字体应用到笔记顶部显示的文件名标题',
         monospaceFontName: '代码字体',
         monospaceFontDesc: '代码块和行内代码',
         monospaceFontWarning: '⚠️ 必须选择等宽字体（Monospace），普通拉丁字体会导致代码对齐错乱',
@@ -233,6 +248,9 @@ const TRANSLATIONS = {
         applyNow: '立即应用',
         applyNowDesc: '应用当前字体配置',
         applyFonts: '应用字体',
+
+        // 字体缺失警告
+        fontMissingWarning: '当前字体文件缺失，已回退至系统设置',
 
         // 字体变体警告
         variantWarningTitle: '字体变体警告',
@@ -334,6 +352,12 @@ const TRANSLATIONS = {
         textFontName: '本文フォント',
         textFontDesc: 'エディター本文コンテンツ',
         textFontWarning: '⚠️ 推奨：斜体と太字が正しく表示されるように、Regular/Italic/Bold/BoldItalic バリアントを含むフォントファミリーを選択してください',
+        headingFontName: '見出しフォント',
+        headingFontDesc: 'コンテンツ内の Markdown 見出し（h1-h6）用フォント',
+        headingUseTextFont: '本文フォントを使用',
+        headingUseUIFont: 'UI フォントを使用',
+        headingApplyToFileTitle: 'ファイル名タイトルに適用',
+        headingApplyToFileTitleDesc: 'ノート上部に表示されるインラインファイルタイトルにも見出しフォントを適用',
         monospaceFontName: 'コードフォント',
         monospaceFontDesc: 'コードブロックとインラインコード',
         monospaceFontWarning: '⚠️ 必須：等幅フォントである必要があります。通常のラテン文字フォントはコードの配置を崩します',
@@ -375,6 +399,9 @@ const TRANSLATIONS = {
         applyNow: '今すぐ適用',
         applyNowDesc: '現在のフォント設定を適用',
         applyFonts: 'フォントを適用',
+
+        // フォント欠落警告
+        fontMissingWarning: 'フォントファイルが見つかりません。システムデフォルトにフォールバックしました',
 
         // フォントバリアント警告
         variantWarningTitle: 'フォントバリアント警告',
@@ -436,6 +463,12 @@ const TRANSLATIONS = {
         textFontName: '본문 폰트',
         textFontDesc: '편집기 본문 콘텐츠',
         textFontWarning: '⚠️ 권장：기울임꼴과 굵은 글씨가 올바르게 표시되도록 Regular/Italic/Bold/BoldItalic 변형이 포함된 폰트 패밀리를 선택하세요',
+        headingFontName: '제목 폰트',
+        headingFontDesc: '콘텐츠 내 마크다운 제목（h1-h6）용 폰트',
+        headingUseTextFont: '본문 폰트 사용',
+        headingUseUIFont: 'UI 폰트 사용',
+        headingApplyToFileTitle: '파일명 제목에 적용',
+        headingApplyToFileTitleDesc: '노트 상단에 표시되는 인라인 파일 제목에도 제목 폰트 적용',
         monospaceFontName: '코드 폰트',
         monospaceFontDesc: '코드 블록 및 인라인 코드',
         monospaceFontWarning: '⚠️ 필수：고정폭 폰트여야 합니다. 일반 라틴 폰트는 코드 정렬을 깨뜨립니다',
@@ -477,6 +510,9 @@ const TRANSLATIONS = {
         applyNow: '지금 적용',
         applyNowDesc: '현재 폰트 설정 적용',
         applyFonts: '폰트 적용',
+
+        // 폰트 누락 경고
+        fontMissingWarning: '폰트 파일이 없습니다. 시스템 기본값으로 대체되었습니다',
 
         // 폰트 변형 경고
         variantWarningTitle: '폰트 변형 경고',
@@ -579,6 +615,9 @@ const TRANSLATIONS = {
         applyNow: 'Aplicar Ahora',
         applyNowDesc: 'Aplicar la configuración de fuentes actual',
         applyFonts: 'Aplicar Fuentes',
+
+        // Advertencia de Fuente Faltante
+        fontMissingWarning: 'Archivo de fuente faltante, usando predeterminado del sistema',
 
         // Advertencias de variantes de fuente
         variantWarningTitle: 'Advertencia de Variantes de Fuente',
@@ -846,10 +885,12 @@ const DEFAULT_SETTINGS = {
     fonts: {
         ui: '',
         text: '',
+        heading: '',          // Heading font (h1-h6)
         monospace: '',
         math: '',
         latin: ''  // Standard Latin font (family name)
     },
+    headingApplyToFileTitle: false,  // Apply heading font to file name title (.inline-title)
     latinFontEnabled: false,  // Enable Latin font separation
     latinFontScope: {         // Latin font scope
         letters: true,        // Letters (A-Z, a-z)
@@ -1215,10 +1256,25 @@ class LocalFontLoaderPlugin extends Plugin {
             this._logError(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
+            await this.saveSettings();
         } finally {
             // 🟢 Bug #5 修复：释放锁
             this._isScanning = false;
         }
+    }
+
+    /**
+     * 检查字体是否在 vault 中存在
+     * @param {string} fontName - 字体名称或家族名
+     * @returns {boolean} 字体是否存在
+     */
+    isFontAvailable(fontName) {
+        if (!fontName || fontName === 'use-text-font' || fontName === 'use-ui-font') {
+            return true; // 特殊选项始终有效
+        }
+        return this.settings.availableFonts.some(f =>
+            (f.familyName || f.name) === fontName
+        );
     }
 
     // Apply fonts配置（仅从缓存加载）
@@ -1229,9 +1285,17 @@ class LocalFontLoaderPlugin extends Plugin {
 
             const usedFonts = new Set();
             const usedFamilies = new Set(); // Font family names (to support multiple variants)
+            const missingFonts = []; // 记录缺失的字体
 
             for (const fontName of Object.values(this.settings.fonts)) {
                 if (fontName) {
+                    // 🟢 字体存在性检查
+                    if (!this.isFontAvailable(fontName)) {
+                        missingFonts.push(fontName);
+                        this._log(`[Local Font Loader] ⚠️ Font "${fontName}" not found in vault, will fallback to system default`);
+                        continue; // 跳过缺失的字体
+                    }
+
                     usedFonts.add(fontName);
                     // Find corresponding font family
                     const fonts = this.settings.availableFonts.filter(f =>
@@ -1242,6 +1306,11 @@ class LocalFontLoaderPlugin extends Plugin {
                         usedFamilies.add(familyName);
                     }
                 }
+            }
+
+            // 🟢 显示缺失字体的 Notice
+            if (missingFonts.length > 0) {
+                new Notice(t('fontMissingWarning'), 5000);
             }
 
             if (usedFonts.size === 0) {
@@ -1388,6 +1457,52 @@ class LocalFontLoaderPlugin extends Plugin {
             if (this.settings.fonts.monospace) {
                 varsCss += `/* Code block font - via CSS variables only */\n`;
                 varsCss += `/* Already set via :root variables above */\n\n`;
+            }
+
+            // Heading font
+            if (this.settings.fonts.heading) {
+                varsCss += `/* Heading Font */\n`;
+
+                // 解析 heading 字体设置
+                let headingFontFamily = '';
+                const headingValue = this.settings.fonts.heading;
+
+                if (headingValue === 'use-text-font') {
+                    // 使用正文字体
+                    if (this.settings.fonts.text) {
+                        headingFontFamily = this.settings.fonts.text;
+                        if (this.settings.latinFontEnabled && this.settings.fonts.latin) {
+                            headingFontFamily = `"${this.settings.fonts.latin}", "${this.settings.fonts.text}"`;
+                        } else {
+                            headingFontFamily = `"${headingFontFamily}"`;
+                        }
+                    }
+                } else if (headingValue === 'use-ui-font') {
+                    // 使用 UI 字体
+                    if (this.settings.fonts.ui) {
+                        headingFontFamily = `"${this.settings.fonts.ui}"`;
+                    }
+                } else if (headingValue) {
+                    // 使用自定义字体
+                    headingFontFamily = `"${headingValue}"`;
+                }
+
+                if (headingFontFamily) {
+                    // 应用到正文标题 h1-h6（阅读模式和编辑模式）
+                    varsCss += `.markdown-preview-view h1, .markdown-preview-view h2,\n`;
+                    varsCss += `.markdown-preview-view h3, .markdown-preview-view h4,\n`;
+                    varsCss += `.markdown-preview-view h5, .markdown-preview-view h6,\n`;
+                    varsCss += `.cm-header-1, .cm-header-2, .cm-header-3,\n`;
+                    varsCss += `.cm-header-4, .cm-header-5, .cm-header-6`;
+
+                    // 如果启用了文件名标题选项，则添加 .inline-title
+                    if (this.settings.headingApplyToFileTitle) {
+                        varsCss += `,\n.inline-title`;
+                    }
+
+                    varsCss += ` {\n  font-family: ${headingFontFamily} !important;\n}\n\n`;
+                    this._log(`[Local Font Loader] Apply heading font: ${headingFontFamily}${this.settings.headingApplyToFileTitle ? ' (including file title)' : ''}`);
+                }
             }
 
             // Math fonts (map MathJax Unicode classes to correct characters)
@@ -1765,6 +1880,13 @@ class FontManagerSettingTab extends PluginSettingTab {
                 supportsLatin: true
             },
             {
+                key: 'heading',
+                name: t('headingFontName'),
+                desc: t('headingFontDesc'),
+                supportsFileTitle: true,
+                specialOptions: ['text', 'ui']
+            },
+            {
                 key: 'monospace',
                 name: t('monospaceFontName'),
                 desc: t('monospaceFontDesc')
@@ -1777,11 +1899,22 @@ class FontManagerSettingTab extends PluginSettingTab {
         ];
 
         for (const fontType of fontTypes) {
-            new Setting(containerEl)
+            const settingItem = new Setting(containerEl)
                 .setName(fontType.name)
                 .setDesc(fontType.desc)
                 .addDropdown(dropdown => {
                     dropdown.addOption('', t('systemDefault'));
+
+                    // 如果有 specialOptions，添加特殊选项
+                    if (fontType.specialOptions) {
+                        fontType.specialOptions.forEach(optKey => {
+                            if (optKey === 'text') {
+                                dropdown.addOption('use-text-font', t('headingUseTextFont'));
+                            } else if (optKey === 'ui') {
+                                dropdown.addOption('use-ui-font', t('headingUseUIFont'));
+                            }
+                        });
+                    }
 
                     // 使用字体家族列表（去重）
                     const uniqueFamilies = new Set();
@@ -1811,9 +1944,25 @@ class FontManagerSettingTab extends PluginSettingTab {
                         await this.plugin.applyFonts();
 
                         // 刷新界面以显示变体警告
-                        this.display();
+                        // 使用 requestAnimationFrame 确保 DOM 操作在下一帧执行，避免重复渲染
+                        requestAnimationFrame(() => {
+                            this.display();
+                        });
                     });
                 });
+
+            // 🟢 字体缺失警告：在下拉框后显示警告图标
+            const selectedFont = this.plugin.settings.fonts[fontType.key];
+            if (selectedFont && !this.plugin.isFontAvailable(selectedFont)) {
+                const warningIcon = settingItem.controlEl.createSpan({
+                    cls: 'setting-item-warning',
+                    attr: {
+                        'aria-label': t('fontMissingWarning'),
+                        'style': 'margin-left: 8px; color: var(--text-error); cursor: help;'
+                    }
+                });
+                setIcon(warningIcon, 'alert-triangle');
+            }
 
             // 在设置项下方添加变体警告（使用 callout 语法）
             if (this.plugin.settings.fonts[fontType.key]) {
@@ -1865,6 +2014,14 @@ class FontManagerSettingTab extends PluginSettingTab {
             // 如果是Body Text Font，添加Latin字体分离选项
             if (fontType.supportsLatin) {
                 this.addLatinFontOptions(containerEl);
+            }
+
+            // 如果是Heading Font，添加文件名标题选项（仅当未选择use-text-font时显示）
+            if (fontType.supportsFileTitle) {
+                const currentValue = this.plugin.settings.fonts[fontType.key];
+                if (currentValue && currentValue !== 'use-text-font') {
+                    this.addFileTitleOption(containerEl);
+                }
             }
         }
 
@@ -2141,6 +2298,28 @@ class FontManagerSettingTab extends PluginSettingTab {
                         }));
             });
         }
+    }
+
+    // 添加文件名标题选项
+    addFileTitleOption(containerEl) {
+        // 检查当前标题字体设置，如果是 'use-text-font' 则不显示此选项
+        const headingFontValue = this.plugin.settings.fonts.heading;
+
+        if (headingFontValue === 'use-text-font') {
+            // 使用正文字体时，不显示此选项
+            return;
+        }
+
+        new Setting(containerEl)
+            .setName(t('headingApplyToFileTitle'))
+            .setDesc(t('headingApplyToFileTitleDesc'))
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.headingApplyToFileTitle || false)
+                .onChange(async (value) => {
+                    this.plugin.settings.headingApplyToFileTitle = value;
+                    await this.plugin.saveSettings();
+                    await this.plugin.applyFonts();
+                }));
     }
 
     // 渲染字体家族（可折叠）

@@ -31,9 +31,11 @@
    ```
 3. Reload Obsidian or enable the plugin in Settings → Community plugins
 
-#### From Obsidian Community Plugins (Coming Soon)
+#### From Obsidian Community Plugins
 
-Search for "Local Font Loader" in Obsidian's Community Plugins browser.
+1. Open Obsidian Settings → Community plugins → Browse
+2. Search for "Local Font Loader"
+3. Click Install, then Enable
 
 ### Usage
 
@@ -120,9 +122,11 @@ If you encounter any issues or have feature requests, please [open an issue on G
    ```
 3. 重新加载 Obsidian 或在 设置 → 第三方插件 中启用插件
 
-#### 从 Obsidian 社区插件安装（即将推出）
+#### 从 Obsidian 社区插件安装
 
-在 Obsidian 社区插件浏览器中搜索"Local Font Loader"。
+1. 打开 Obsidian 设置 → 社区插件 → 浏览
+2. 搜索 "Local Font Loader"
+3. 点击安装，然后启用
 
 ### 使用方法
 
@@ -209,9 +213,11 @@ If you encounter any issues or have feature requests, please [open an issue on G
    ```
 3. Obsidian を再読み込みするか、設定 → コミュニティプラグイン でプラグインを有効化
 
-#### Obsidian コミュニティプラグインから（近日公開）
+#### Obsidian コミュニティプラグインから
 
-Obsidian のコミュニティプラグインブラウザで「Local Font Loader」を検索。
+1. Obsidian 設定 → コミュニティプラグイン → 閲覧 を開く
+2. 「Local Font Loader」を検索
+3. インストールをクリックし、有効化
 
 ### 使用方法
 
@@ -298,9 +304,11 @@ Obsidian のコミュニティプラグインブラウザで「Local Font Loader
    ```
 3. Obsidian을 다시 로드하거나 설정 → 커뮤니티 플러그인에서 플러그인 활성화
 
-#### Obsidian 커뮤니티 플러그인에서 (곧 출시)
+#### Obsidian 커뮤니티 플러그인에서
 
-Obsidian 커뮤니티 플러그인 브라우저에서 "Local Font Loader" 검색.
+1. Obsidian 설정 → 커뮤니티 플러그인 → 탐색 열기
+2. "Local Font Loader" 검색
+3. 설치를 클릭한 후 활성화
 
 ### 사용법
 
@@ -387,9 +395,11 @@ Obsidian 커뮤니티 플러그인 브라우저에서 "Local Font Loader" 검색
    ```
 3. Recarga Obsidian o habilita el complemento en Configuración → Complementos de la comunidad
 
-#### Desde los Complementos de la Comunidad de Obsidian (Próximamente)
+#### Desde los Complementos de la Comunidad de Obsidian
 
-Busca "Local Font Loader" en el navegador de complementos de la comunidad de Obsidian.
+1. Abre Configuración de Obsidian → Complementos de la comunidad → Explorar
+2. Busca "Local Font Loader"
+3. Haz clic en Instalar, luego Habilitar
 
 ### Uso
 

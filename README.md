@@ -24,7 +24,7 @@
 
 #### Manual Installation
 
-1. Download the latest release from [Releases](../../releases)
+1. Download the latest release from [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases)
 2. Extract `main.js`, `manifest.json`, and `styles.css` to your vault's plugins folder:
    ```
    <vault>/.obsidian/plugins/obsidian-local-font-loader/
@@ -89,7 +89,7 @@ This plugin was developed with the assistance of **Claude** (Anthropic), an AI a
 
 ### Support
 
-If you encounter any issues or have feature requests, please [open an issue](../../issues).
+If you encounter any issues or have feature requests, please [open an issue on GitHub](https://github.com/lmce72/obsidian-local-font-loader/issues).
 
 ---
 
@@ -113,7 +113,7 @@ If you encounter any issues or have feature requests, please [open an issue](../
 
 #### 手动安装
 
-1. 从 [Releases](../../releases) 下载最新版本
+1. 从 [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases) 下载最新版本
 2. 将 `main.js`、`manifest.json` 和 `styles.css` 解压到仓库的插件文件夹：
    ```
    <仓库>/.obsidian/plugins/obsidian-local-font-loader/
@@ -178,7 +178,7 @@ If you encounter any issues or have feature requests, please [open an issue](../
 
 ### 支持
 
-如遇到问题或有功能需求，请[提交 issue](../../issues)。
+如遇到问题或有功能需求，请[在 GitHub 提交 issue](https://github.com/lmce72/obsidian-local-font-loader/issues)。
 
 ---
 
@@ -202,7 +202,7 @@ If you encounter any issues or have feature requests, please [open an issue](../
 
 #### 手動インストール
 
-1. [Releases](../../releases) から最新版をダウンロード
+1. [Releases](https://github.com/lmce72/obsidian-local-font-loader/releases) から最新版をダウンロード
 2. `main.js`、`manifest.json`、`styles.css` を Vault のプラグインフォルダに展開：
    ```
    <vault>/.obsidian/plugins/obsidian-local-font-loader/
@@ -267,7 +267,7 @@ Obsidian のコミュニティプラグインブラウザで「Local Font Loader
 
 ### サポート
 
-問題が発生した場合や機能リクエストがある場合は、[issue を開いてください](../../issues)。
+問題が発生した場合や機能リクエストがある場合は、[GitHub で issue を開いてください](https://github.com/lmce72/obsidian-local-font-loader/issues)。
 
 ---
 
@@ -291,7 +291,7 @@ Obsidian のコミュニティプラグインブラウザで「Local Font Loader
 
 #### 수동 설치
 
-1. [Releases](../../releases)에서 최신 버전 다운로드
+1. [Releases](https://github.com/lmce72/obsidian-local-font-loader/releases)에서 최신 버전 다운로드
 2. `main.js`, `manifest.json`, `styles.css`를 보관함의 플러그인 폴더에 압축 해제:
    ```
    <vault>/.obsidian/plugins/obsidian-local-font-loader/
@@ -356,7 +356,7 @@ Obsidian 커뮤니티 플러그인 브라우저에서 "Local Font Loader" 검색
 
 ### 지원
 
-문제가 발생하거나 기능 요청이 있는 경우 [issue를 열어주세요](../../issues).
+문제가 발생하거나 기능 요청이 있는 경우 [GitHub에서 issue를 열어주세요](https://github.com/lmce72/obsidian-local-font-loader/issues).
 
 ---
 
@@ -380,7 +380,7 @@ Obsidian 커뮤니티 플러그인 브라우저에서 "Local Font Loader" 검색
 
 #### Instalación Manual
 
-1. Descarga la última versión desde [Releases](../../releases)
+1. Descarga la última versión desde [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases)
 2. Extrae `main.js`, `manifest.json` y `styles.css` a la carpeta de complementos de tu bóveda:
    ```
    <bóveda>/.obsidian/plugins/obsidian-local-font-loader/
@@ -445,4 +445,4 @@ Este plugin fue desarrollado con la asistencia de **Claude** (Anthropic), un asi
 
 ### Soporte
 
-Si encuentras algún problema o tienes solicitudes de funciones, por favor [abre un issue](../../issues).
+Si encuentras algún problema o tienes solicitudes de funciones, por favor [abre un issue en GitHub](https://github.com/lmce72/obsidian-local-font-loader/issues).

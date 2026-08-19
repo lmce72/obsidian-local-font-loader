@@ -894,6 +894,15 @@ class LocalFontLoaderPlugin extends Plugin {
     // 扫描字体目录（使用内置元数据解析）
     // 扫描字体目录（基于文件夹 + .fontfamily.json）
     async scanFonts() {
+        const startTime = performance.now();
+
+        // 🟢 Bug #5 修复：添加并发锁
+        if (this._isScanning) {
+            console.warn('[Local Font Loader] 扫描已在进行中，忽略重复调用');
+            return;
+        }
+        this._isScanning = true;
+
         try {
             console.log('[Local Font Loader] Scanning font family folders...');
 
@@ -906,11 +915,16 @@ class LocalFontLoaderPlugin extends Plugin {
 
             console.log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
 
-            // Check Base64 cache
+            // 🟢 Bug #4 修复：统一路径格式，使用文件名匹配
             let b64Files = [];
             try {
                 const b64List = await this.app.vault.adapter.list(this.settings.b64OutputDir);
-                b64Files = b64List.files.filter(f => f.endsWith('.css'));
+                b64Files = b64List.files.map(f => {
+                    // 提取文件名（不含路径和扩展名）用于匹配
+                    const basename = f.split('/').pop().replace('.css', '');
+                    return basename;
+                });
+                console.log(`[Local Font Loader] Found ${b64Files.length} cached fonts`);
             } catch (err) {
                 console.warn('[Local Font Loader] B64 cache directory does not exist, will be created during conversion');
             }
@@ -919,10 +933,13 @@ class LocalFontLoaderPlugin extends Plugin {
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
 
+            // 🟢 Bug #6 修复：使用 Map 去重
+            const fontMap = new Map(); // key: font.name, value: fontInfo
+
             // 扫描每font family folders
             for (const fontDir of fontDirs) {
                 try {
-                    const familyName = fontDir.split('/').pop();
+                    const folderName = fontDir.split('/').pop();
                     const metadataPath = `${fontDir}/.fontfamily.json`;
 
                     // Try to read metadata file
@@ -930,13 +947,14 @@ class LocalFontLoaderPlugin extends Plugin {
                     try {
                         const metadataContent = await this.app.vault.adapter.read(metadataPath);
                         metadata = JSON.parse(metadataContent);
-                        console.log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || familyName}`);
+                        console.log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
                     } catch (err) {
-                        console.warn(`[Local Font Loader] 未Found元数据文件: ${metadataPath}，will auto-scan`);
+                        console.warn(`[Local Font Loader] 未找到元数据文件: ${metadataPath}，will auto-scan`);
                     }
 
+                    // 🟢 Bug #3 修复：优先使用元数据的 familyName
                     const family = {
-                        familyName: metadata?.familyName || familyName,
+                        familyName: metadata?.familyName || folderName,
                         folderPath: fontDir,
                         hasRegular: false,
                         hasItalic: false,
@@ -957,21 +975,25 @@ class LocalFontLoaderPlugin extends Plugin {
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
                                 const ext = basename.split('.').pop().toLowerCase();
 
-                                const b64Path = `${this.settings.b64OutputDir}/${name}.css`;
-                                const hasB64 = b64Files.includes(b64Path);
+                                // 🟢 Bug #4 修复：使用文件名匹配
+                                const hasB64 = b64Files.includes(name);
+                                const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
 
                                 const fontInfo = {
                                     name,
                                     path: fontPath,
                                     basename,
                                     ext,
-                                    familyName: family.familyName,
+                                    familyName: family.familyName, // 使用元数据的正确家族名
                                     variantType,
                                     hasB64,
-                                    b64Path: hasB64 ? b64Path : null
+                                    b64Path
                                 };
 
-                                this.settings.availableFonts.push(fontInfo);
+                                // 🟢 Bug #6 修复：去重
+                                if (!fontMap.has(name)) {
+                                    fontMap.set(name, fontInfo);
+                                }
 
                                 // Mark variants owned by family
                                 if (variantType === 'regular') family.hasRegular = true;
@@ -985,43 +1007,66 @@ class LocalFontLoaderPlugin extends Plugin {
                             }
                         }
                     } else {
-                        // No metadata, auto-scan font files in folder
+                        // 🟢 Bug #2 修复：并行读取字体文件元数据
                         const files = await this.app.vault.adapter.list(fontDir);
                         const fontFiles = files.files.filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
 
-                        for (const fontPath of fontFiles) {
-                            const basename = fontPath.split('/').pop();
-                            const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
-                            const ext = basename.split('.').pop().toLowerCase();
+                        console.log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
 
-                            // Read font metadata to determine variant type
-                            const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
-                            const fontMetadata = parseFontMetadata(arrayBuffer);
-                            const variantType = fontMetadata?.variantType || 'regular';
+                        // 并行读取所有字体文件的元数据
+                        const scanPromises = fontFiles.map(async (fontPath) => {
+                            try {
+                                const basename = fontPath.split('/').pop();
+                                const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
+                                const ext = basename.split('.').pop().toLowerCase();
 
-                            const b64Path = `${this.settings.b64OutputDir}/${name}.css`;
-                            const hasB64 = b64Files.includes(b64Path);
+                                // Read font metadata to determine variant type
+                                const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
+                                const fontMetadata = parseFontMetadata(arrayBuffer);
 
-                            const fontInfo = {
-                                name,
-                                path: fontPath,
-                                basename,
-                                ext,
-                                familyName: family.familyName,
-                                variantType,
-                                hasB64,
-                                b64Path: hasB64 ? b64Path : null
-                            };
+                                // 🟢 Bug #3 修复：使用字体内部的 familyName（如果存在）
+                                const realFamilyName = fontMetadata?.familyName || family.familyName;
+                                const variantType = fontMetadata?.variantType || 'regular';
 
-                            this.settings.availableFonts.push(fontInfo);
+                                // 🟢 Bug #4 修复：使用文件名匹配
+                                const hasB64 = b64Files.includes(name);
+                                const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
 
-                            // Mark variants owned by family
-                            if (variantType === 'regular') family.hasRegular = true;
-                            else if (variantType === 'italic') family.hasItalic = true;
-                            else if (variantType === 'bold') family.hasBold = true;
-                            else if (variantType === 'bolditalic') family.hasBoldItalic = true;
+                                const fontInfo = {
+                                    name,
+                                    path: fontPath,
+                                    basename,
+                                    ext,
+                                    familyName: realFamilyName, // 使用字体内部的正确家族名
+                                    variantType,
+                                    hasB64,
+                                    b64Path
+                                };
 
-                            console.log(`[Local Font Loader] 自动识别: ${family.familyName} (${variantType})`);
+                                console.log(`[Local Font Loader] 自动识别: ${realFamilyName} (${variantType})`);
+                                return { success: true, fontInfo, variantType };
+                            } catch (error) {
+                                console.error(`[Local Font Loader] Failed to scan font: ${fontPath}`, error);
+                                return { success: false, fontPath, error };
+                            }
+                        });
+
+                        const scanResults = await Promise.all(scanPromises);
+
+                        // 收集成功扫描的字体
+                        for (const result of scanResults) {
+                            if (result.success) {
+                                // 🟢 Bug #6 修复：去重
+                                if (!fontMap.has(result.fontInfo.name)) {
+                                    fontMap.set(result.fontInfo.name, result.fontInfo);
+                                }
+
+                                // Mark variants owned by family
+                                if (result.variantType === 'regular') family.hasRegular = true;
+                                else if (result.variantType === 'italic') family.hasItalic = true;
+                                else if (result.variantType === 'bold') family.hasBold = true;
+                                else if (result.variantType === 'bolditalic') family.hasBoldItalic = true;
+                            }
                         }
                     }
 
@@ -1035,19 +1080,28 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
             }
 
+            // 🟢 Bug #6 修复：从 Map 转换为数组
+            this.settings.availableFonts = Array.from(fontMap.values());
+
             await this.saveSettings();
 
-            console.log(`[Local Font Loader] Scan complete：${this.settings.fontFamilies.length} font families，${this.settings.availableFonts.length} variants`);
+            const endTime = performance.now();
+            console.log(`[Local Font Loader] ✓ 扫描完成：${this.settings.fontFamilies.length} font families，${this.settings.availableFonts.length} variants，耗时 ${(endTime - startTime).toFixed(2)}ms`);
 
         } catch (error) {
-            console.error('[Local Font Loader] Font scan failed:', error);
+            const endTime = performance.now();
+            console.error(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
+        } finally {
+            // 🟢 Bug #5 修复：释放锁
+            this._isScanning = false;
         }
     }
 
     // Apply fonts配置（仅从缓存加载）
     async applyFonts() {
+        const startTime = performance.now();
         try {
             console.log('[Local Font Loader] 开始Apply fonts...');
 
@@ -1096,27 +1150,48 @@ class LocalFontLoaderPlugin extends Plugin {
                     );
 
                     if (familyFonts.length === 0) {
-                        console.warn(`[Local Font Loader] 未Found字体家族: ${familyOrFontName}`);
-                        failedFonts.push(`${familyOrFontName} (未Found)`);
+                        console.warn(`[Local Font Loader] 未找到字体家族: ${familyOrFontName}`);
+                        failedFonts.push(`${familyOrFontName} (未找到)`);
                         continue;
                     }
 
                     console.log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
 
-                    // Load all variants of this family
-                    for (const font of familyFonts) {
-                        if (font.hasB64 && font.b64Path) {
-                            const b64Css = await this.app.vault.adapter.read(font.b64Path);
-                            console.log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB)`);
-                            fontFaceCss += b64Css + '\n';
+                    // 🟢 Bug #1 修复：并行读取所有变体（而非顺序 await）
+                    const readPromises = familyFonts
+                        .filter(font => font.hasB64 && font.b64Path)
+                        .map(async (font) => {
+                            try {
+                                const b64Css = await this.app.vault.adapter.read(font.b64Path);
+                                console.log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB)`);
+                                return { success: true, css: b64Css, font };
+                            } catch (error) {
+                                console.error(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
+                                return { success: false, font, error };
+                            }
+                        });
+
+                    const results = await Promise.all(readPromises);
+
+                    // 收集成功加载的 CSS
+                    for (const result of results) {
+                        if (result.success) {
+                            fontFaceCss += result.css + '\n';
                             loadedCount++;
                         } else {
-                            console.warn(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
-                            failedFonts.push(`${font.name} (not converted)`);
+                            failedFonts.push(`${result.font.name} (读取失败: ${result.error.message})`);
                         }
                     }
+
+                    // 处理未缓存的字体
+                    const uncachedFonts = familyFonts.filter(f => !f.hasB64 || !f.b64Path);
+                    for (const font of uncachedFonts) {
+                        console.warn(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
+                        failedFonts.push(`${font.name} (not converted)`);
+                    }
+
                 } catch (error) {
-                    console.error(`[Local Font Loader] ✗ 无法Loading font family ${familyOrFontName}:`, error);
+                    console.error(`[Local Font Loader] ✗ 无法加载字体家族 ${familyOrFontName}:`, error);
                     failedFonts.push(`${familyOrFontName} (读取失败: ${error.message})`);
                 }
             }
@@ -1232,10 +1307,16 @@ class LocalFontLoaderPlugin extends Plugin {
 
             this.applyCss(varsCss, 'local-font-loader-vars');
 
-            console.log('[Local Font Loader] ✓ Fonts applied');
+            const endTime = performance.now();
+            console.log(`[Local Font Loader] ✓ Fonts applied successfully. Loaded ${loadedCount} variants, failed ${failedFonts.length}. Time: ${(endTime - startTime).toFixed(2)}ms`);
+
+            if (failedFonts.length > 0) {
+                console.warn(`[Local Font Loader] Failed fonts:`, failedFonts);
+            }
 
         } catch (error) {
-            console.error('[Local Font Loader] Apply fonts失败:', error);
+            const endTime = performance.now();
+            console.error(`[Local Font Loader] Apply fonts失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
         }
     }
 

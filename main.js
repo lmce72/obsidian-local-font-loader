@@ -2620,16 +2620,24 @@ class FontImportModal extends Modal {
             }
         });
 
-        const icon = dropZone.createDiv({
+        const iconContainer = dropZone.createDiv({
+            cls: 'font-import-icon',
             attr: {
                 style: `
-                    font-size: 48px;
                     margin-bottom: 16px;
                     color: var(--interactive-accent);
                 `
-            },
-            text: '📁'
+            }
         });
+        setIcon(iconContainer, 'folder');
+        // 设置图标大小
+        const iconSvg = iconContainer.querySelector('svg');
+        if (iconSvg) {
+            iconSvg.setAttribute('width', '48');
+            iconSvg.setAttribute('height', '48');
+            iconSvg.style.display = 'block';
+            iconSvg.style.margin = '0 auto';
+        }
 
         const title = dropZone.createDiv({
             attr: {
@@ -3541,10 +3549,16 @@ class FontManagerSettingTab extends PluginSettingTab {
 
             // 如果是全局预设，显示提示
             if (activePreset.id === 'default-preset' && activePreset.targetDevices.length === 0) {
-                presetInfoContent.createEl('p', {
-                    text: `⚠️ ${t('usingGlobalPreset')}`,
-                    attr: { style: 'margin: 8px 0 0 0; color: var(--text-warning);' }
+                const warningContainer = presetInfoContent.createEl('p', {
+                    attr: {
+                        style: 'margin: 8px 0 0 0; color: var(--text-warning); display: flex; align-items: center; gap: 6px;'
+                    }
                 });
+                const warningIcon = warningContainer.createSpan({ cls: 'warning-icon' });
+                setIcon(warningIcon, 'alert-triangle');
+                warningIcon.style.display = 'inline-flex';
+                warningIcon.style.flexShrink = '0';
+                warningContainer.createSpan({ text: t('usingGlobalPreset') });
             }
         }
 

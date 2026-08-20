@@ -1122,7 +1122,15 @@ function t(key, localeOrParams = null, params = {}) {
 
     // Auto-detect locale from Obsidian if not provided
     if (!locale) {
-        locale = (window.localStorage.getItem('language') || 'en').split('-')[0];
+        const fullLocale = window.localStorage.getItem('language') || 'en';
+
+        // 优先匹配完整语言代码（如 zh-TW）
+        if (TRANSLATIONS[fullLocale]) {
+            locale = fullLocale;
+        } else {
+            // 回退到主语言代码（如 zh）
+            locale = fullLocale.split('-')[0];
+        }
     }
 
     // Fallback to English if locale not supported

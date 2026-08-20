@@ -90,7 +90,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ### Author
 
-**CoreVortex**
+**InVerse**
 
 ### Acknowledgments
 
@@ -188,7 +188,7 @@ If you encounter any issues or have feature requests, please [open an issue on G
 
 ### 作者
 
-**CoreVortex**
+**InVerse**
 
 ### 致谢
 
@@ -286,7 +286,7 @@ If you encounter any issues or have feature requests, please [open an issue on G
 
 ### 作者
 
-**CoreVortex**
+**InVerse**
 
 ### 謝辞
 
@@ -384,7 +384,7 @@ If you encounter any issues or have feature requests, please [open an issue on G
 
 ### 작성자
 
-**CoreVortex**
+**InVerse**
 
 ### 감사의 말
 
@@ -482,7 +482,7 @@ Este proyecto está licenciado bajo la [Licencia MIT](LICENSE).
 
 ### Autor
 
-**CoreVortex**
+**InVerse**
 
 ### Agradecimientos
 

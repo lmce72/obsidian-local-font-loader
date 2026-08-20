@@ -1,0 +1,61 @@
+/* ============================================================================
+   Local Font Loader Plugin - Custom Styles
+   ============================================================================ */
+
+/* 操作系统图标 - 使用 CSS 背景图 + SVG */
+.device-os-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Windows 图标 */
+.device-os-icon.os-windows {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v6.5l8-1V3L3 5z"/><path d="M3 12.5V19l8 1v-7.5l-8-1z"/><path d="M12 3v8l9-1.2V3L12 3z"/><path d="M12 11.5V20l9 1V12.8l-9-1.3z"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* macOS 图标 */
+.device-os-icon.os-macos {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c-1.1 0-2 .9-2 2 0 .7.4 1.3.9 1.7-.5.2-.9.7-.9 1.3v.5c-2.2.5-4 2.5-4 4.8v4.7c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2v-4.7c0-2.3-1.8-4.3-4-4.8v-.5c0-.6-.4-1.1-.9-1.3.5-.4.9-1 .9-1.7 0-1.1-.9-2-2-2z"/><circle cx="12" cy="19.5" r="1.5"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Linux 图标 */
+.device-os-icon.os-linux {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 13c-3.3 0-6 2.7-6 6v2h12v-2c0-3.3-2.7-6-6-6z"/><path d="M8 7c0-2.2 1.8-4 4-4s4 1.8 4 4"/><path d="M9 10h.01M15 10h.01"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Android 图标 */
+.device-os-icon.os-android {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h12v9c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V9z"/><path d="M7 9V7c0-2.8 2.2-5 5-5s5 2.2 5 5v2"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M4 10v4M20 10v4"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* iOS 图标 */
+.device-os-icon.os-ios {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* 默认图标（桌面） */
+.device-os-icon.os-default {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}

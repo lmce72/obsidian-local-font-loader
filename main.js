@@ -1576,12 +1576,17 @@ class LocalFontLoaderPlugin extends Plugin {
             data.presets = [defaultPreset];
         }
 
-        // 初始化设备 ID 和名称映射（如果不存在）
-        if (data && !data.deviceId) {
-            data.deviceId = '';
+        // 清理旧的 deviceId 和 deviceName 字段（已废弃）
+        if (data && data.deviceId !== undefined) {
+            delete data.deviceId;
         }
-        if (data && !data.deviceName) {
-            data.deviceName = '';
+        if (data && data.deviceName !== undefined) {
+            delete data.deviceName;
+        }
+
+        // 初始化新的设备管理字段
+        if (data && !data.deviceFingerprints) {
+            data.deviceFingerprints = {};
         }
         if (data && !data.deviceNameMap) {
             data.deviceNameMap = {};
@@ -3467,11 +3472,12 @@ class FontManagerSettingTab extends PluginSettingTab {
                 // 默认全局预设：显示所有未被分配的设备
                 const allDeviceIds = new Set();
 
-                // 收集所有已知设备
-                allDeviceIds.add(this.plugin.currentDeviceId); // 当前设备
-                this.plugin.settings.presets.forEach(p => {
-                    p.targetDevices.forEach(id => allDeviceIds.add(id));
-                });
+                // 收集所有已知设备（从 deviceNameMap）
+                if (this.plugin.settings.deviceNameMap) {
+                    Object.keys(this.plugin.settings.deviceNameMap).forEach(id => {
+                        allDeviceIds.add(id);
+                    });
+                }
 
                 // 找出未被分配的设备（不在任何自定义预设的 targetDevices 中）
                 const assignedDevices = new Set();

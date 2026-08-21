@@ -1451,6 +1451,17 @@ class LocalFontLoaderPlugin extends Plugin {
             // 设备已存在，使用现有 ID
             existingDeviceId = this.settings.deviceFingerprints[deviceFingerprint];
             this.currentDeviceId = existingDeviceId;
+
+            // 确保 deviceNameMap 中有名称（可能因清理旧数据而丢失）
+            if (!this.settings.deviceNameMap) {
+                this.settings.deviceNameMap = {};
+            }
+            if (!this.settings.deviceNameMap[existingDeviceId]) {
+                this.settings.deviceNameMap[existingDeviceId] = this._getDefaultDeviceName();
+                await this.saveSettings();
+                this._log(`[Local Font Loader] Device name restored: ${existingDeviceId}`);
+            }
+
             this._log(`[Local Font Loader] Device recognized: ${existingDeviceId}`);
         } else {
             // 新设备，生成新 ID 并记录

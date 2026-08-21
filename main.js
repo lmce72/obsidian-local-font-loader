@@ -3236,19 +3236,21 @@ class FontManagerSettingTab extends PluginSettingTab {
 .setting-item-heading-with-button {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    margin-bottom: 8px;
 }
 
 .setting-item-heading-with-button h4 {
     margin: 0;
     flex: 1;
+    display: inline-block;
 }
 
 .setting-item-heading-with-button .clickable-icon {
     padding: 4px;
     opacity: 0.7;
     transition: opacity 0.2s ease;
+    flex-shrink: 0;
 }
 
 .setting-item-heading-with-button .clickable-icon:hover {

@@ -1344,9 +1344,8 @@ const DEFAULT_SETTINGS = {
     fontFamilies: [],         // Global font family grouping info (shared by all presets)
     autoLoadOnStartup: true,
 
-    // Device identification
-    deviceId: '',             // Auto-generated UUID for this device
-    deviceName: '',           // User-editable device name
+    // Device identification (仅保留 deviceNameMap，会被云同步)
+    // deviceId 存储在 localStorage，不会被同步
     deviceNameMap: {},        // Device name mapping { deviceId: deviceName }
 
     // Global settings
@@ -1442,11 +1441,40 @@ class LocalFontLoaderPlugin extends Plugin {
         // Load settings
         await this.loadSettings();
 
-        // 初始化设备 ID（新增）
-        if (!this.settings.deviceId) {
-            this.settings.deviceId = this._generateUUID();
-            this.settings.deviceName = this._getDefaultDeviceName();
+        // 初始化设备 ID（使用 localStorage 存储，避免被云同步覆盖）
+        const localDeviceId = window.localStorage.getItem('local-font-loader-device-id');
+
+        if (!localDeviceId) {
+            // 首次使用，生成新的设备 ID 并存储到 localStorage
+            const newDeviceId = this._generateUUID();
+            window.localStorage.setItem('local-font-loader-device-id', newDeviceId);
+            this.currentDeviceId = newDeviceId;
+
+            // 生成默认设备名称
+            const defaultDeviceName = this._getDefaultDeviceName();
+
+            // 将设备信息记录到 deviceNameMap（会被同步）
+            if (!this.settings.deviceNameMap) {
+                this.settings.deviceNameMap = {};
+            }
+            this.settings.deviceNameMap[newDeviceId] = defaultDeviceName;
+
             await this.saveSettings();
+            this._log(`[Local Font Loader] New device registered: ${newDeviceId} (${defaultDeviceName})`);
+        } else {
+            // 已有设备 ID，使用现有的
+            this.currentDeviceId = localDeviceId;
+
+            // 确保设备名称存在于 deviceNameMap
+            if (!this.settings.deviceNameMap) {
+                this.settings.deviceNameMap = {};
+            }
+            if (!this.settings.deviceNameMap[localDeviceId]) {
+                this.settings.deviceNameMap[localDeviceId] = this._getDefaultDeviceName();
+                await this.saveSettings();
+            }
+
+            this._log(`[Local Font Loader] Device loaded: ${localDeviceId}`);
         }
 
         // 确保当前设备有对应的预设（新增）
@@ -1577,7 +1605,7 @@ class LocalFontLoaderPlugin extends Plugin {
      * @returns {Object} 预设对象
      */
     _getDevicePreset() {
-        const deviceId = this.settings.deviceId;
+        const deviceId = this.currentDeviceId;
 
         // 查找包含当前设备的预设
         let preset = this.settings.presets.find(p =>
@@ -1699,12 +1727,12 @@ class LocalFontLoaderPlugin extends Plugin {
             ...JSON.parse(JSON.stringify(devicePreset)), // 深拷贝
             id: this._generateUUID(),
             name: newPresetName, // 使用传入的名称（"原名_副本"）
-            targetDevices: [this.settings.deviceId] // 新预设只包含当前设备
+            targetDevices: [this.currentDeviceId] // 新预设只包含当前设备
         };
 
         // 从源预设中移除当前设备
         devicePreset.targetDevices = devicePreset.targetDevices.filter(
-            id => id !== this.settings.deviceId
+            id => id !== this.currentDeviceId
         );
 
         this.settings.presets.push(newPreset);
@@ -1747,12 +1775,7 @@ class LocalFontLoaderPlugin extends Plugin {
      * @returns {string} - 设备名称
      */
     _getDeviceName(deviceId) {
-        // 如果是当前设备，直接返回 deviceName
-        if (deviceId === this.settings.deviceId) {
-            return this.settings.deviceName || deviceId;
-        }
-
-        // 对于其他设备，从设备名称映射表中查找
+        // 从设备名称映射表中查找（所有设备统一管理）
         if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
             return this.settings.deviceNameMap[deviceId];
         }
@@ -1770,16 +1793,11 @@ class LocalFontLoaderPlugin extends Plugin {
         const trimmedName = newName.trim();
         if (!trimmedName) return;
 
-        if (deviceId === this.settings.deviceId) {
-            // 更新当前设备名称
-            this.settings.deviceName = trimmedName;
-        } else {
-            // 更新其他设备名称（存储在映射表中）
-            if (!this.settings.deviceNameMap) {
-                this.settings.deviceNameMap = {};
-            }
-            this.settings.deviceNameMap[deviceId] = trimmedName;
+        // 统一存储到 deviceNameMap（会被同步）
+        if (!this.settings.deviceNameMap) {
+            this.settings.deviceNameMap = {};
         }
+        this.settings.deviceNameMap[deviceId] = trimmedName;
 
         await this.saveSettings();
     }
@@ -1806,7 +1824,7 @@ class LocalFontLoaderPlugin extends Plugin {
      * 确保设备预设存在
      */
     async _ensureDevicePreset() {
-        const deviceId = this.settings.deviceId;
+        const deviceId = this.currentDeviceId;
 
         // 检查是否有预设绑定到当前设备
         const devicePreset = this.settings.presets.find(p =>
@@ -3421,7 +3439,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 const allDeviceIds = new Set();
 
                 // 收集所有已知设备
-                allDeviceIds.add(this.plugin.settings.deviceId); // 当前设备
+                allDeviceIds.add(this.plugin.currentDeviceId); // 当前设备
                 this.plugin.settings.presets.forEach(p => {
                     p.targetDevices.forEach(id => allDeviceIds.add(id));
                 });
@@ -3448,7 +3466,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             } else {
                 devicesToShow.forEach(deviceId => {
                     const deviceName = this.plugin._getDeviceName(deviceId);
-                    const isCurrent = deviceId === this.plugin.settings.deviceId;
+                    const isCurrent = deviceId === this.plugin.currentDeviceId;
 
                     const deviceItem = devicesContainer.createDiv({
                         cls: 'device-item'
@@ -3646,7 +3664,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 dropdown.setValue(devicePreset ? devicePreset.id : 'default-preset');
 
                 dropdown.onChange(async (newPresetId) => {
-                    await this.plugin.assignDeviceToPreset(this.plugin.settings.deviceId, newPresetId);
+                    await this.plugin.assignDeviceToPreset(this.plugin.currentDeviceId, newPresetId);
                     new Notice(`✓ ${t('deviceReassigned')}`, 2000);
                     this.display();
                 });

@@ -1,0 +1,41 @@
+name: release
+
+# Release flow: creating a version tag triggers a GitHub Release
+# and attaches cryptographic build-provenance attestations to the assets.
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write      # Create the release and upload assets
+  id-token: write      # Request an OIDC token for signing
+  attestations: write  # Attach build-provenance attestations
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create the GitHub Release and upload the plugin assets.
+      # The tag already exists (it triggered this workflow).
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            main.js
+            manifest.json
+            styles.css
+
+      # Sign the release assets with build-provenance attestations so users
+      # can cryptographically verify they were built from this repository:
+      #   gh attestation verify main.js --repo lmce72/obsidian-local-font-loader
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css

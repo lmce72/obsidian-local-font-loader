@@ -1,6 +1,6 @@
 # Obsidian Local Font Loader
 
-[English](#english) | [简体中文](#简体中文) | [日本語](#日本語) | [한국어](#한국어) | [Español](#español)
+[English](#english) | [简体中文](#简体中文) | [繁體中文](#繁體中文) | [日本語](#日本語) | [한국어](#한국어) | [Español](#español)
 
 ---
 
@@ -197,6 +197,104 @@ If you encounter any issues or have feature requests, please [open an issue on G
 ### 支持
 
 如遇到问题或有功能需求，请[在 GitHub 提交 issue](https://github.com/lmce72/obsidian-local-font-loader/issues)。
+
+---
+
+## 繁體中文
+
+### 概述
+
+**Obsidian 本機字型載入器** 是一個強大的 [Obsidian](https://obsidian.md) 外掛程式，讓你可以直接從本機儲存庫載入和管理自訂字型。不再依賴外部 CDN 或系統字型——所有內容都保持本地化、私有化並完全由你掌控。
+
+### 功能特色
+
+- **📁 本機字型管理**: 從儲存庫載入 TTF、OTF、WOFF 和 WOFF2 字型
+- **🎨 字型分類**: 分別控制介面、正文、程式碼區塊和 LaTeX 數學公式字型
+- **⚡ Base64 快取**: 自動轉換和快取字型以最佳化載入速度
+- **🌍 拉丁字型分離**: 為拉丁字元和 CJK 字元使用不同字型，支援精細的 unicode-range 控制
+- **🔄 字型家族支援**: 自動偵測並分組 Regular、Italic、Bold 和 Bold Italic 變體
+- **⚙️ 完整設定介面**: 直覺的字型掃描、轉換和套用 UI
+- **🚀 啟動時自動載入**: 可選擇在 Obsidian 啟動時自動套用字型設定
+
+### 安裝
+
+#### 手動安裝
+
+1. 從 [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases) 下載最新版本
+2. 將 `main.js`、`manifest.json` 和 `styles.css` 解壓縮到儲存庫的外掛程式資料夾：
+   ```
+   <儲存庫>/.obsidian/plugins/obsidian-local-font-loader/
+   ```
+3. 重新載入 Obsidian，或在 設定 → 社群外掛程式 中啟用外掛程式
+
+#### 從 Obsidian 社群外掛程式安裝
+
+1. 開啟 Obsidian 設定 → 社群外掛程式 → 瀏覽
+2. 搜尋 "Local Font Loader"
+3. 點擊安裝，然後啟用
+
+### 使用方法
+
+1. **整理字型**: 在儲存庫中建立資料夾（如 `Fonts/`），按字型家族組織：
+   ```
+   Fonts/
+   ├── MyFont/
+   │   ├── MyFont-Regular.ttf
+   │   ├── MyFont-Bold.ttf
+   │   ├── MyFont-Italic.ttf
+   │   └── MyFont-BoldItalic.ttf
+   └── AnotherFont/
+       └── AnotherFont-Regular.otf
+   ```
+
+2. **設定外掛程式**: 開啟 設定 → 本機字型載入器
+   - 設定字型來源目錄
+   - 點擊「重新掃描」偵測所有字型
+
+3. **轉換字型**: 點擊「將所有字型轉換為 Base64」產生快取 CSS
+
+4. **套用字型**: 
+   - 為每個類別選擇字型（介面、正文、程式碼、數學）
+   - 點擊「套用字型」
+   - 字型已生效！
+
+### ⚠️ 效能注意事項
+
+> [!warning] 字型渲染效能
+> **避免在單行內混合過多語言文字。** 密集的多語言混排（例如在同一行內混合中文+日文+韓文+阿拉伯文+俄文）可能觸發字型回退機制，導致渲染引擎凍結。
+> 
+> **建議**：將不同語言的內容分段顯示，以獲得最佳效能。
+
+### 設定選項
+
+| 設定項目 | 說明 |
+|---------|------|
+| **字型來源目錄** | 字型家族資料夾的路徑 |
+| **Base64 快取目錄** | 轉換後 CSS 檔案的儲存位置 |
+| **啟動時自動載入** | Obsidian 啟動時自動套用字型 |
+| **拉丁字型分離** | 為拉丁字元和 CJK 字元使用不同字型 |
+| **拉丁字型作用範圍** | 精細調整哪些字元範圍使用拉丁字型 |
+
+### 系統需求
+
+- Obsidian v1.0.0 或更高版本
+- TTF、OTF、WOFF 或 WOFF2 格式的字型檔案
+
+### 授權條款
+
+本專案採用 [MIT 授權](LICENSE)。
+
+### 作者
+
+**InVerse**
+
+### 致謝
+
+此外掛程式在 **Claude**（Anthropic）的協助下開發完成，Claude 參與了架構設計、程式碼實作和文件編寫。本專案代表了人類需求與 AI 技術執行的協作成果。
+
+### 支援
+
+如遇到問題或有功能需求，請[在 GitHub 提交 issue](https://github.com/lmce72/obsidian-local-font-loader/issues)。
 
 ---
 

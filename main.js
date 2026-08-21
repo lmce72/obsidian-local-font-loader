@@ -11,7 +11,7 @@
  * - Command Palette integration
  *
  * @author CoreVortex
- * @version 1.0.0
+ * @version 1.2.4
  * @license MIT
  */
 
@@ -1328,7 +1328,8 @@ function parseFontMetadata(arrayBuffer) {
         };
 
     } catch (error) {
-        this._logError('[Font Metadata] Parse failed:', error);
+        // Standalone function: "this" is not bound here; log directly to console to avoid masking the real parse error
+        console.error('[Font Metadata] Parse failed:', error);
         return null;
     }
 }
@@ -1396,6 +1397,20 @@ class LocalFontLoaderPlugin extends Plugin {
         console.error(...args); // error logs are always emitted
     }
 
+    /**
+      * Compares two settings objects for full structural equality (JSON-safe).
+      * Used to determine whether a data.json change originated from this plugin's own writes.
+      * Returns false on serialization failure (conservative: prefer reloading over missing a sync).
+     */
+    _settingsEqual(a, b) {
+        try {
+            return JSON.stringify(a) === JSON.stringify(b);
+        } catch (error) {
+            this._logError('[Local Font Loader] _settingsEqual 比较失败:', error);
+            return false;
+        }
+    }
+
     // saveSettings debounce optimization
     _saveSettingsTimer = null;
     _debouncedSaveSettings() {
@@ -1433,6 +1448,18 @@ class LocalFontLoaderPlugin extends Plugin {
         }
 
         return ranges.length > 0 ? ranges.join(', ') : null;
+    }
+
+    /**
+      * Escapes quotes and backslashes in CSS strings so font family names cannot break @font-face/font-family syntax.
+      * @param {string} str The family name
+      * @returns {string} The escaped string
+     */
+    _escapeCssString(str) {
+        return String(str)
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/'/g, "\\'");
     }
 
     async onload() {
@@ -1548,16 +1575,33 @@ class LocalFontLoaderPlugin extends Plugin {
             this.app.vault.on('modify', (file) => {
                 // Check if it is this plugin's data.json
                 if (file.path === `${this.manifest.dir}/data.json`) {
-                    this._log('[Local Font Loader] data.json modified, reloading settings...');
+                    this._log('[Local Font Loader] data.json modified, checking for content changes...');
                     // Delay the reload to avoid frequent triggers
                     if (this._dataReloadTimer) {
                         clearTimeout(this._dataReloadTimer);
                     }
                     this._dataReloadTimer = setTimeout(async () => {
-                        await this.loadSettings();
-                        // Notify the settings panel to refresh
-                        this.app.workspace.trigger('local-font-loader:settings-changed');
-                        this._log('[Local Font Loader] Settings reloaded from data.json');
+                        try {
+                            // A save of our own is in flight: skip reloading to avoid rolling back newer in-memory settings with a stale disk snapshot
+                            if (this._isSaving) {
+                                this._log('[Local Font Loader] Save in progress, skipping reload');
+                                return;
+                            }
+                            const data = await this.loadData();
+                            // Content matches in-memory settings = written by this plugin (or nothing changed),
+                            // skip reloading to avoid rebuilding the whole settings UI and losing input focus.
+                            if (this._settingsEqual(data, this.settings)) {
+                                this._log('[Local Font Loader] data.json content unchanged, skipping reload');
+                                return;
+                            }
+                            // External change (e.g. multi-device sync): reload settings and refresh the UI
+                            await this.loadSettings();
+                            // Notify the settings panel to refresh
+                            this.app.workspace.trigger('local-font-loader:settings-changed');
+                            this._log('[Local Font Loader] Settings reloaded from data.json');
+                        } catch (error) {
+                            this._logError('[Local Font Loader] Failed to reload settings from data.json:', error);
+                        }
                     }, 500); // 500ms debounce
                 }
             })
@@ -1567,6 +1611,9 @@ class LocalFontLoaderPlugin extends Plugin {
         if (this.settings.availableFonts.length === 0) {
             await this.scanFonts();
         }
+
+        // Scan font source-file existence once at startup (not persisted; status-only)
+        await this._refreshFontExistence();
 
         // Auto-load fonts on startup
         if (this.settings.autoLoadOnStartup) {
@@ -1585,7 +1632,17 @@ class LocalFontLoaderPlugin extends Plugin {
             this._saveSettingsTimer = null;
         }
 
+        // Clean up the data reload debounce timer
+        if (this._dataReloadTimer) {
+            clearTimeout(this._dataReloadTimer);
+            this._dataReloadTimer = null;
+        }
+
         this.removeFontStyles();
+
+        // Remove preset styles injected by the settings tab (incl. device SVG icons) to prevent leftovers after unload
+        const presetStyle = document.getElementById('local-font-loader-preset-styles');
+        if (presetStyle) presetStyle.remove();
     }
 
     async loadSettings() {
@@ -1623,11 +1680,17 @@ class LocalFontLoaderPlugin extends Plugin {
             data.deviceNameMap = {};
         }
 
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+        // Deep-clone the default base so settings.presets never shares nested references with the module constant when data is null
+        this.settings = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), data);
     }
 
     async saveSettings() {
-        await this.saveData(this.settings);
+        this._isSaving = true;
+        try {
+            await this.saveData(this.settings);
+        } finally {
+            this._isSaving = false;
+        }
     }
 
     // ============================================================================
@@ -1657,6 +1720,19 @@ class LocalFontLoaderPlugin extends Plugin {
         }
 
         return preset;
+    }
+
+    /**
+      * Returns the current device preset's font configuration context (unifies the Latin determination source across convert/apply methods).
+     * @returns {{fontsConfig:Object, latinFontEnabled:boolean, latinFontScope:Object}}
+     */
+    _getDeviceFontContext() {
+        const devicePreset = this._getDevicePreset();
+        return {
+            fontsConfig: devicePreset?.fonts || {},
+            latinFontEnabled: devicePreset?.latinFontEnabled || false,
+            latinFontScope: devicePreset?.latinFontScope || {},
+        };
     }
 
     /**
@@ -1752,22 +1828,25 @@ class LocalFontLoaderPlugin extends Plugin {
      * @param {string} newPresetName - The new preset name (usually "<original name>_Copy")
      */
     async copyPresetForDevice(sourcePresetId, newPresetName) {
-        // Get the preset of the current device
-        const devicePreset = this._getDevicePreset();
-        if (!devicePreset) return;
+        // Clone from the passed-in source preset (not the current device preset)
+        const sourcePreset = this.settings.presets.find(p => p.id === sourcePresetId);
+        if (!sourcePreset) return;
 
-        // Clone the device's preset
+        // Deep-clone the source preset as the base of the new preset
         const newPreset = {
-            ...JSON.parse(JSON.stringify(devicePreset)), // deep copy
+            ...JSON.parse(JSON.stringify(sourcePreset)), // deep copy
             id: this._generateUUID(),
             name: newPresetName, // use the passed-in name ("<original>_Copy")
             targetDevices: [this.currentDeviceId] // new preset contains only the current device
         };
 
-        // Remove the current device from the source preset
-        devicePreset.targetDevices = devicePreset.targetDevices.filter(
-            id => id !== this.currentDeviceId
-        );
+        // Only remove the current device from the source preset when it is a custom (non-global) preset
+        const isGlobalPreset = sourcePreset.id === 'default-preset' && sourcePreset.targetDevices.length === 0;
+        if (!isGlobalPreset) {
+            sourcePreset.targetDevices = sourcePreset.targetDevices.filter(
+                id => id !== this.currentDeviceId
+            );
+        }
 
         this.settings.presets.push(newPreset);
         await this.saveSettings();
@@ -1933,7 +2012,7 @@ class LocalFontLoaderPlugin extends Plugin {
                     id: 'default-preset',
                     name: 'Default',
                     targetDevices: [],
-                    fonts: this.settings.fonts || {},
+                    fonts: this.settings.presets?.[0]?.fonts || DEFAULT_SETTINGS.presets[0].fonts,
                     latinFontEnabled: this.settings.latinFontEnabled || false,
                     latinFontScope: this.settings.latinFontScope || {},
                     headingApplyToFileTitle: this.settings.headingApplyToFileTitle || false
@@ -2020,6 +2099,9 @@ class LocalFontLoaderPlugin extends Plugin {
                 this._log('[Local Font Loader] B64 cache directory does not exist, will be created during conversion');
             }
 
+            // Capture the old list so entries whose source file is missing can be merged back after scanning
+            const previousFonts = this.settings.availableFonts;
+
             // Reset data
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
@@ -2078,8 +2160,7 @@ class LocalFontLoaderPlugin extends Plugin {
                                     familyName: family.familyName, // use the correct family name from the metadata
                                     variantType,
                                     hasB64,
-                                    b64Path,
-                                    exists: true // file exists (its presence implies it was scanned)
+                                    b64Path
                                 };
 
                                 // Deduplicate: avoid adding duplicate fonts
@@ -2132,8 +2213,7 @@ class LocalFontLoaderPlugin extends Plugin {
                                     familyName: realFamilyName, // use the correct family name from the font itself
                                     variantType,
                                     hasB64,
-                                    b64Path,
-                                    exists: true // file exists (its presence implies it was scanned)
+                                    b64Path
                                 };
 
                                 this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
@@ -2173,10 +2253,26 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
             }
 
+            // Merge back old entries whose source file is missing (exists is runtime state; strip it when re-adding)
+            for (const prevFont of previousFonts) {
+                if (fontMap.has(prevFont.name)) continue;
+                let stillExists = false;
+                if (prevFont.path) {
+                    try { stillExists = await this.app.vault.adapter.exists(prevFont.path); } catch (e) { stillExists = false; }
+                }
+                if (!stillExists) {
+                    const { exists, ...cleanFont } = prevFont;
+                    fontMap.set(prevFont.name, cleanFont);
+                }
+            }
+
             // Convert the Map to an array
             this.settings.availableFonts = Array.from(fontMap.values());
 
             await this.saveSettings();
+
+            // Rebuild the runtime existence cache after scanning (status is memory-only; never written to data.json)
+            await this._refreshFontExistence();
 
             const endTime = performance.now();
             this._log(`[Local Font Loader] Scan completed: ${this.settings.fontFamilies.length} font families, ${this.settings.availableFonts.length} variants, took ${(endTime - startTime).toFixed(2)}ms`);
@@ -2208,6 +2304,40 @@ class LocalFontLoaderPlugin extends Plugin {
         );
     }
 
+    // Runtime cache of font source-file existence (memory only, not persisted; name -> boolean)
+    _fontExistsMap = {};
+
+    /**
+      * Checks at startup / after scanning whether each availableFonts entry's source file exists, writing results to the runtime cache.
+      * Results are not persisted; they live only in memory for the current session.
+     */
+    async _refreshFontExistence() {
+        const fonts = this.settings.availableFonts || [];
+        const map = {};
+        await Promise.all(fonts.map(async (font) => {
+            let exists = false;
+            if (font.path) {
+                try {
+                    exists = await this.app.vault.adapter.exists(font.path);
+                } catch (error) {
+                    this._logError(`[Local Font Loader] 检查字体存在性失败: ${font.path}`, error);
+                    exists = false;
+                }
+            }
+            map[font.name] = exists;
+        }));
+        this._fontExistsMap = map;
+    }
+
+    /**
+      * Reads a font's runtime existence status (defaults to "exists" for conservative display before refresh).
+      * @param {Object} font The font object
+      * @returns {boolean} Whether the source file exists
+     */
+    _getFontExists(font) {
+        return this._fontExistsMap[font.name] !== false;
+    }
+
     // Apply fonts config (load from cache only)
     async applyFonts() {
         const startTime = performance.now();
@@ -2223,10 +2353,10 @@ class LocalFontLoaderPlugin extends Plugin {
             }
 
             // Use the font config from the device's preset (new)
-            const fontsConfig = devicePreset.fonts;
-            const latinFontEnabled = devicePreset.latinFontEnabled;
-            const latinFontScope = devicePreset.latinFontScope;
-            const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle;
+            const fontsConfig = devicePreset.fonts || {};
+            const latinFontEnabled = devicePreset.latinFontEnabled || false;
+            const latinFontScope = devicePreset.latinFontScope || {};
+            const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle || false;
 
             const usedFonts = new Set();
             const usedFamilies = new Set(); // font family name (supports multiple variants)
@@ -2386,14 +2516,14 @@ class LocalFontLoaderPlugin extends Plugin {
                     for (const cssVar of cssVars) {
                         // If Latin font separation is enabled, body text font needs special handling
                         if (key === 'text' && latinFontEnabled && fontsConfig.latin) {
-                            varsCss += `  ${cssVar}: "${fontsConfig.latin}", "${fontFamily}", sans-serif !important;\n`;
+                            varsCss += `  ${cssVar}: "${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif !important;\n`;
                         } else if (key === 'ui' && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
                             // If Latin font for UI is enabled, the UI font also uses Latin font separation
-                            varsCss += `  ${cssVar}: "${fontsConfig.latin}", "${fontFamily}", sans-serif !important;\n`;
+                            varsCss += `  ${cssVar}: "${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif !important;\n`;
                         } else {
                             // Choose an appropriate fallback based on the font type
                             const fallback = (key === 'monospace') ? 'monospace' : 'sans-serif';
-                            varsCss += `  ${cssVar}: "${fontFamily}", ${fallback} !important;\n`;
+                            varsCss += `  ${cssVar}: "${this._escapeCssString(fontFamily)}", ${fallback} !important;\n`;
                         }
                     }
                 }
@@ -2404,7 +2534,7 @@ class LocalFontLoaderPlugin extends Plugin {
             // If Latin font for UI is enabled, add direct UI element overrides
             if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
                 varsCss += `/* UI Elements - Latin Font Separation (High Priority) */\n`;
-                const uiFontFamily = `"${fontsConfig.latin}", "${fontsConfig.ui}"`;
+                const uiFontFamily = `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.ui)}"`;
 
                 // Use higher-specificity selectors to force overrides
                 varsCss += `.app-container body,\n`;
@@ -2467,7 +2597,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `body .setting-item-description,\n`;
                 varsCss += `body .sidebar,\n`;
                 varsCss += `body .sidebar-content {\n`;
-                varsCss += `  font-family: "${fontsConfig.ui}", sans-serif !important;\n`;
+                varsCss += `  font-family: "${this._escapeCssString(fontsConfig.ui)}", sans-serif !important;\n`;
                 varsCss += `}\n\n`;
 
                 // Additional mobile overrides
@@ -2482,7 +2612,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `body.is-mobile .menu-item,\n`;
                 varsCss += `body.is-mobile .modal,\n`;
                 varsCss += `body.is-mobile .setting-item {\n`;
-                varsCss += `  font-family: "${fontsConfig.ui}", sans-serif !important;\n`;
+                varsCss += `  font-family: "${this._escapeCssString(fontsConfig.ui)}", sans-serif !important;\n`;
                 varsCss += `}\n\n`;
             }
 
@@ -2491,10 +2621,10 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `/* Body Text Font */\n`;
 
                 // Build the font-family value
-                let textFontFamily = `"${fontsConfig.text}"`;
+                let textFontFamily = `"${this._escapeCssString(fontsConfig.text)}"`;
                 if (latinFontEnabled && fontsConfig.latin) {
                     // Latin font first (due to unicode-range restriction), non-Latin font as fallback
-                    textFontFamily = `"${fontsConfig.latin}", "${fontsConfig.text}"`;
+                    textFontFamily = `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.text)}"`;
                     this._log(`[Local Font Loader] Enable Latin font separation: ${fontsConfig.latin} (Latin) + ${fontsConfig.text} (Non-Latin)`);
                     if (this.settings.latinFontForUI) {
                         this._log(`[Local Font Loader] Latin font also applied to UI elements`);
@@ -2514,7 +2644,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
             if (fontsConfig.monospace) {
                 varsCss += `/* Code Block Font (High Priority) */\n`;
-                const monospaceFontFamily = `"${fontsConfig.monospace}"`;
+                const monospaceFontFamily = `"${this._escapeCssString(fontsConfig.monospace)}"`;
 
                 // Code block selectors shared by desktop and mobile
                 varsCss += `/* Inline code */\n`;
@@ -2564,19 +2694,19 @@ class LocalFontLoaderPlugin extends Plugin {
                     if (fontsConfig.text) {
                         headingFontFamily = fontsConfig.text;
                         if (latinFontEnabled && fontsConfig.latin) {
-                            headingFontFamily = `"${fontsConfig.latin}", "${fontsConfig.text}"`;
+                            headingFontFamily = `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.text)}"`;
                         } else {
-                            headingFontFamily = `"${headingFontFamily}"`;
+                            headingFontFamily = `"${this._escapeCssString(headingFontFamily)}"`;
                         }
                     }
                 } else if (headingValue === 'use-ui-font') {
                     // Use the UI font
                     if (fontsConfig.ui) {
-                        headingFontFamily = `"${fontsConfig.ui}"`;
+                        headingFontFamily = `"${this._escapeCssString(fontsConfig.ui)}"`;
                     }
                 } else if (headingValue) {
                     // Use a custom font
-                    headingFontFamily = `"${headingValue}"`;
+                    headingFontFamily = `"${this._escapeCssString(headingValue)}"`;
                 }
 
                 if (headingFontFamily) {
@@ -2599,7 +2729,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
             // Math fonts (map MathJax Unicode classes to correct characters)
             if (fontsConfig.math) {
-                varsCss += `/* LaTeX Math Font (High Priority) - 修正 MathJax CHTML 的 content */\n`;
+                varsCss += `/* LaTeX Math Font (High Priority) - Fixes MathJax CHTML content */\n`;
 
                 // Performance: pre-build all math glyph CSS rules to avoid runtime loops
                 const mathItalicUpperStart = 0x1D434; // A-Z
@@ -2613,21 +2743,21 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
 
                 varsCss += `\n/* Apply fonts */\n`;
-                varsCss += `/* 斜体变量 */\n`;
+                varsCss += `/* Italic variables */\n`;
                 varsCss += `body mjx-c.TEX-I::before {\n`;
-                varsCss += `  font-family: '${fontsConfig.math}', MJXTEX-I, MJXZERO, serif !important;\n`;
+                varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXTEX-I, MJXZERO, serif !important;\n`;
                 varsCss += `  font-style: normal !important;\n`;
                 varsCss += `}\n\n`;
-                varsCss += `/* Numbers和运算符 */\n`;
+                varsCss += `/* Numbers and operators */\n`;
                 varsCss += `body mjx-mn mjx-c::before,\n`;
                 varsCss += `body mjx-mo mjx-c::before,\n`;
                 varsCss += `body mjx-c:not(.TEX-I)::before {\n`;
-                varsCss += `  font-family: '${fontsConfig.math}', MJXZERO, MJXTEX, serif !important;\n`;
+                varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
                 varsCss += `}\n\n`;
-                varsCss += `/* 容器 */\n`;
+                varsCss += `/* Container */\n`;
                 varsCss += `body mjx-container,\n`;
                 varsCss += `body.is-mobile mjx-container {\n`;
-                varsCss += `  font-family: '${fontsConfig.math}', MJXZERO, MJXTEX, serif !important;\n`;
+                varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
                 varsCss += `}\n\n`;
 
                 this._log(`[Local Font Loader] Math font applied with high priority selectors`);
@@ -2669,69 +2799,9 @@ class LocalFontLoaderPlugin extends Plugin {
                     const arrayBuffer = await this.app.vault.adapter.readBinary(font.path);
                     const base64 = this.arrayBufferToBase64(arrayBuffer);
 
-                    const formatMap = {
-                        'ttf': 'font/truetype',
-                        'otf': 'font/opentype',
-                        'woff': 'font/woff',
-                        'woff2': 'font/woff2'
-                    };
-                    const mimeType = formatMap[font.ext] || 'font/truetype';
-
-                    // Generate @font-face CSS
-                    let singleFontCss = '';
-
-                    // Use font family name
-                    const fontFamily = font.familyName || font.name;
-                    const variantType = font.variantType || 'regular';
-
-                    // Determine whether unicode-range is needed (Latin font)
-                    // Check if the current font is the configured Latin font
-                    const isLatinFont = latinFontEnabled && fontsConfig.latin &&
-                        (fontFamily === fontsConfig.latin || font.name === fontsConfig.latin);
-
-                    const needsUnicodeRange = isLatinFont;
-
-                    // Set CSS properties based on variant type
-                    let fontWeight = 400;
-                    let fontStyle = 'normal';
-
-                    switch (variantType) {
-                        case 'regular':
-                            fontWeight = 400;
-                            fontStyle = 'normal';
-                            break;
-                        case 'italic':
-                            fontWeight = 400;
-                            fontStyle = 'italic';
-                            break;
-                        case 'bold':
-                            fontWeight = 700;
-                            fontStyle = 'normal';
-                            break;
-                        case 'bolditalic':
-                            fontWeight = 700;
-                            fontStyle = 'italic';
-                            break;
-                    }
-
-                    // Generate main @font-face declaration
-                    singleFontCss += `/* ${fontFamily} - ${variantType} */\n`;
-                    singleFontCss += `@font-face {\n`;
-                    singleFontCss += `  font-family: '${fontFamily}';\n`;
-                    singleFontCss += `  src: url(data:${mimeType};base64,${base64});\n`;
-                    singleFontCss += `  font-style: ${fontStyle};\n`;
-                    singleFontCss += `  font-weight: ${fontWeight};\n`;
-                    singleFontCss += `  font-display: swap;\n`;
-
-                    if (needsUnicodeRange) {
-                        // Generate unicode-range based on scope configuration
-                        const unicodeRange = this.getUnicodeRange(this.settings.latinFontScope);
-                        if (unicodeRange) {
-                            singleFontCss += `  unicode-range: ${unicodeRange};\n`;
-                        }
-                    }
-
-                    singleFontCss += `}\n`;
+                    // Build the @font-face CSS (config-driven unicode-range determination and family-name escaping)
+                    const { css: singleFontCss, fontFamily, variantType, fontWeight, fontStyle } =
+                        this._buildFontFaceCss(font, base64, this._getDeviceFontContext());
 
                     // Save to cache
                     const cachePath = `${this.settings.b64OutputDir}/${font.name}.css`;
@@ -2769,6 +2839,71 @@ class LocalFontLoaderPlugin extends Plugin {
         }
 
         return btoa(binary);
+    }
+
+    /**
+      * Builds a single font's @font-face CSS (config-driven unicode-range determination and family-name escaping).
+      * Shared by convertAllFonts / convertSingleFont so Latin determination and escaping stay consistent.
+      * @param {Object} font   The font object
+      * @param {string} base64 The base64 data
+      * @param {Object} ctx    Context from _getDeviceFontContext()
+     * @returns {{css:string, fontFamily:string, variantType:string, fontWeight:number, fontStyle:string}}
+     */
+    _buildFontFaceCss(font, base64, ctx) {
+        const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
+        const formatMap = {
+            'ttf': 'font/truetype',
+            'otf': 'font/opentype',
+            'woff': 'font/woff',
+            'woff2': 'font/woff2'
+        };
+        const mimeType = formatMap[font.ext] || 'font/truetype';
+
+        const fontFamily = font.familyName || font.name;
+        const variantType = font.variantType || 'regular';
+
+        // Config-driven: whether this font is the Latin font configured in the preset
+        const isLatinFont = latinFontEnabled && fontsConfig.latin &&
+            (fontFamily === fontsConfig.latin || font.name === fontsConfig.latin);
+        const needsUnicodeRange = isLatinFont;
+
+        // Set CSS properties based on the variant type
+        let fontWeight = 400;
+        let fontStyle = 'normal';
+
+        switch (variantType) {
+            case 'italic':
+                fontStyle = 'italic';
+                break;
+            case 'bold':
+                fontWeight = 700;
+                break;
+            case 'bolditalic':
+                fontWeight = 700;
+                fontStyle = 'italic';
+                break;
+        }
+
+        // Build the @font-face declaration
+        let css = `/* ${this._escapeCssString(fontFamily)} - ${variantType} */\n`;
+        css += `@font-face {\n`;
+        css += `  font-family: '${this._escapeCssString(fontFamily)}';\n`;
+        css += `  src: url(data:${mimeType};base64,${base64});\n`;
+        css += `  font-style: ${fontStyle};\n`;
+        css += `  font-weight: ${fontWeight};\n`;
+        css += `  font-display: swap;\n`;
+
+        if (needsUnicodeRange) {
+            // Build unicode-range from the preset's latinFontScope (deprecated top-level field)
+            const unicodeRange = this.getUnicodeRange(latinFontScope);
+            if (unicodeRange) {
+                css += `  unicode-range: ${unicodeRange};\n`;
+            }
+        }
+
+        css += `}\n`;
+
+        return { css, fontFamily, variantType, fontWeight, fontStyle };
     }
 
     applyCss(css, cssId) {
@@ -3112,11 +3247,18 @@ class FontManagerSettingTab extends PluginSettingTab {
         this._displayDebounceTimer = null;
         this._displayDebounceDelay = 300; // 300ms debounce delay
 
-        // Listen for settings change events (triggered by the data.json listener)
+        this._isVisible = false; // Whether the settings tab is visible (guard for settings-changed re-rendering)
+
+        // Listen for settings-changed (fired by the data.json listener).
+        // Registered once; lifecycle is owned by plugin.registerEvent (auto-unbound on unload),
+        // no longer unregistered in hide() so syncing keeps working after the settings tab is closed.
         this._settingsChangedHandler = () => {
+            if (!this._isVisible) return; // Skip redundant re-rendering while hidden
             this._debouncedDisplay();
         };
-        this.plugin.app.workspace.on('local-font-loader:settings-changed', this._settingsChangedHandler);
+        this.plugin.registerEvent(
+            this.plugin.app.workspace.on('local-font-loader:settings-changed', this._settingsChangedHandler)
+        );
     }
 
     _addEventListener(element, event, handler, options) {
@@ -3190,6 +3332,7 @@ class FontManagerSettingTab extends PluginSettingTab {
     }
 
     display() {
+        this._isVisible = true; // Mark the settings tab visible (settings-changed guard)
         this._cleanupEventListeners();
 
         const { containerEl } = this;
@@ -3537,6 +3680,11 @@ class FontManagerSettingTab extends PluginSettingTab {
                         t('deletePresetWarning'),
                         async () => {
                             await this.plugin.deletePreset(preset.id);
+                            // If the deleted preset is the one being edited, fall back to the current device preset (or global preset) so display() does not return early
+                            if (this._activePresetId === preset.id) {
+                                const fallbackPreset = this.plugin._getDevicePreset();
+                                this._activePresetId = fallbackPreset ? fallbackPreset.id : 'default-preset';
+                            }
                             this.display();
                         },
                         true  // isDangerous = true (dangerous operation)
@@ -3999,6 +4147,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             console.error('[LocalFontLoader] Active preset not found:', this._activePresetId);
             return;
         }
+        const activePresetFonts = activePresetForFonts.fonts || {};
 
         for (const fontType of fontTypes) {
             const settingItem = new Setting(containerEl)
@@ -4006,10 +4155,9 @@ class FontManagerSettingTab extends PluginSettingTab {
                 .setDesc(fontType.desc);
 
             // Check if the font referenced by the current preset exists
-            const selectedFont = activePresetForFonts.fonts[fontType.key];
-            const fontExists = this.plugin.settings.availableFonts.some(f =>
-                (f.familyName || f.name) === selectedFont
-            );
+            // Reuse isFontAvailable: exempts empty strings and the use-text-font / use-ui-font sentinel values
+            const selectedFont = activePresetFonts[fontType.key];
+            const fontExists = this.plugin.isFontAvailable(selectedFont);
 
             // If the font does not exist, add a warning icon after the name
             if (selectedFont && !fontExists) {
@@ -4735,13 +4883,13 @@ class FontManagerSettingTab extends PluginSettingTab {
                 return fonts.some(f => f.hasB64);
             } else if (filter === 'cachedOnly') {
                 // Cache only (has B64 but the source file is missing)
-                return fonts.some(f => f.hasB64 && !f.exists);
+                return fonts.some(f => f.hasB64 && !this.plugin._getFontExists(f));
             } else if (filter === 'notConverted') {
                 // At least one variant is not converted
                 return fonts.some(f => !f.hasB64);
             } else if (filter === 'notExist') {
                 // At least one variant's source file is missing
-                return fonts.some(f => !f.exists);
+                return fonts.some(f => !this.plugin._getFontExists(f));
             }
             return true;
         });
@@ -4836,7 +4984,7 @@ class FontManagerSettingTab extends PluginSettingTab {
 
                 let iconColor, iconName;
 
-                if (font.exists === false) {
+                if (!this.plugin._getFontExists(font)) {
                     // Source file missing
                     if (font.hasB64) {
                         // But the cache exists -> blue check
@@ -4928,64 +5076,14 @@ class FontManagerSettingTab extends PluginSettingTab {
     // Convert a single font
     async convertSingleFont(font) {
         try {
-            this._log(`[Local Font Loader] Converting ${font.name}...`);
+            this.plugin._log(`[Local Font Loader] Converting ${font.name}...`);
 
             const arrayBuffer = await this.plugin.app.vault.adapter.readBinary(font.path);
             const base64 = this.plugin.arrayBufferToBase64(arrayBuffer);
 
-            const formatMap = {
-                'ttf': 'font/truetype',
-                'otf': 'font/opentype',
-                'woff': 'font/woff',
-                'woff2': 'font/woff2'
-            };
-            const mimeType = formatMap[font.ext] || 'font/truetype';
-
-            const fontFamily = font.familyName || font.name;
-            const variantType = font.variantType || 'regular';
-
-            const needsUnicodeRange =
-                fontFamily.toLowerCase().includes('times') ||
-                fontFamily.toLowerCase().includes('latin');
-
-            let fontWeight = 400;
-            let fontStyle = 'normal';
-
-            switch (variantType) {
-                case 'regular':
-                    fontWeight = 400;
-                    fontStyle = 'normal';
-                    break;
-                case 'italic':
-                    fontWeight = 400;
-                    fontStyle = 'italic';
-                    break;
-                case 'bold':
-                    fontWeight = 700;
-                    fontStyle = 'normal';
-                    break;
-                case 'bolditalic':
-                    fontWeight = 700;
-                    fontStyle = 'italic';
-                    break;
-            }
-
-            let singleFontCss = `/* ${fontFamily} - ${variantType} */\n`;
-            singleFontCss += `@font-face {\n`;
-            singleFontCss += `  font-family: '${fontFamily}';\n`;
-            singleFontCss += `  src: url(data:${mimeType};base64,${base64});\n`;
-            singleFontCss += `  font-style: ${fontStyle};\n`;
-            singleFontCss += `  font-weight: ${fontWeight};\n`;
-            singleFontCss += `  font-display: swap;\n`;
-
-            if (needsUnicodeRange) {
-                const unicodeRange = this.plugin.getUnicodeRange(this.plugin.settings.latinFontScope);
-                if (unicodeRange) {
-                    singleFontCss += `  unicode-range: ${unicodeRange};\n`;
-                }
-            }
-
-            singleFontCss += `}\n`;
+            // Build the @font-face CSS (config-driven unicode-range determination and family-name escaping)
+            const { css: singleFontCss } =
+                this.plugin._buildFontFaceCss(font, base64, this.plugin._getDeviceFontContext());
 
             const cachePath = `${this.plugin.settings.b64OutputDir}/${font.name}.css`;
             await this.plugin.app.vault.adapter.write(cachePath, singleFontCss);
@@ -4994,10 +5092,10 @@ class FontManagerSettingTab extends PluginSettingTab {
             font.b64Path = cachePath;
             await this.plugin.saveSettings();
 
-            this._log(`[Local Font Loader] ${font.name} Conversion complete`);
+            this.plugin._log(`[Local Font Loader] ${font.name} Conversion complete`);
             new Notice(`✓ ${font.name} Conversion complete`);
         } catch (error) {
-            this._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
+            this.plugin._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
             new Notice(`⚠️ Conversion failed: ${error.message}`);
         }
     }
@@ -5005,8 +5103,12 @@ class FontManagerSettingTab extends PluginSettingTab {
     // Delete a single font
     async deleteSingleFont(font) {
         try {
-            // Delete the source file
-            await this.plugin.app.vault.adapter.remove(font.path);
+            // Delete the source file (for cache-only fonts the source may be gone; ignore and keep cleaning the cache)
+            try {
+                await this.plugin.app.vault.adapter.remove(font.path);
+            } catch (err) {
+                this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
+            }
 
             // Delete the cache
             if (font.b64Path) {
@@ -5026,18 +5128,41 @@ class FontManagerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             new Notice(t('deletedFont', { fontName: font.name }));
         } catch (error) {
-            this._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
+            this.plugin._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
             new Notice(t('deleteFailedError', { error: error.message }));
         }
     }
 
+    /**
+      * Collects font objects not referenced by any preset.
+      * Iterates all presets (not the deprecated settings.fonts); a font referenced by any preset
+      * via familyName or name counts as "used", protecting all variants of the same family from deletion.
+      * @returns {Array} Array of unused font objects
+     */
+    _getUnusedFonts() {
+        const usedFontValues = new Set();
+
+        const presets = this.plugin.settings.presets || [];
+        for (const preset of presets) {
+            const fontsConfig = preset.fonts || {};
+            for (const value of Object.values(fontsConfig)) {
+                // Skip empty strings and sentinel values (sentinels never match a real font entry)
+                if (value && value !== 'use-text-font' && value !== 'use-ui-font') {
+                    usedFontValues.add(value);
+                }
+            }
+        }
+
+        const availableFonts = this.plugin.settings.availableFonts || [];
+        return availableFonts.filter(font =>
+            !usedFontValues.has(font.familyName) && !usedFontValues.has(font.name)
+        );
+    }
+
     // Delete Unused Fonts
     async deleteUnusedFonts() {
-        const usedFonts = new Set(Object.values(this.plugin.settings.fonts).filter(f => f));
-
-        const unusedFonts = this.plugin.settings.availableFonts.filter(
-            font => !usedFonts.has(font.name)
-        );
+        // Consistent with applyFonts: collect used fonts across all presets to avoid deleting configured fonts
+        const unusedFonts = this._getUnusedFonts();
 
         if (unusedFonts.length === 0) {
             new Notice(t('noUnusedFonts'));
@@ -5046,14 +5171,18 @@ class FontManagerSettingTab extends PluginSettingTab {
 
         // Confirmation logic removed; handled by the UI layer
 
-        this._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
+        this.plugin._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
         let deleted = 0;
 
         try {
             for (const font of unusedFonts) {
                 try {
-                    // Delete the original font file
-                    await this.app.vault.adapter.remove(font.path);
+                    // Delete the original font file (for cache-only fonts the source may be gone; ignore and keep cleaning the cache)
+                    try {
+                        await this.app.vault.adapter.remove(font.path);
+                    } catch (err) {
+                        this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
+                    }
 
                     // Delete the cache file
                     if (font.hasB64 && font.b64Path) {
@@ -5073,29 +5202,33 @@ class FontManagerSettingTab extends PluginSettingTab {
                     deleted++;
 
                 } catch (error) {
-                    this._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
+                    this.plugin._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
                 }
             }
 
             await this.plugin.saveSettings();
 
             new Notice(t('deletedUnusedFonts', { count: deleted }));
-            this._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
+            this.plugin._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
 
             this.display(); // refresh the UI
 
         } catch (error) {
-            this._logError('[Local Font Loader] 批量删除失败:', error);
+            this.plugin._logError('[Local Font Loader] 批量删除失败:', error);
             new Notice(t('deleteError'));
         }
     }
 
     hide() {
-        this._cleanupEventListeners();
-        // Clean up custom event listeners
-        if (this._settingsChangedHandler) {
-            this.plugin.app.workspace.off('local-font-loader:settings-changed', this._settingsChangedHandler);
+        this._isVisible = false;
+        // Clear the debounced-render timer so display() is not re-triggered while hidden
+        if (this._displayDebounceTimer) {
+            clearTimeout(this._displayDebounceTimer);
+            this._displayDebounceTimer = null;
         }
+        this._cleanupEventListeners();
+        // The settings-changed handler's lifecycle is owned by plugin.registerEvent;
+        // it is auto-unbound on unload and no longer unregistered in hide() (avoids losing sync after the first close).
         super.hide();
     }
 }

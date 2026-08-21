@@ -1543,6 +1543,26 @@ class LocalFontLoaderPlugin extends Plugin {
         // 添加Settings Panel
         this.addSettingTab(new FontManagerSettingTab(this.app, this));
 
+        // 监听 data.json 文件变化（用于多设备同步）
+        this.registerEvent(
+            this.app.vault.on('modify', (file) => {
+                // 检查是否是当前插件的 data.json
+                if (file.path === `${this.manifest.dir}/data.json`) {
+                    this._log('[Local Font Loader] data.json modified, reloading settings...');
+                    // 延迟重新加载，避免频繁触发
+                    if (this._dataReloadTimer) {
+                        clearTimeout(this._dataReloadTimer);
+                    }
+                    this._dataReloadTimer = setTimeout(async () => {
+                        await this.loadSettings();
+                        // 通知设置面板刷新
+                        this.app.workspace.trigger('local-font-loader:settings-changed');
+                        this._log('[Local Font Loader] Settings reloaded from data.json');
+                    }, 500); // 500ms 防抖
+                }
+            })
+        );
+
         // 扫描字体（如果列表为空）
         if (this.settings.availableFonts.length === 0) {
             await this.scanFonts();
@@ -1796,6 +1816,28 @@ class LocalFontLoaderPlugin extends Plugin {
 
         // 回退到 deviceId
         return deviceId;
+    }
+
+    /**
+     * 获取设备的平台类型（从 deviceFingerprints 反向查找）
+     * @param {string} deviceId - 设备 ID
+     * @returns {string} - 平台类型：'mobile' 或 'desktop'，未找到返回 'unknown'
+     */
+    _getDevicePlatform(deviceId) {
+        if (!this.settings.deviceFingerprints) {
+            return 'unknown';
+        }
+
+        // 反向查找：从 deviceFingerprints 中找到对应的指纹
+        for (const [fingerprint, id] of Object.entries(this.settings.deviceFingerprints)) {
+            if (id === deviceId) {
+                // 指纹格式：platform-hash（如 mobile-abc123 或 desktop-xyz789）
+                const platform = fingerprint.split('-')[0];
+                return platform; // 'mobile' 或 'desktop'
+            }
+        }
+
+        return 'unknown';
     }
 
     /**
@@ -3069,6 +3111,12 @@ class FontManagerSettingTab extends PluginSettingTab {
         this._eventListeners = [];
         this._displayDebounceTimer = null;
         this._displayDebounceDelay = 300; // 300ms 防抖延迟
+
+        // 监听设置变化事件（由 data.json 监听器触发）
+        this._settingsChangedHandler = () => {
+            this._debouncedDisplay();
+        };
+        this.plugin.app.workspace.on('local-font-loader:settings-changed', this._settingsChangedHandler);
     }
 
     _addEventListener(element, event, handler, options) {
@@ -3185,6 +3233,28 @@ class FontManagerSettingTab extends PluginSettingTab {
             style.id = 'local-font-loader-preset-styles';
             style.textContent = `
 /* 预设拖拽管理区域 */
+.setting-item-heading-with-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.setting-item-heading-with-button h4 {
+    margin: 0;
+    flex: 1;
+}
+
+.setting-item-heading-with-button .clickable-icon {
+    padding: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.setting-item-heading-with-button .clickable-icon:hover {
+    opacity: 1;
+}
+
 .preset-drag-container {
     display: flex;
     flex-direction: column;
@@ -3398,7 +3468,18 @@ class FontManagerSettingTab extends PluginSettingTab {
         // ========================================
         // Drag and Drop Device Management
         // ========================================
-        containerEl.createEl('h4', { text: t('headerDeviceManagement'), cls: 'setting-item-heading' });
+        const deviceManagementHeader = containerEl.createDiv({ cls: 'setting-item-heading-with-button' });
+        deviceManagementHeader.createEl('h4', { text: t('headerDeviceManagement') });
+
+        const refreshBtn = deviceManagementHeader.createEl('button', { cls: 'clickable-icon' });
+        refreshBtn.setAttribute('aria-label', t('refreshDeviceList'));
+        setIcon(refreshBtn, 'refresh-cw');
+        this._addEventListener(refreshBtn, 'click', async () => {
+            // 重新加载设置（从文件读取）
+            await this.plugin.loadSettings();
+            // 重新渲染整个设置页面
+            this.display();
+        });
 
         const dragContainer = containerEl.createDiv({ cls: 'preset-drag-container' });
 
@@ -3526,6 +3607,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 devicesToShow.forEach(deviceId => {
                     const deviceName = this.plugin._getDeviceName(deviceId);
                     const isCurrent = deviceId === this.plugin.currentDeviceId;
+                    const devicePlatform = this.plugin._getDevicePlatform(deviceId);
 
                     const deviceItem = devicesContainer.createDiv({
                         cls: 'device-item'
@@ -3541,12 +3623,12 @@ class FontManagerSettingTab extends PluginSettingTab {
                         cls: 'device-os-icon'
                     });
 
-                    // 检测操作系统（从设备名称或当前设备的 UA）
+                    // 检测操作系统
                     let osClass = 'os-default'; // 默认图标
                     const deviceNameLower = deviceName.toLowerCase();
 
                     if (isCurrent) {
-                        // 当前设备：从 navigator.userAgent 检测
+                        // 当前设备：从 navigator.userAgent 精确检测
                         const ua = navigator.userAgent;
                         if (Platform.isMobile) {
                             if (ua.includes('Android')) {
@@ -3566,17 +3648,29 @@ class FontManagerSettingTab extends PluginSettingTab {
                             }
                         }
                     } else {
-                        // 其他设备：从设备名称推断
-                        if (deviceNameLower.includes('android')) {
-                            osClass = 'os-android';
-                        } else if (deviceNameLower.includes('ios') || deviceNameLower.includes('iphone') || deviceNameLower.includes('ipad')) {
-                            osClass = 'os-ios';
-                        } else if (deviceNameLower.includes('mac')) {
-                            osClass = 'os-macos';
-                        } else if (deviceNameLower.includes('windows')) {
-                            osClass = 'os-windows';
-                        } else if (deviceNameLower.includes('linux')) {
-                            osClass = 'os-linux';
+                        // 其他设备：结合平台信息和设备名称推断
+                        if (devicePlatform === 'mobile') {
+                            // 移动设备：从名称推断具体系统
+                            if (deviceNameLower.includes('android')) {
+                                osClass = 'os-android';
+                            } else if (deviceNameLower.includes('ios') || deviceNameLower.includes('iphone') || deviceNameLower.includes('ipad')) {
+                                osClass = 'os-ios';
+                            } else {
+                                // 移动设备但不确定系统，使用 Android 作为默认（因为更常见）
+                                osClass = 'os-android';
+                            }
+                        } else if (devicePlatform === 'desktop') {
+                            // 桌面设备：从名称推断具体系统
+                            if (deviceNameLower.includes('windows')) {
+                                osClass = 'os-windows';
+                            } else if (deviceNameLower.includes('mac')) {
+                                osClass = 'os-macos';
+                            } else if (deviceNameLower.includes('linux')) {
+                                osClass = 'os-linux';
+                            } else {
+                                // 桌面设备但不确定系统，使用通用桌面图标
+                                osClass = 'os-default';
+                            }
                         }
                     }
 
@@ -4996,6 +5090,10 @@ class FontManagerSettingTab extends PluginSettingTab {
 
     hide() {
         this._cleanupEventListeners();
+        // 清理自定义事件监听器
+        if (this._settingsChangedHandler) {
+            this.plugin.app.workspace.off('local-font-loader:settings-changed', this._settingsChangedHandler);
+        }
         super.hide();
     }
 }

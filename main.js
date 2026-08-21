@@ -195,7 +195,7 @@ const TRANSLATIONS = {
         style: 'Style',
         path: 'Path',
 
-        // Preset Management (新增)
+        // Preset Management (New)
         syncDelayTitle: 'Cross-Device Sync Notice',
         syncDelayContent: 'Font preset changes sync across devices via Obsidian Sync or third-party cloud services (iCloud, Dropbox). Changes may take time to propagate. Manually refresh if needed.',
         headerPresetManagement: 'Preset Management',
@@ -249,11 +249,11 @@ const TRANSLATIONS = {
     },
 
     zh: {
-        // 插件信息
+        // Plugin Info
         pluginName: '本地字体加载器',
         pluginDesc: '从本地 Vault 加载自定义字体',
 
-        // 设置标题
+        // Settings Headers
         headerDirectoryConfig: '目录配置',
         headerGeneralSettings: '通用设置',
         headerFontApplication: '字体应用设置',
@@ -266,11 +266,11 @@ const TRANSLATIONS = {
         cacheDir: 'Base64 缓存目录',
         cacheDirDesc: '转换后的 CSS 文件存储位置',
 
-        // 通用设置
+        // General Settings
         autoLoad: '启动时自动加载',
         autoLoadDesc: '当 Obsidian 启动时自动应用字体',
 
-        // 字体类型
+        // Font Types
         uiFontName: 'UI 界面字体',
         uiFontDesc: '侧边栏、菜单、按钮等界面元素',
         textFontName: '正文字体',
@@ -290,7 +290,7 @@ const TRANSLATIONS = {
         mathFontWarning: '⚠️ 必须选择专用数学字体（如 Latin Modern Math, XITS Math），普通字体无法正确渲染数学符号',
         systemDefault: '-- 系统默认 --',
 
-        // 拉丁字体分离
+        // Latin Font Separation
         latinFontInfo: '拉丁字体分离',
         latinFontInfoDesc: '启用后，可单独指定拉丁字体。拉丁字符（A-Z、a-z、数字、标点）将使用拉丁字体，而非拉丁字符（CJK等）仍使用原字体。',
         latinFontInfoDescForLatinUsers: '此功能专为混合使用拉丁文字和非拉丁文字的用户设计（例如：英文 + 中文/日文/韩文）。如果您主要使用拉丁文字书写，可能不需要此功能。',
@@ -307,7 +307,7 @@ const TRANSLATIONS = {
         scopeExtended: '基本 + 扩展拉丁字符（包含重音字符）',
         scopeFull: '完整拉丁字符 + 符号（包含标点和特殊符号）',
 
-        // 字体图例
+        // Font Legend
         legendConverted: '已转换',
         legendNotConverted: '未转换',
         legendCachedOnly: '仅缓存',
@@ -318,13 +318,13 @@ const TRANSLATIONS = {
         noNotExistFonts: '没有缺失的字体',
         noCachedOnlyFonts: '没有仅缓存的字体',
 
-        // 字体操作
+        // Font Operations
         scanFonts: '扫描字体',
         convertToBase64: '转换为 Base64',
         deleteFont: '删除字体',
         convertAll: '全部转换',
 
-        // 备用操作
+        // Fallback Operations
         deleteUnusedFonts: '删除未使用的字体',
         rescanFonts: '重新扫描',
         fontsRescanned: '字体已重新扫描',
@@ -338,25 +338,25 @@ const TRANSLATIONS = {
         applyNowDesc: '应用当前字体配置',
         applyFonts: '应用字体',
 
-        // 字体缺失警告
+        // Font Missing Warning
         fontMissingWarning: '当前字体文件缺失，已回退至系统设置',
 
-        // 字体变体警告
+        // Font Variant Warning
         variantWarningTitle: '字体变体警告',
         variantWarningBody: '所选字体 "{fontFamily}" 仅有 {variantCount} 个变体（{variantList}）。\n\n为确保拉丁文字内容的斜体和粗体正常显示，建议使用包含 Regular、Italic、Bold 和 Bold Italic 四种变体的字体家族。缺少变体可能导致伪斜体/伪粗体渲染问题。',
         variantWarningContinue: '仍然继续',
         variantWarningCancel: '取消',
         nonLatinFontNote: '非拉丁语言字体（中文、日文、韩文等）请忽略此警告',
 
-        // 覆盖系统设置
+        // Override System Settings
         overrideSystemSettingsTitle: '自定义设置优先',
         overrideSystemSettingsContent: '所有自定义设置一经应用，均会覆盖系统设置',
 
-        // 性能警告
+        // Performance Warning
         performanceWarningTitle: '性能注意事项',
         performanceWarningContent: '避免在单行内混合过多语言文字。密集的多语言混排（例如在同一行内混合中文+日文+韩文+阿拉伯文+俄文）可能触发字体回退机制，导致渲染引擎卡死。\n\n建议：将不同语言的内容分段显示，以获得最佳性能。',
 
-        // 设置页面 Callout
+        // Settings Page Callout
         incompleteVariantTitle: '字体变体不完整',
         incompleteVariantBody: '所选字体 "{fontFamily}" 仅有 {variantCount} 个变体（{variantList}）。\n建议：选择包含 Regular、Italic、Bold 和 Bold Italic 四种变体的字体家族，以确保斜体和粗体正常显示。\n非拉丁语言字体通常不需要完整的 Italic/Bold 变体，可以忽略此警告。',
         monospaceRequirement: '等宽字体要求',
@@ -366,7 +366,7 @@ const TRANSLATIONS = {
         missingVariantTitle: '缺少字体变体',
         missingVariantBody: '{latinFont} 缺少以下变体：{missingList}。缺失的样式将使用浏览器合成（效果较差）。',
 
-        // 界面文本
+        // UI Text
         variantsSuffix: '变体',
         variantsWithCheckmark: '{familyName} ✓ ({variantCount} 个变体)',
         variantsWithoutCheckmark: '{familyName} ({variantCount} 个变体)',
@@ -395,7 +395,7 @@ const TRANSLATIONS = {
         punctuationDesc: '.,!?;: 等常用标点',
         symbolsDesc: '@#$%&* 等特殊字符',
 
-        // 通知
+        // Notices
         fontsApplied: '✓ 字体已应用',
         fontConverted: '✓ 字体已转换',
         conversionFailed: '⚠️ 字体转换失败',
@@ -407,7 +407,7 @@ const TRANSLATIONS = {
         unusedDeleted: '✓ 已删除 {count} 个未使用的字体',
         scanComplete: '✓ 已扫描 {count} 个字体',
 
-        // 模态框
+        // Modals
         confirmDelete: '确认删除',
         confirmDeleteMsg: '确定要删除此字体吗？',
         confirmDeleteUnused: '确定要删除所有未使用的字体吗？',
@@ -416,13 +416,13 @@ const TRANSLATIONS = {
         confirm: '确认',
 
 
-        // 字体信息
+        // Font Info
         variantsCount: '{count} 个变体',
         familyName: '家族',
         style: '样式',
         path: '路径',
 
-        // 预设管理（新增）
+        // Preset Management (New)
         syncDelayTitle: '跨设备同步提示',
         syncDelayContent: '字体预设的变更通过 Obsidian Sync 或第三方云同步服务（iCloud、Dropbox）在设备间同步。变更可能需要一段时间才能传播到其他设备。如需立即生效，请手动刷新。',
         headerPresetManagement: '预设管理',
@@ -476,11 +476,11 @@ const TRANSLATIONS = {
     },
 
     ja: {
-        // プラグイン情報
+        // Plugin Info
         pluginName: 'ローカルフォントローダー',
         pluginDesc: 'ローカル Vault からカスタムフォントを読み込む',
 
-        // 設定ヘッダー
+        // Settings Headers
         headerDirectoryConfig: 'ディレクトリ設定',
         headerGeneralSettings: '一般設定',
         headerFontApplication: 'フォント適用設定',
@@ -495,17 +495,17 @@ const TRANSLATIONS = {
         presetId: 'プリセット ID',
         usingGlobalPreset: 'グローバルプリセットです（未割り当てのすべてのデバイスに適用）',
 
-        // ディレクトリ設定
+        // Directory Settings
         fontSourceDir: 'フォントソースディレクトリ',
         fontSourceDirDesc: 'フォントファミリーフォルダを含むディレクトリ',
         cacheDir: 'Base64 キャッシュディレクトリ',
         cacheDirDesc: '変換された CSS ファイルの保存場所',
 
-        // 一般設定
+        // General Settings
         autoLoad: '起動時に自動読み込み',
         autoLoadDesc: 'Obsidian 起動時にフォントを自動適用',
 
-        // フォントタイプ
+        // Font Types
         uiFontName: 'UI インターフェースフォント',
         uiFontDesc: 'サイドバー、メニュー、ボタンなどの UI 要素',
         textFontName: '本文フォント',
@@ -525,7 +525,7 @@ const TRANSLATIONS = {
         mathFontWarning: '⚠️ 必須：専用の数式フォント（Latin Modern Math、XITS Math など）が必要です。通常のフォントでは数学記号を正しくレンダリングできません',
         systemDefault: '-- システムデフォルト --',
 
-        // ラテン文字フォント分離
+        // Latin Font Separation
         latinFontInfo: 'ラテン文字フォント分離',
         latinFontInfoDesc: '有効にすると、別のラテン文字フォントを指定できます。ラテン文字（A-Z、a-z、数字、句読点）はラテン文字フォントを使用し、非ラテン文字（CJK など）は元のフォントを使用し続けます。',
         latinFontInfoDescForLatinUsers: 'この機能はラテン文字と非ラテン文字を混在させるユーザー向けです（例：英語 + 中国語/日本語/韓国語）。主にラテン文字言語で執筆する場合、この機能は必要ないかもしれません。',
@@ -542,7 +542,7 @@ const TRANSLATIONS = {
         scopeExtended: '基本 + 拡張ラテン文字（アクセント付き文字を含む）',
         scopeFull: '完全ラテン文字 + 記号（句読点と特殊記号を含む）',
 
-        // フォント凡例
+        // Font Legend
         legendConverted: '変換済み',
         legendNotConverted: '未変換',
         legendCachedOnly: 'キャッシュのみ',
@@ -552,13 +552,13 @@ const TRANSLATIONS = {
         noNotConvertedFonts: '未変換のフォントがありません',
         noNotExistFonts: '欠落しているフォントがありません',
 
-        // フォント操作
+        // Font Operations
         scanFonts: 'フォントをスキャン',
         convertToBase64: 'Base64 に変換',
         deleteFont: 'フォントを削除',
         convertAll: 'すべて変換',
 
-        // フォールバック操作
+        // Fallback Operations
         deleteUnusedFonts: '未使用フォントを削除',
         rescanFonts: 'フォントを再スキャン',
         fontsRescanned: 'フォントを再スキャンしました',
@@ -572,16 +572,16 @@ const TRANSLATIONS = {
         applyNowDesc: '現在のフォント設定を適用',
         applyFonts: 'フォントを適用',
 
-        // フォント欠落警告
+        // Font Missing Warning
         fontMissingWarning: 'フォントファイルが見つかりません。システムデフォルトにフォールバックしました',
 
-        // フォントバリアント警告
+        // Font Variant Warning
         variantWarningTitle: 'フォントバリアント警告',
         variantWarningBody: '選択したフォント "{fontFamily}" には {variantCount} 個のバリアント（{variantList}）しかありません。\n\nラテン文字コンテンツの斜体と太字を適切にレンダリングするには、Regular、Italic、Bold、Bold Italic のバリアントを含むフォントファミリーを使用することをお勧めします。バリアントが不足していると、疑似斜体/疑似太字のレンダリング問題が発生する可能性があります。',
         variantWarningContinue: 'このまま続ける',
         variantWarningCancel: 'キャンセル',
 
-        // 通知
+        // Notices
         fontsApplied: '✓ フォントが適用されました',
         fontConverted: '✓ フォントが変換されました',
         conversionFailed: '⚠️ フォント変換に失敗しました',
@@ -596,7 +596,7 @@ const TRANSLATIONS = {
         importing: 'インポート中...',
         importError: '⚠️ インポートに失敗しました',
 
-        // モーダル
+        // Modals
         confirmDelete: '削除の確認',
         confirmDeleteMsg: 'このフォントを削除してもよろしいですか？',
         confirmDeleteUnused: 'すべての未使用フォントを削除してもよろしいですか？',
@@ -604,7 +604,7 @@ const TRANSLATIONS = {
         cancel: 'キャンセル',
         confirm: '確認',
 
-        // フォント情報
+        // Font Info
         variantsCount: '{count} バリアント',
         familyName: 'ファミリー',
         style: 'スタイル',
@@ -612,11 +612,11 @@ const TRANSLATIONS = {
     },
 
     ko: {
-        // 플러그인 정보
+        // Plugin Info
         pluginName: '로컬 폰트 로더',
         pluginDesc: '로컬 보관함에서 커스텀 폰트 로드',
 
-        // 설정 헤더
+        // Settings Headers
         headerDirectoryConfig: '디렉토리 설정',
         headerGeneralSettings: '일반 설정',
         headerFontApplication: '폰트 적용 설정',
@@ -631,17 +631,17 @@ const TRANSLATIONS = {
         presetId: '프리셋 ID',
         usingGlobalPreset: '전역 프리셋입니다（할당되지 않은 모든 장치에 적용）',
 
-        // 디렉토리 설정
+        // Directory Settings
         fontSourceDir: '폰트 소스 디렉토리',
         fontSourceDirDesc: '폰트 패밀리 폴더가 포함된 디렉토리',
         cacheDir: 'Base64 캐시 디렉토리',
         cacheDirDesc: '변환된 CSS 파일 저장 위치',
 
-        // 일반 설정
+        // General Settings
         autoLoad: '시작 시 자동 로드',
         autoLoadDesc: 'Obsidian 시작 시 폰트 자동 적용',
 
-        // 폰트 타입
+        // Font Types
         uiFontName: 'UI 인터페이스 폰트',
         uiFontDesc: '사이드바, 메뉴, 버튼 등 UI 요소',
         textFontName: '본문 폰트',
@@ -661,7 +661,7 @@ const TRANSLATIONS = {
         mathFontWarning: '⚠️ 필수：전용 수학 폰트（예: Latin Modern Math, XITS Math）가 필요합니다. 일반 폰트는 수학 기호를 올바르게 렌더링할 수 없습니다',
         systemDefault: '-- 시스템 기본값 --',
 
-        // 라틴 폰트 분리
+        // Latin Font Separation
         latinFontInfo: '라틴 폰트 분리',
         latinFontInfoDesc: '활성화하면 별도의 라틴 폰트를 지정할 수 있습니다. 라틴 문자（A-Z, a-z, 숫자, 구두점）는 라틴 폰트를 사용하고 비라틴 문자（CJK 등）는 원래 폰트를 계속 사용합니다.',
         latinFontInfoDescForLatinUsers: '이 기능은 라틴 문자와 비라틴 문자를 혼용하는 사용자를 위한 것입니다（예: 영어 + 중국어/일본어/한국어）. 주로 라틴 문자 언어로 작성하는 경우 이 기능이 필요하지 않을 수 있습니다.',
@@ -678,7 +678,7 @@ const TRANSLATIONS = {
         scopeExtended: '기본 + 확장 라틴 문자（악센트 문자 포함）',
         scopeFull: '전체 라틴 문자 + 기호（구두점 및 특수 기호 포함）',
 
-        // 폰트 범례
+        // Font Legend
         legendConverted: '변환됨',
         legendNotConverted: '변환되지 않음',
         legendCachedOnly: '캐시만',
@@ -688,13 +688,13 @@ const TRANSLATIONS = {
         noNotConvertedFonts: '변환되지 않은 폰트가 없습니다',
         noNotExistFonts: '누락된 폰트가 없습니다',
 
-        // 폰트 작업
+        // Font Operations
         scanFonts: '폰트 스캔',
         convertToBase64: 'Base64로 변환',
         deleteFont: '폰트 삭제',
         convertAll: '모두 변환',
 
-        // 대체 작업
+        // Fallback Operations
         deleteUnusedFonts: '사용하지 않는 폰트 삭제',
         rescanFonts: '폰트 재스캔',
         fontsRescanned: '폰트 재스캔 완료',
@@ -708,16 +708,16 @@ const TRANSLATIONS = {
         applyNowDesc: '현재 폰트 설정 적용',
         applyFonts: '폰트 적용',
 
-        // 폰트 누락 경고
+        // Font Missing Warning
         fontMissingWarning: '폰트 파일이 없습니다. 시스템 기본값으로 대체되었습니다',
 
-        // 폰트 변형 경고
+        // Font Variant Warning
         variantWarningTitle: '폰트 변형 경고',
         variantWarningBody: '선택한 폰트 "{fontFamily}"에는 {variantCount}개의 변형（{variantList}）만 있습니다.\n\n라틴 문자 콘텐츠의 기울임꼴과 굵은 글씨를 올바르게 렌더링하려면 Regular, Italic, Bold, Bold Italic 변형이 포함된 폰트 패밀리를 사용하는 것이 좋습니다. 변형이 누락되면 가짜 기울임꼴/가짜 굵은 글씨 렌더링 문제가 발생할 수 있습니다.',
         variantWarningContinue: '계속 진행',
         variantWarningCancel: '취소',
 
-        // 알림
+        // Notices
         fontsApplied: '✓ 폰트가 적용되었습니다',
         fontConverted: '✓ 폰트가 변환되었습니다',
         conversionFailed: '⚠️ 폰트 변환 실패',
@@ -732,7 +732,7 @@ const TRANSLATIONS = {
         importing: '가져오는 중...',
         importError: '⚠️ 가져오기 실패',
 
-        // 모달
+        // Modals
         confirmDelete: '삭제 확인',
         confirmDeleteMsg: '이 폰트를 삭제하시겠습니까？',
         confirmDeleteUnused: '사용하지 않는 모든 폰트를 삭제하시겠습니까？',
@@ -740,7 +740,7 @@ const TRANSLATIONS = {
         cancel: '취소',
         confirm: '확인',
 
-        // 폰트 정보
+        // Font Info
         variantsCount: '{count}개 변형',
         familyName: '패밀리',
         style: '스타일',
@@ -748,11 +748,11 @@ const TRANSLATIONS = {
     },
 
     es: {
-        // Información del plugin
+        // Plugin Info
         pluginName: 'Cargador de Fuentes Locales',
         pluginDesc: 'Carga fuentes personalizadas desde tu bóveda local',
 
-        // Encabezados de configuración
+        // Settings Headers
         headerDirectoryConfig: 'Configuración de Directorios',
         headerGeneralSettings: 'Configuración General',
         headerFontApplication: 'Configuración de Aplicación de Fuentes',
@@ -767,13 +767,13 @@ const TRANSLATIONS = {
         presetId: 'ID del Preset',
         usingGlobalPreset: 'Este es un preset global (aplica a todos los dispositivos no asignados)',
 
-        // Configuración de directorio
+        // Directory Settings
         fontSourceDir: 'Directorio de Origen de Fuentes',
         fontSourceDirDesc: 'Directorio que contiene carpetas de familias de fuentes',
         cacheDir: 'Directorio de Caché Base64',
         cacheDirDesc: 'Donde se almacenan los archivos CSS convertidos',
 
-        // Configuración general
+        // General Settings
         autoLoad: 'Cargar automáticamente al iniciar',
         autoLoadDesc: 'Aplicar automáticamente las fuentes cuando se inicia Obsidian',
 
@@ -791,7 +791,7 @@ const TRANSLATIONS = {
         mathFontWarning: '⚠️ Requerido: Debe ser una fuente matemática dedicada (ej., Latin Modern Math, XITS Math). Las fuentes regulares no pueden renderizar símbolos matemáticos correctamente',
         systemDefault: '-- Predeterminado del Sistema --',
 
-        // Separación de fuentes latinas
+        // Latin Font Separation
         latinFontInfo: 'Separación de Fuentes Latinas',
         latinFontInfoDesc: 'Al activarse, puede asignar una fuente latina separada. Los caracteres latinos (A-Z, a-z, números, puntuación) usarán la fuente latina, mientras que los caracteres no latinos (CJK, etc.) continuarán usando la fuente original.',
         latinFontInfoDescForLatinUsers: 'Esta función está diseñada para usuarios que mezclan escrituras latinas y no latinas (ej., Inglés + Chino/Japonés/Coreano). Si escribe principalmente en idiomas con escritura latina, probablemente no necesite esta función.',
@@ -871,7 +871,7 @@ const TRANSLATIONS = {
         confirm: 'Confirmar',
 
 
-        // Información de fuente
+        // Font Info
         variantsCount: '{count} variantes',
         familyName: 'Familia',
         style: 'Estilo',
@@ -879,11 +879,11 @@ const TRANSLATIONS = {
     },
 
     'zh-TW': {
-        // 插件資訊
+        // Plugin Info
         pluginName: '本地字型載入器',
         pluginDesc: '從本地 Vault 載入自訂字型',
 
-        // 設定標題
+        // Settings Headers
         headerDirectoryConfig: '目錄設定',
         headerGeneralSettings: '通用設定',
         headerFontApplication: '字型套用設定',
@@ -896,11 +896,11 @@ const TRANSLATIONS = {
         cacheDir: 'Base64 快取目錄',
         cacheDirDesc: '轉換後的 CSS 檔案儲存位置',
 
-        // 通用設定
+        // General Settings
         autoLoad: '啟動時自動載入',
         autoLoadDesc: '當 Obsidian 啟動時自動套用字型',
 
-        // 字型類型
+        // Font Types
         uiFontName: 'UI 介面字型',
         uiFontDesc: '側邊欄、選單、按鈕等介面元素',
         textFontName: '正文字型',
@@ -920,7 +920,7 @@ const TRANSLATIONS = {
         mathFontWarning: '⚠️ 必須選擇專用數學字型（如 Latin Modern Math, XITS Math），普通字型無法正確渲染數學符號',
         systemDefault: '-- 系統預設 --',
 
-        // 拉丁字型分離
+        // Latin Font Separation
         latinFontInfo: '拉丁字型分離',
         latinFontInfoDesc: '啟用後，可單獨指定拉丁字型。拉丁字元（A-Z、a-z、數字、標點）將使用拉丁字型，而非拉丁字元（CJK等）仍使用原字型。',
         latinFontInfoDescForLatinUsers: '此功能專為混合使用拉丁文字和非拉丁文字的使用者設計（例如：英文 + 中文/日文/韓文）。如果您主要使用拉丁文字書寫，可能不需要此功能。',
@@ -937,7 +937,7 @@ const TRANSLATIONS = {
         scopeExtended: '基本 + 擴充拉丁字元（包含重音字元）',
         scopeFull: '完整拉丁字元 + 符號（包含標點和特殊符號）',
 
-        // 字型圖例
+        // Font Legend
         legendConverted: '已轉換',
         legendNotConverted: '未轉換',
         legendCachedOnly: '僅快取',
@@ -948,13 +948,13 @@ const TRANSLATIONS = {
         noNotExistFonts: '沒有缺失的字型',
         noCachedOnlyFonts: '沒有僅快取的字型',
 
-        // 字型操作
+        // Font Operations
         scanFonts: '掃描字型',
         convertToBase64: '轉換為 Base64',
         deleteFont: '刪除字型',
         convertAll: '全部轉換',
 
-        // 備用操作
+        // Fallback Operations
         deleteUnusedFonts: '刪除未使用的字型',
         rescanFonts: '重新掃描',
         fontsRescanned: '字型已重新掃描',
@@ -968,25 +968,25 @@ const TRANSLATIONS = {
         applyNowDesc: '套用目前字型設定',
         applyFonts: '套用字型',
 
-        // 字型缺失警告
+        // Font Missing Warning
         fontMissingWarning: '目前字型檔案缺失，已回退至系統設定',
 
-        // 字型變體警告
+        // Font Variant Warning
         variantWarningTitle: '字型變體警告',
         variantWarningBody: '所選字型 "{fontFamily}" 僅有 {variantCount} 個變體（{variantList}）。\n\n為確保拉丁文字內容的斜體和粗體正常顯示，建議使用包含 Regular、Italic、Bold 和 Bold Italic 四種變體的字型家族。缺少變體可能導致偽斜體/偽粗體渲染問題。',
         variantWarningContinue: '仍然繼續',
         variantWarningCancel: '取消',
         nonLatinFontNote: '非拉丁語言字型（中文、日文、韓文等）請忽略此警告',
 
-        // 覆蓋系統設定
+        // Override System Settings
         overrideSystemSettingsTitle: '自訂設定優先',
         overrideSystemSettingsContent: '所有自訂設定一經套用，均會覆蓋系統設定',
 
-        // 效能警告
+        // Performance Warning
         performanceWarningTitle: '效能注意事項',
         performanceWarningContent: '避免在單行內混合過多語言文字。密集的多語言混排（例如在同一行內混合中文+日文+韓文+阿拉伯文+俄文）可能觸發字型回退機制，導致渲染引擎卡死。\n\n建議：將不同語言的內容分段顯示，以獲得最佳效能。',
 
-        // 設定頁面 Callout
+        // Settings Page Callout
         incompleteVariantTitle: '字型變體不完整',
         incompleteVariantBody: '所選字型 "{fontFamily}" 僅有 {variantCount} 個變體（{variantList}）。\n建議：選擇包含 Regular、Italic、Bold 和 Bold Italic 四種變體的字型家族，以確保斜體和粗體正常顯示。\n非拉丁語言字型通常不需要完整的 Italic/Bold 變體，可以忽略此警告。',
         monospaceRequirement: '等寬字型要求',
@@ -996,7 +996,7 @@ const TRANSLATIONS = {
         missingVariantTitle: '缺少字型變體',
         missingVariantBody: '{latinFont} 缺少以下變體：{missingList}。缺失的樣式將使用瀏覽器合成（效果較差）。',
 
-        // 介面文字
+        // UI Text
         variantsSuffix: '變體',
         variantsWithCheckmark: '{familyName} ✓ ({variantCount} 個變體)',
         variantsWithoutCheckmark: '{familyName} ({variantCount} 個變體)',
@@ -1025,7 +1025,7 @@ const TRANSLATIONS = {
         punctuationDesc: '.,!?;: 等常用標點',
         symbolsDesc: '@#$%&* 等特殊字元',
 
-        // 通知
+        // Notices
         fontsApplied: '✓ 字型已套用',
         fontConverted: '✓ 字型已轉換',
         conversionFailed: '⚠️ 字型轉換失敗',
@@ -1037,7 +1037,7 @@ const TRANSLATIONS = {
         unusedDeleted: '✓ 已刪除 {count} 個未使用的字型',
         scanComplete: '✓ 已掃描 {count} 個字型',
 
-        // 模態框
+        // Modals
         confirmDelete: '確認刪除',
         confirmDeleteMsg: '確定要刪除此字型嗎？',
         confirmDeleteUnused: '確定要刪除所有未使用的字型嗎？',
@@ -1045,13 +1045,13 @@ const TRANSLATIONS = {
         cancel: '取消',
         confirm: '確認',
 
-        // 字型資訊
+        // Font Info
         variantsCount: '{count} 個變體',
         familyName: '家族',
         style: '樣式',
         path: '路徑',
 
-        // 預設管理（新增）
+        // Preset Management (New)
         syncDelayTitle: '跨裝置同步提示',
         syncDelayContent: '字型預設的變更透過 Obsidian Sync 或第三方雲端同步服務（iCloud、Dropbox）在裝置間同步。變更可能需要一段時間才能傳播到其他裝置。如需立即生效，請手動重新整理。',
         headerPresetManagement: '預設管理',
@@ -1124,11 +1124,11 @@ function t(key, localeOrParams = null, params = {}) {
     if (!locale) {
         const fullLocale = window.localStorage.getItem('language') || 'en';
 
-        // 优先匹配完整语言代码（如 zh-TW）
+        // Prefer the full locale code (e.g., zh-TW)
         if (TRANSLATIONS[fullLocale]) {
             locale = fullLocale;
         } else {
-            // 回退到主语言代码（如 zh）
+            // Fall back to the base locale code (e.g., zh)
             locale = fullLocale.split('-')[0];
         }
     }
@@ -1344,7 +1344,7 @@ const DEFAULT_SETTINGS = {
     fontFamilies: [],         // Global font family grouping info (shared by all presets)
     autoLoadOnStartup: true,
 
-    // Device identification (会被云同步)
+    // Device identification (synced via cloud)
     deviceFingerprints: {},   // Device fingerprint mapping { fingerprint: deviceId }
     deviceNameMap: {},        // Device name mapping { deviceId: deviceName }
 
@@ -1383,8 +1383,8 @@ const DEFAULT_SETTINGS = {
 
 class LocalFontLoaderPlugin extends Plugin {
 
-    // 日志级别控制
-    _logEnabled = false; // 默认关闭日志输出
+    // Log level control
+    _logEnabled = false; // logging disabled by default
 
     _log(...args) {
         if (this._logEnabled) {
@@ -1393,10 +1393,10 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     _logError(...args) {
-        console.error(...args); // 错误日志始终输出
+        console.error(...args); // error logs are always emitted
     }
 
-    // saveSettings 防抖优化
+    // saveSettings debounce optimization
     _saveSettingsTimer = null;
     _debouncedSaveSettings() {
         if (this._saveSettingsTimer) {
@@ -1405,7 +1405,7 @@ class LocalFontLoaderPlugin extends Plugin {
         this._saveSettingsTimer = setTimeout(() => {
             this.saveData(this.settings);
             this._saveSettingsTimer = null;
-        }, 300); // 300ms 防抖延迟
+        }, 300); // 300ms debounce delay
     }
 
     // Generate unicode-range (based on scope configuration)
@@ -1441,18 +1441,18 @@ class LocalFontLoaderPlugin extends Plugin {
         // Load settings
         await this.loadSettings();
 
-        // 自动检测并注册设备
-        // 使用设备指纹（平台 + UA 哈希）作为唯一标识
+        // Auto-detect and register device
+        // Use a device fingerprint (platform + UA hash) as the unique identifier
         const deviceFingerprint = this._generateDeviceFingerprint();
 
-        // 检查设备是否已存在
+        // Check if the device already exists
         let existingDeviceId = null;
         if (this.settings.deviceFingerprints && this.settings.deviceFingerprints[deviceFingerprint]) {
-            // 设备已存在，使用现有 ID
+            // Device exists, use the existing ID
             existingDeviceId = this.settings.deviceFingerprints[deviceFingerprint];
             this.currentDeviceId = existingDeviceId;
 
-            // 确保 deviceNameMap 中有名称（可能因清理旧数据而丢失）
+            // Ensure deviceNameMap has a name (may be lost during data cleanup)
             if (!this.settings.deviceNameMap) {
                 this.settings.deviceNameMap = {};
             }
@@ -1464,11 +1464,11 @@ class LocalFontLoaderPlugin extends Plugin {
 
             this._log(`[Local Font Loader] Device recognized: ${existingDeviceId}`);
         } else {
-            // 新设备，生成新 ID 并记录
+            // New device, generate a new ID and register it
             const newDeviceId = this._generateUUID();
             const defaultDeviceName = this._getDefaultDeviceName();
 
-            // 初始化数据结构
+            // Initialize data structures
             if (!this.settings.deviceFingerprints) {
                 this.settings.deviceFingerprints = {};
             }
@@ -1476,7 +1476,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 this.settings.deviceNameMap = {};
             }
 
-            // 记录设备指纹映射
+            // Record the device fingerprint mapping
             this.settings.deviceFingerprints[deviceFingerprint] = newDeviceId;
             this.settings.deviceNameMap[newDeviceId] = defaultDeviceName;
 
@@ -1486,7 +1486,7 @@ class LocalFontLoaderPlugin extends Plugin {
             this._log(`[Local Font Loader] New device registered: ${newDeviceId} (${defaultDeviceName})`);
         }
 
-        // 确保当前设备有对应的预设
+        // Ensure the current device has a preset
         await this._ensureDevicePreset();
 
         // Add Ribbon icon
@@ -1496,7 +1496,7 @@ class LocalFontLoaderPlugin extends Plugin {
             this.app.setting.openTabById('local-font-loader');
         });
 
-        // 添加命令
+        // Add commands
         this.addCommand({
             id: 'open-settings',
             name: 'Open Settings',
@@ -1540,30 +1540,30 @@ class LocalFontLoaderPlugin extends Plugin {
             }
         });
 
-        // 添加Settings Panel
+        // Add Settings Panel
         this.addSettingTab(new FontManagerSettingTab(this.app, this));
 
-        // 监听 data.json 文件变化（用于多设备同步）
+        // Listen for data.json changes (for multi-device sync)
         this.registerEvent(
             this.app.vault.on('modify', (file) => {
-                // 检查是否是当前插件的 data.json
+                // Check if it is this plugin's data.json
                 if (file.path === `${this.manifest.dir}/data.json`) {
                     this._log('[Local Font Loader] data.json modified, reloading settings...');
-                    // 延迟重新加载，避免频繁触发
+                    // Delay the reload to avoid frequent triggers
                     if (this._dataReloadTimer) {
                         clearTimeout(this._dataReloadTimer);
                     }
                     this._dataReloadTimer = setTimeout(async () => {
                         await this.loadSettings();
-                        // 通知设置面板刷新
+                        // Notify the settings panel to refresh
                         this.app.workspace.trigger('local-font-loader:settings-changed');
                         this._log('[Local Font Loader] Settings reloaded from data.json');
-                    }, 500); // 500ms 防抖
+                    }, 500); // 500ms debounce
                 }
             })
         );
 
-        // 扫描字体（如果列表为空）
+        // Scan fonts (if the list is empty)
         if (this.settings.availableFonts.length === 0) {
             await this.scanFonts();
         }
@@ -1579,7 +1579,7 @@ class LocalFontLoaderPlugin extends Plugin {
     onunload() {
         this._log('[Local Font Loader] Plugin unloading');
 
-        // 清理防抖计时器
+        // Clean up the debounce timer
         if (this._saveSettingsTimer) {
             clearTimeout(this._saveSettingsTimer);
             this._saveSettingsTimer = null;
@@ -1591,13 +1591,13 @@ class LocalFontLoaderPlugin extends Plugin {
     async loadSettings() {
         const data = await this.loadData();
 
-        // 向后兼容：旧版本数据迁移
+        // Backward compatibility: migrate legacy data
         if (data && !data.presets) {
-            // 将旧版字体配置迁移到默认预设（保留用户现有配置作为全局默认）
+            // Migrate legacy font config to the default preset (keep user config as global default)
             const defaultPreset = {
                 id: 'default-preset',
                 name: 'Default',
-                targetDevices: [], // 空数组表示全局默认
+                targetDevices: [], // empty array means the global default
                 fonts: data.fonts || {},
                 latinFontEnabled: data.latinFontEnabled || false,
                 latinFontScope: data.latinFontScope || {},
@@ -1607,7 +1607,7 @@ class LocalFontLoaderPlugin extends Plugin {
             data.presets = [defaultPreset];
         }
 
-        // 清理旧的 deviceId 和 deviceName 字段（已废弃）
+        // Clean up legacy deviceId and deviceName fields (deprecated)
         if (data && data.deviceId !== undefined) {
             delete data.deviceId;
         }
@@ -1615,7 +1615,7 @@ class LocalFontLoaderPlugin extends Plugin {
             delete data.deviceName;
         }
 
-        // 初始化新的设备管理字段
+        // Initialize new device management fields
         if (data && !data.deviceFingerprints) {
             data.deviceFingerprints = {};
         }
@@ -1631,28 +1631,28 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     // ============================================================================
-    // Preset Management Methods (新增)
+    // Preset Management Methods (New)
     // ============================================================================
 
     /**
-     * 获取当前设备所属的预设
-     * @returns {Object} 预设对象
+     * Get the preset assigned to the current device
+     * @returns {Object} The preset object
      */
     _getDevicePreset() {
         const deviceId = this.currentDeviceId;
 
-        // 查找包含当前设备的预设
+        // Find the preset containing the current device
         let preset = this.settings.presets.find(p =>
             p.targetDevices.includes(deviceId)
         );
 
         if (!preset) {
-            // 如果设备不属于任何预设，回退到默认全局预设
+            // If the device has no preset, fall back to the default global preset
             preset = this.settings.presets.find(p => p.id === 'default-preset');
         }
 
         if (!preset) {
-            // 最终回退：返回第一个预设
+            // Final fallback: return the first preset
             preset = this.settings.presets[0];
         }
 
@@ -1660,18 +1660,18 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 创建新预设
-     * @param {string} name - 预设名称
+     * Create a new preset
+     * @param {string} name - The preset name
      */
     async createPreset(name) {
-        // 获取全局预设（default-preset）作为模板
+        // Get the global preset (default-preset) as a template
         const defaultPreset = this.settings.presets.find(p => p.id === 'default-preset');
 
         const newPreset = {
             id: this._generateUUID(),
             name: name,
-            targetDevices: [], // 新预设默认为空，等待用户分配设备
-            // 克隆全局预设的字体配置
+            targetDevices: [], // new presets start empty, awaiting device assignment
+            // Clone the global preset's font config
             fonts: defaultPreset ? JSON.parse(JSON.stringify(defaultPreset.fonts)) : { ui: '', text: '', heading: '', monospace: '', math: '', latin: '' },
             latinFontEnabled: defaultPreset ? defaultPreset.latinFontEnabled : false,
             latinFontScope: defaultPreset ? JSON.parse(JSON.stringify(defaultPreset.latinFontScope)) : { letters: true, numbers: true, punctuation: true, symbols: true },
@@ -1683,9 +1683,9 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 重命名预设
-     * @param {string} presetId - 预设 ID
-     * @param {string} newName - 新名称
+     * Rename a preset
+     * @param {string} presetId - The preset ID
+     * @param {string} newName - The new name
      */
     async renamePreset(presetId, newName) {
         const preset = this.settings.presets.find(p => p.id === presetId);
@@ -1696,13 +1696,13 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 删除预设（带警告弹窗与默认预设保护）
-     * @param {string} presetId - 预设 ID
+     * Delete a preset (with a warning modal and protection for the default preset)
+     * @param {string} presetId - The preset ID
      */
     async deletePreset(presetId) {
         const t = (key) => this.getTranslation(key);
 
-        // 不允许删除默认预设
+        // Do not allow deleting the default preset
         if (presetId === 'default-preset') {
             new Notice(t('cannotDeleteDefaultPreset'), 3000);
             return;
@@ -1711,30 +1711,30 @@ class LocalFontLoaderPlugin extends Plugin {
         const preset = this.settings.presets.find(p => p.id === presetId);
         if (!preset) return;
 
-        // 移除确认逻辑，由 UI 层统一处理
+        // Confirmation logic removed; handled by the UI layer
 
-        // 删除预设（设备会自动通过 _getDevicePreset() 回退到全局预设）
+        // Delete preset (devices automatically fall back to the global preset via _getDevicePreset())
         this.settings.presets = this.settings.presets.filter(p => p.id !== presetId);
         await this.saveSettings();
     }
 
     /**
-     * 将设备分配到指定预设（支持拖入全局预设）
-     * @param {string} deviceId - 设备 ID
-     * @param {string} targetPresetId - 目标预设 ID
+     * Assign a device to the specified preset (supports dragging into the global preset)
+     * @param {string} deviceId - The device ID
+     * @param {string} targetPresetId - The target preset ID
      */
     async assignDeviceToPreset(deviceId, targetPresetId) {
-        // 从所有预设中移除该设备
+        // Remove the device from all presets
         this.settings.presets.forEach(preset => {
             preset.targetDevices = preset.targetDevices.filter(id => id !== deviceId);
         });
 
-        // 添加到目标预设（除非目标是全局预设）
+        // Add to the target preset (unless the target is the global preset)
         const targetPreset = this.settings.presets.find(p => p.id === targetPresetId);
 
-        // 关键逻辑：
-        // - 如果目标预设是全局预设（id === 'default-preset' && targetDevices.length === 0），不添加设备
-        // - 否则，添加设备到目标预设
+        // Key logic:
+        // - If the target preset is the global preset (id === 'default-preset' && targetDevices.length === 0), do not add the device
+        // - Otherwise, add the device to the target preset
         if (targetPreset) {
             const isGlobalPreset = targetPreset.id === 'default-preset' && targetPreset.targetDevices.length === 0;
             if (!isGlobalPreset && !targetPreset.targetDevices.includes(deviceId)) {
@@ -1743,28 +1743,28 @@ class LocalFontLoaderPlugin extends Plugin {
         }
 
         await this.saveSettings();
-        await this.applyFonts(); // 立即应用新预设的字体配置
+        await this.applyFonts(); // apply the new preset font config immediately
     }
 
     /**
-     * 为当前设备复制预设副本
-     * @param {string} sourcePresetId - 源预设 ID
-     * @param {string} newPresetName - 新预设名称（通常为"原名_副本"）
+     * Duplicate a preset for the current device
+     * @param {string} sourcePresetId - The source preset ID
+     * @param {string} newPresetName - The new preset name (usually "<original name>_Copy")
      */
     async copyPresetForDevice(sourcePresetId, newPresetName) {
-        // 获取当前设备所属的预设
+        // Get the preset of the current device
         const devicePreset = this._getDevicePreset();
         if (!devicePreset) return;
 
-        // 克隆设备所属预设
+        // Clone the device's preset
         const newPreset = {
-            ...JSON.parse(JSON.stringify(devicePreset)), // 深拷贝
+            ...JSON.parse(JSON.stringify(devicePreset)), // deep copy
             id: this._generateUUID(),
-            name: newPresetName, // 使用传入的名称（"原名_副本"）
-            targetDevices: [this.currentDeviceId] // 新预设只包含当前设备
+            name: newPresetName, // use the passed-in name ("<original>_Copy")
+            targetDevices: [this.currentDeviceId] // new preset contains only the current device
         };
 
-        // 从源预设中移除当前设备
+        // Remove the current device from the source preset
         devicePreset.targetDevices = devicePreset.targetDevices.filter(
             id => id !== this.currentDeviceId
         );
@@ -1774,8 +1774,8 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 生成 UUID
-     * @returns {string} UUID 字符串
+     * Generate a UUID
+     * @returns {string} The UUID string
      */
     _generateUUID() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -1786,16 +1786,16 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 从预设中移除指定设备（用于清理幽灵设备）
-     * @param {string} deviceId - 要移除的设备 ID
+     * Remove a device from presets (used to clean up ghost devices)
+     * @param {string} deviceId - The device ID to remove
      */
     async removeDeviceFromPresets(deviceId) {
-        // 从所有预设的 targetDevices 中移除该设备
+        // Remove the device from all presets' targetDevices
         this.settings.presets.forEach(preset => {
             preset.targetDevices = preset.targetDevices.filter(id => id !== deviceId);
         });
 
-        // 从设备名称映射表中移除
+        // Remove from the device name map
         if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
             delete this.settings.deviceNameMap[deviceId];
         }
@@ -1804,36 +1804,36 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 获取设备的显示名称（用于 UI 展示）
-     * @param {string} deviceId - 设备 ID
-     * @returns {string} - 设备名称
+     * Get the display name of a device (for UI rendering)
+     * @param {string} deviceId - The device ID
+     * @returns {string} - The device name
      */
     _getDeviceName(deviceId) {
-        // 从设备名称映射表中查找（所有设备统一管理）
+        // Look up from the device name map (unified management for all devices)
         if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
             return this.settings.deviceNameMap[deviceId];
         }
 
-        // 回退到 deviceId
+        // Fall back to deviceId
         return deviceId;
     }
 
     /**
-     * 获取设备的平台类型（从 deviceFingerprints 反向查找）
-     * @param {string} deviceId - 设备 ID
-     * @returns {string} - 平台类型：'mobile' 或 'desktop'，未找到返回 'unknown'
+     * Get the platform type of a device (reverse lookup via deviceFingerprints)
+     * @param {string} deviceId - The device ID
+     * @returns {string} - The platform type: 'mobile' or 'desktop', or 'unknown' if not found
      */
     _getDevicePlatform(deviceId) {
         if (!this.settings.deviceFingerprints) {
             return 'unknown';
         }
 
-        // 反向查找：从 deviceFingerprints 中找到对应的指纹
+        // Reverse lookup: find the fingerprint in deviceFingerprints
         for (const [fingerprint, id] of Object.entries(this.settings.deviceFingerprints)) {
             if (id === deviceId) {
-                // 指纹格式：platform-hash（如 mobile-abc123 或 desktop-xyz789）
+                // Fingerprint format: platform-hash (e.g., mobile-abc123 or desktop-xyz789)
                 const platform = fingerprint.split('-')[0];
-                return platform; // 'mobile' 或 'desktop'
+                return platform; // 'mobile' or 'desktop'
             }
         }
 
@@ -1841,15 +1841,15 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 更新设备名称（支持编辑当前设备或其他设备）
-     * @param {string} deviceId - 设备 ID
-     * @param {string} newName - 新名称
+     * Update a device name (supports editing the current or other devices)
+     * @param {string} deviceId - The device ID
+     * @param {string} newName - The new name
      */
     async updateDeviceName(deviceId, newName) {
         const trimmedName = newName.trim();
         if (!trimmedName) return;
 
-        // 统一存储到 deviceNameMap（会被同步）
+        // Store uniformly in deviceNameMap (will be synced)
         if (!this.settings.deviceNameMap) {
             this.settings.deviceNameMap = {};
         }
@@ -1859,8 +1859,8 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 获取默认设备名称
-     * @returns {string} 默认设备名称
+     * Get the default device name
+     * @returns {string} The default device name
      */
     _getDefaultDeviceName() {
         const platform = Platform.isMobile ? 'Mobile' : 'Desktop';
@@ -1877,57 +1877,57 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * 生成设备指纹（用于识别设备）
-     * 基于平台、UA、屏幕分辨率、时区等多个因素
-     * @returns {string} 设备指纹
+     * Generate a device fingerprint (for device identification)
+     * Based on platform, UA, screen resolution, timezone, and other factors
+     * @returns {string} The device fingerprint
      */
     _generateDeviceFingerprint() {
         const platform = Platform.isMobile ? 'mobile' : 'desktop';
         const ua = navigator.userAgent;
 
-        // 收集多个设备特征
+        // Collect multiple device features
         const features = [
             ua,
-            `${screen.width}x${screen.height}`,           // 屏幕分辨率
-            `${screen.availWidth}x${screen.availHeight}`, // 可用屏幕尺寸
-            new Date().getTimezoneOffset().toString(),    // 时区偏移
-            navigator.language,                            // 语言
-            navigator.hardwareConcurrency || 'unknown'     // CPU 核心数
+            `${screen.width}x${screen.height}`,           // screen resolution
+            `${screen.availWidth}x${screen.availHeight}`, // available screen size
+            new Date().getTimezoneOffset().toString(),    // timezone offset
+            navigator.language,                            // language
+            navigator.hardwareConcurrency || 'unknown'     // CPU core count
         ];
 
-        // 简单哈希函数
+        // Simple hash function
         const hash = (str) => {
             let h = 0;
             for (let i = 0; i < str.length; i++) {
                 h = ((h << 5) - h) + str.charCodeAt(i);
-                h = h & h; // 转换为32位整数
+                h = h & h; // convert to a 32-bit integer
             }
             return Math.abs(h).toString(36);
         };
 
-        // 组合所有特征并哈希
+        // Combine all features and hash them
         const fingerprint = hash(features.join('|'));
 
-        // 组合平台和指纹
+        // Combine platform and fingerprint
         return `${platform}-${fingerprint}`;
     }
 
     /**
-     * 确保设备预设存在
+     * Ensure the device preset exists
      */
     async _ensureDevicePreset() {
         const deviceId = this.currentDeviceId;
 
-        // 检查是否有预设绑定到当前设备
+        // Check if any preset is bound to the current device
         const devicePreset = this.settings.presets.find(p =>
             p.targetDevices.includes(deviceId)
         );
 
         if (!devicePreset) {
-            // 使用默认预设（全局预设，targetDevices 为空）
+            // Use the default preset (global preset with empty targetDevices)
             const defaultPreset = this.settings.presets.find(p => p.id === 'default-preset');
             if (!defaultPreset || defaultPreset.targetDevices.length > 0) {
-                // 如果默认预设不存在或不是全局预设，创建一个全局默认预设
+                // If the default preset is missing or not global, create a global default preset
                 console.warn('[LocalFontLoader] Default preset missing or corrupted, recreating...');
                 const newDefaultPreset = {
                     id: 'default-preset',
@@ -1945,13 +1945,13 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     // ============================================================================
-    // Font Scanning (原有方法)
+    // Font Scanning (original methods)
     // ============================================================================
 
-    // 扫描字体目录（使用内置元数据解析）
+    // Scan the font directory (using the built-in metadata parser)
     /**
-     * 从文件列表导入字体
-     * @param {FileList} files - 用户选择的字体文件列表
+     * Import fonts from a file list
+     * @param {FileList} files - The list of font files selected by the user
      */
     async importFontsFromFiles(files) {
         this._log(`[Local Font Loader] Starting to import ${files.length} font files...`);
@@ -1961,15 +1961,15 @@ class LocalFontLoaderPlugin extends Plugin {
             try {
                 const arrayBuffer = await file.arrayBuffer();
 
-                // 默认放入 "Imported" 文件夹
+                // Default to the "Imported" folder
                 const targetDir = `${this.settings.fontSourceDir}/Imported`;
                 const targetPath = `${targetDir}/${file.name}`;
 
-                // 确保目录存在
+                // Ensure the directory exists
                 try {
                     await this.app.vault.adapter.mkdir(targetDir);
                 } catch (err) {
-                    // 目录可能已存在
+                    // Directory may already exist
                 }
 
                 await this.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
@@ -1987,7 +1987,7 @@ class LocalFontLoaderPlugin extends Plugin {
     async scanFonts() {
         const startTime = performance.now();
 
-        // 并发锁：防止同时触发多次扫描
+        // Concurrency lock: prevent multiple simultaneous scans
         if (this._isScanning) {
             this._log('[Local Font Loader] Scan already in progress, ignoring duplicate call');
             return;
@@ -2006,12 +2006,12 @@ class LocalFontLoaderPlugin extends Plugin {
 
             this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
 
-            // 统一路径格式，使用文件名匹配
+            // Normalize the path format, match by filename
             let b64Files = [];
             try {
                 const b64List = await this.app.vault.adapter.list(this.settings.b64OutputDir);
                 b64Files = b64List.files.map(f => {
-                    // 提取文件名（不含路径和扩展名）用于匹配
+                    // Extract the basename (without path and extension) for matching
                     const basename = f.split('/').pop().replace('.css', '');
                     return basename;
                 });
@@ -2020,20 +2020,20 @@ class LocalFontLoaderPlugin extends Plugin {
                 this._log('[Local Font Loader] B64 cache directory does not exist, will be created during conversion');
             }
 
-            // 重置数据
+            // Reset data
             this.settings.availableFonts = [];
             this.settings.fontFamilies = [];
 
-            // 使用 Map 去重
+            // Use a Map for deduplication
             const fontMap = new Map(); // key: font.name, value: fontInfo
 
-            // 扫描每个 font family 文件夹
+            // Scan each font family folder
             for (const fontDir of fontDirs) {
                 try {
                     const folderName = fontDir.split('/').pop();
                     const metadataPath = `${fontDir}/.fontfamily.json`;
 
-                    // 尝试读取元数据文件
+                    // Try to read the metadata file
                     let metadata = null;
                     try {
                         const metadataContent = await this.app.vault.adapter.read(metadataPath);
@@ -2043,7 +2043,7 @@ class LocalFontLoaderPlugin extends Plugin {
                         this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
                     }
 
-                    // 优先使用元数据的 familyName
+                    // Prefer the metadata's familyName
                     const family = {
                         familyName: metadata?.familyName || folderName,
                         folderPath: fontDir,
@@ -2066,7 +2066,7 @@ class LocalFontLoaderPlugin extends Plugin {
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
                                 const ext = basename.split('.').pop().toLowerCase();
 
-                                // 使用文件名匹配
+                                // Match by filename
                                 const hasB64 = b64Files.includes(name);
                                 const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
 
@@ -2075,14 +2075,14 @@ class LocalFontLoaderPlugin extends Plugin {
                                     path: fontPath,
                                     basename,
                                     ext,
-                                    familyName: family.familyName, // 使用元数据的正确家族名
+                                    familyName: family.familyName, // use the correct family name from the metadata
                                     variantType,
                                     hasB64,
                                     b64Path,
-                                    exists: true // 文件存在（能被扫描到说明存在）
+                                    exists: true // file exists (its presence implies it was scanned)
                                 };
 
-                                // 去重：避免添加重复字体
+                                // Deduplicate: avoid adding duplicate fonts
                                 if (!fontMap.has(name)) {
                                     fontMap.set(name, fontInfo);
                                 }
@@ -2099,13 +2099,13 @@ class LocalFontLoaderPlugin extends Plugin {
                             }
                         }
                     } else {
-                        // 并行读取字体文件元数据
+                        // Read font file metadata in parallel
                         const files = await this.app.vault.adapter.list(fontDir);
                         const fontFiles = files.files.filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
 
                         this._log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
 
-                        // 并行读取所有字体文件的元数据
+                        // Read all font file metadata in parallel
                         const scanPromises = fontFiles.map(async (fontPath) => {
                             try {
                                 const basename = fontPath.split('/').pop();
@@ -2116,11 +2116,11 @@ class LocalFontLoaderPlugin extends Plugin {
                                 const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
                                 const fontMetadata = parseFontMetadata(arrayBuffer);
 
-                                // 使用字体内部的 familyName（如果存在）
+                                // Use the font's internal familyName (if present)
                                 const realFamilyName = fontMetadata?.familyName || family.familyName;
                                 const variantType = fontMetadata?.variantType || 'regular';
 
-                                // 使用文件名匹配
+                                // Match by filename
                                 const hasB64 = b64Files.includes(name);
                                 const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
 
@@ -2129,11 +2129,11 @@ class LocalFontLoaderPlugin extends Plugin {
                                     path: fontPath,
                                     basename,
                                     ext,
-                                    familyName: realFamilyName, // 使用字体内部的正确家族名
+                                    familyName: realFamilyName, // use the correct family name from the font itself
                                     variantType,
                                     hasB64,
                                     b64Path,
-                                    exists: true // 文件存在（能被扫描到说明存在）
+                                    exists: true // file exists (its presence implies it was scanned)
                                 };
 
                                 this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
@@ -2146,10 +2146,10 @@ class LocalFontLoaderPlugin extends Plugin {
 
                         const scanResults = await Promise.all(scanPromises);
 
-                        // 收集成功扫描的字体
+                        // Collect successfully scanned fonts
                         for (const result of scanResults) {
                             if (result.success) {
-                                // 去重：避免添加重复字体
+                                // Deduplicate: avoid adding duplicate fonts
                                 if (!fontMap.has(result.fontInfo.name)) {
                                     fontMap.set(result.fontInfo.name, result.fontInfo);
                                 }
@@ -2173,7 +2173,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
             }
 
-            // 从 Map 转换为数组
+            // Convert the Map to an array
             this.settings.availableFonts = Array.from(fontMap.values());
 
             await this.saveSettings();
@@ -2184,37 +2184,37 @@ class LocalFontLoaderPlugin extends Plugin {
         } catch (error) {
             const endTime = performance.now();
             this._logError(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
-            // 保持原有数据，避免清空导致 UI 问题
+            // Keep existing data to avoid UI issues from clearing
             await this.saveSettings();
         } finally {
-            // 释放锁
+            // Release the lock
             this._isScanning = false;
         }
     }
 
     /**
-     * 检查字体是否在 vault 中存在
-     * @param {string} fontName - 字体名称或家族名
-     * @returns {boolean} 字体是否存在
+     * Check whether a font exists in the vault
+     * @param {string} fontName - The font name or family name
+     * @returns {boolean} Whether the font exists
      */
     isFontAvailable(fontName) {
-        // 特殊选项（use-text-font、use-ui-font）和空字符串始终有效
+        // Special options (use-text-font, use-ui-font) and empty strings are always valid
         if (!fontName || fontName === 'use-text-font' || fontName === 'use-ui-font') {
             return true;
         }
-        // 检查 availableFonts 数组中是否存在匹配的字体家族名或文件名
+        // Check if availableFonts contains a matching family name or filename
         return this.settings.availableFonts.some(f =>
             (f.familyName || f.name) === fontName
         );
     }
 
-    // Apply fonts配置（仅从缓存加载）
+    // Apply fonts config (load from cache only)
     async applyFonts() {
         const startTime = performance.now();
         try {
             this._log('[Local Font Loader] Starting to apply fonts...');
 
-            // 获取当前设备所属的预设（新增）
+            // Get the preset of the current device (new)
             const devicePreset = this._getDevicePreset();
 
             if (!devicePreset) {
@@ -2222,28 +2222,28 @@ class LocalFontLoaderPlugin extends Plugin {
                 return;
             }
 
-            // 使用设备所属预设中的字体配置（新增）
+            // Use the font config from the device's preset (new)
             const fontsConfig = devicePreset.fonts;
             const latinFontEnabled = devicePreset.latinFontEnabled;
             const latinFontScope = devicePreset.latinFontScope;
             const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle;
 
             const usedFonts = new Set();
-            const usedFamilies = new Set(); // 字体家族名（支持多变体）
-            const missingFonts = []; // 记录缺失的字体
+            const usedFamilies = new Set(); // font family name (supports multiple variants)
+            const missingFonts = []; // record missing fonts
 
-            // 遍历所有已配置的字体，检查存在性
+            // Iterate over all configured fonts and check existence
             for (const fontName of Object.values(fontsConfig)) {
                 if (fontName) {
-                    // 检查字体是否存在于 vault 中
+                    // Check if the font exists in the vault
                     if (!this.isFontAvailable(fontName)) {
                         missingFonts.push(fontName);
                         this._log(`[Local Font Loader] ⚠️ Font "${fontName}" not found in vault, will fallback to system default`);
-                        continue; // 跳过缺失的字体，回退到系统默认
+                        continue; // skip missing fonts and fall back to the system default
                     }
 
                     usedFonts.add(fontName);
-                    // 查找对应的字体家族
+                    // Find the corresponding font family
                     const fonts = this.settings.availableFonts.filter(f =>
                         f.name === fontName || f.familyName === fontName
                     );
@@ -2254,7 +2254,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
             }
 
-            // 显示缺失字体的提示（5秒）
+            // Show a missing-font notice (5s)
             if (missingFonts.length > 0) {
                 new Notice(t('fontMissingWarning'), 5000);
             }
@@ -2268,7 +2268,7 @@ class LocalFontLoaderPlugin extends Plugin {
             this._log('[Local Font Loader] Fonts to load:', Array.from(usedFonts));
             this._log('[Local Font Loader] Font families involved:', Array.from(usedFamilies));
 
-            // 初始化 @font-face CSS
+            // Initialize @font-face CSS
             let fontFaceCss = '/* Local Font Loader - Font Faces */\n\n';
             let loadedCount = 0;
             let failedFonts = [];
@@ -2291,7 +2291,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
                     this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
 
-                    // 并行读取所有变体，提升加载性能
+                    // Read all variants in parallel to improve loading performance
                     const readPromises = familyFonts
                         .filter(font => font.hasB64 && font.b64Path)
                         .map(async (font) => {
@@ -2307,20 +2307,20 @@ class LocalFontLoaderPlugin extends Plugin {
 
                     const results = await Promise.all(readPromises);
 
-                    // 收集成功加载的 CSS
+                    // Collect successfully loaded CSS
                     for (const result of results) {
                         if (result.success) {
                             let css = result.css;
 
-                            // 如果启用了拉丁字体分离，并且当前字体是拉丁字体，添加 unicode-range
+                            // If Latin font separation is enabled and the current font is Latin, add unicode-range
                             const isLatinFont = latinFontEnabled && fontsConfig.latin &&
                                 (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
 
                             if (isLatinFont) {
-                                // 为拉丁字体添加 unicode-range
+                                // Add unicode-range for the Latin font
                                 const unicodeRange = this.getUnicodeRange(latinFontScope);
                                 if (unicodeRange) {
-                                    // 在 font-display 之后、} 之前插入 unicode-range
+                                    // Insert unicode-range after font-display and before }
                                     css = css.replace(
                                         /font-display:\s*swap;/g,
                                         `font-display: swap;\n  unicode-range: ${unicodeRange};`
@@ -2336,7 +2336,7 @@ class LocalFontLoaderPlugin extends Plugin {
                         }
                     }
 
-                    // 处理未缓存的字体
+                    // Handle uncached fonts
                     const uncachedFonts = familyFonts.filter(f => !f.hasB64 || !f.b64Path);
                     for (const font of uncachedFonts) {
                         this._log(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
@@ -2357,7 +2357,7 @@ class LocalFontLoaderPlugin extends Plugin {
             // Apply CSS variables
             let varsCss = '/* Local Font Loader - Variables */\n\n';
 
-            // 基础 CSS 变量
+            // Base CSS variables
             varsCss += ':root {\n';
 
             const cssVarsMap = {
@@ -2388,10 +2388,10 @@ class LocalFontLoaderPlugin extends Plugin {
                         if (key === 'text' && latinFontEnabled && fontsConfig.latin) {
                             varsCss += `  ${cssVar}: "${fontsConfig.latin}", "${fontFamily}", sans-serif !important;\n`;
                         } else if (key === 'ui' && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
-                            // 如果启用了拉丁字体应用于 UI，则 UI 字体也使用拉丁字体分离
+                            // If Latin font for UI is enabled, the UI font also uses Latin font separation
                             varsCss += `  ${cssVar}: "${fontsConfig.latin}", "${fontFamily}", sans-serif !important;\n`;
                         } else {
-                            // 根据字体类型选择合适的 fallback
+                            // Choose an appropriate fallback based on the font type
                             const fallback = (key === 'monospace') ? 'monospace' : 'sans-serif';
                             varsCss += `  ${cssVar}: "${fontFamily}", ${fallback} !important;\n`;
                         }
@@ -2401,12 +2401,12 @@ class LocalFontLoaderPlugin extends Plugin {
 
             varsCss += '}\n\n';
 
-            // 如果启用了拉丁字体应用于 UI，添加直接的 UI 元素覆盖
+            // If Latin font for UI is enabled, add direct UI element overrides
             if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
                 varsCss += `/* UI Elements - Latin Font Separation (High Priority) */\n`;
                 const uiFontFamily = `"${fontsConfig.latin}", "${fontsConfig.ui}"`;
 
-                // 使用更高特异性的选择器强制覆盖
+                // Use higher-specificity selectors to force overrides
                 varsCss += `.app-container body,\n`;
                 varsCss += `body.app-container,\n`;
                 varsCss += `.app-container,\n`;
@@ -2429,7 +2429,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `  font-family: ${uiFontFamily}, sans-serif !important;\n`;
                 varsCss += `}\n\n`;
 
-                // 移动端额外覆盖
+                // Additional mobile overrides
                 varsCss += `/* Mobile UI Elements - Extra Override */\n`;
                 varsCss += `body.is-mobile .workspace,\n`;
                 varsCss += `body.is-mobile .workspace-leaf-content,\n`;
@@ -2446,7 +2446,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
                 this._log(`[Local Font Loader] Latin font also applied to UI elements (desktop + mobile)`);
             } else if (fontsConfig.ui) {
-                // 只设置 UI 字体，不启用拉丁字体分离
+                // Only set the UI font, do not enable Latin font separation
                 varsCss += `/* UI Elements (High Priority) */\n`;
                 varsCss += `.app-container body,\n`;
                 varsCss += `body.app-container,\n`;
@@ -2470,7 +2470,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `  font-family: "${fontsConfig.ui}", sans-serif !important;\n`;
                 varsCss += `}\n\n`;
 
-                // 移动端额外覆盖
+                // Additional mobile overrides
                 varsCss += `/* Mobile UI Elements - Extra Override */\n`;
                 varsCss += `body.is-mobile .workspace,\n`;
                 varsCss += `body.is-mobile .workspace-leaf-content,\n`;
@@ -2490,7 +2490,7 @@ class LocalFontLoaderPlugin extends Plugin {
             if (fontsConfig.text) {
                 varsCss += `/* Body Text Font */\n`;
 
-                // 构建 font-family 值
+                // Build the font-family value
                 let textFontFamily = `"${fontsConfig.text}"`;
                 if (latinFontEnabled && fontsConfig.latin) {
                     // Latin font first (due to unicode-range restriction), non-Latin font as fallback
@@ -2501,9 +2501,9 @@ class LocalFontLoaderPlugin extends Plugin {
                     }
                 }
 
-                // 阅读模式
+                // Reading mode
                 varsCss += `.markdown-preview-view,\n`;
-                // 编辑模式
+                // Editing mode
                 varsCss += `.markdown-source-view,\n`;
                 varsCss += `.cm-s-obsidian,\n`;
                 varsCss += `.cm-s-obsidian .cm-line,\n`;
@@ -2516,7 +2516,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `/* Code Block Font (High Priority) */\n`;
                 const monospaceFontFamily = `"${fontsConfig.monospace}"`;
 
-                // 桌面端和移动端通用的代码块选择器
+                // Code block selectors shared by desktop and mobile
                 varsCss += `/* Inline code */\n`;
                 varsCss += `body code,\n`;
                 varsCss += `body .cm-inline-code,\n`;
@@ -2536,7 +2536,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `  font-family: ${monospaceFontFamily}, monospace !important;\n`;
                 varsCss += `}\n\n`;
 
-                // 移动端特定选择器
+                // Mobile-specific selectors
                 varsCss += `/* Mobile code blocks */\n`;
                 varsCss += `body.is-mobile code,\n`;
                 varsCss += `body.is-mobile pre,\n`;
@@ -2555,12 +2555,12 @@ class LocalFontLoaderPlugin extends Plugin {
             if (fontsConfig.heading) {
                 varsCss += `/* Heading Font */\n`;
 
-                // 解析 heading 字体设置
+                // Parse heading font settings
                 let headingFontFamily = '';
                 const headingValue = fontsConfig.heading;
 
                 if (headingValue === 'use-text-font') {
-                    // 使用正文字体
+                    // Use the text font
                     if (fontsConfig.text) {
                         headingFontFamily = fontsConfig.text;
                         if (latinFontEnabled && fontsConfig.latin) {
@@ -2570,24 +2570,24 @@ class LocalFontLoaderPlugin extends Plugin {
                         }
                     }
                 } else if (headingValue === 'use-ui-font') {
-                    // 使用 UI 字体
+                    // Use the UI font
                     if (fontsConfig.ui) {
                         headingFontFamily = `"${fontsConfig.ui}"`;
                     }
                 } else if (headingValue) {
-                    // 使用自定义字体
+                    // Use a custom font
                     headingFontFamily = `"${headingValue}"`;
                 }
 
                 if (headingFontFamily) {
-                    // 应用到正文标题 h1-h6（阅读模式和编辑模式）
+                    // Apply to headings h1-h6 (reading and editing modes)
                     varsCss += `.markdown-preview-view h1, .markdown-preview-view h2,\n`;
                     varsCss += `.markdown-preview-view h3, .markdown-preview-view h4,\n`;
                     varsCss += `.markdown-preview-view h5, .markdown-preview-view h6,\n`;
                     varsCss += `.cm-header-1, .cm-header-2, .cm-header-3,\n`;
                     varsCss += `.cm-header-4, .cm-header-5, .cm-header-6`;
 
-                    // 如果启用了文件名标题选项，则添加 .inline-title
+                    // If the file title option is enabled, add .inline-title
                     if (headingApplyToFileTitle) {
                         varsCss += `,\n.inline-title`;
                     }
@@ -2601,7 +2601,7 @@ class LocalFontLoaderPlugin extends Plugin {
             if (fontsConfig.math) {
                 varsCss += `/* LaTeX Math Font (High Priority) - 修正 MathJax CHTML 的 content */\n`;
 
-                // 性能优化：预构建所有数学字符的 CSS 规则，避免运行时循环
+                // Performance: pre-build all math glyph CSS rules to avoid runtime loops
                 const mathItalicUpperStart = 0x1D434; // A-Z
                 const mathItalicLowerStart = 0x1D44E; // a-z
 
@@ -2684,8 +2684,8 @@ class LocalFontLoaderPlugin extends Plugin {
                     const fontFamily = font.familyName || font.name;
                     const variantType = font.variantType || 'regular';
 
-                    // 判断是否需要添加 unicode-range（拉丁字体）
-                    // 检查当前字体是否是配置的拉丁字体
+                    // Determine whether unicode-range is needed (Latin font)
+                    // Check if the current font is the configured Latin font
                     const isLatinFont = latinFontEnabled && fontsConfig.latin &&
                         (fontFamily === fontsConfig.latin || font.name === fontsConfig.latin);
 
@@ -2760,7 +2760,7 @@ class LocalFontLoaderPlugin extends Plugin {
 
     arrayBufferToBase64(buffer) {
         const bytes = new Uint8Array(buffer);
-        const chunkSize = 8192; // 8KB 分块处理
+        const chunkSize = 8192; // 8KB chunked processing
         let binary = "";
 
         for (let i = 0; i < bytes.byteLength; i += chunkSize) {
@@ -2774,7 +2774,7 @@ class LocalFontLoaderPlugin extends Plugin {
     applyCss(css, cssId) {
         const existingStyle = document.getElementById(cssId);
 
-        // 如果内容相同，跳过更新
+        // Skip the update if the content is identical
         if (existingStyle && existingStyle.textContent === css) {
             return;
         }
@@ -2786,7 +2786,7 @@ class LocalFontLoaderPlugin extends Plugin {
         if (css) {
             const style = document.createElement('style');
             style.id = cssId;
-            style.textContent = css;  // 使用 textContent 而非 innerHTML
+            style.textContent = css;  // use textContent instead of innerHTML
             document.head.appendChild(style);
         }
     }
@@ -2826,16 +2826,16 @@ class LocalFontLoaderPlugin extends Plugin {
 }
 
 // ============================================================================
-// ── Settings Panel ──
+// ==== Settings Panel ====
 // ============================================================================
 
 // ============================================================================
-// ── Modal Components (替代原生 prompt/confirm) ──
+// ==== Modal Components (replacing native prompt/confirm) ====
 // ============================================================================
 
 /**
- * 文本输入模态框（替代 prompt）
- * 使用 Obsidian 原生 Modal API，避免浏览器原生 prompt 导致窗口失焦
+ * Text input modal (replaces prompt)
+ * Uses the Obsidian native Modal API to avoid window focus loss from the browser-native prompt
  * @class TextInputModal
  * @extends {Modal}
  */
@@ -2853,7 +2853,7 @@ class TextInputModal extends Modal {
 
         titleEl.setText(this.titleText);
 
-        // 创建输入框（使用原生 createEl）
+        // Create the input (using native createEl)
         const inputEl = contentEl.createEl('input', {
             type: 'text',
             value: this.defaultValue,
@@ -2863,7 +2863,7 @@ class TextInputModal extends Modal {
             }
         });
 
-        // 样式设置（使用 Obsidian CSS 变量）
+        // Style setup (using Obsidian CSS variables)
         inputEl.style.width = '100%';
         inputEl.style.marginBottom = '16px';
         inputEl.style.padding = '8px';
@@ -2873,18 +2873,18 @@ class TextInputModal extends Modal {
         inputEl.style.backgroundColor = 'var(--background-primary)';
         inputEl.style.color = 'var(--text-normal)';
 
-        // 创建按钮容器
+        // Create the button container
         const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
         buttonContainer.style.display = 'flex';
         buttonContainer.style.justifyContent = 'flex-end';
         buttonContainer.style.gap = '8px';
         buttonContainer.style.marginTop = '16px';
 
-        // 取消按钮
+        // Cancel button
         const cancelBtn = buttonContainer.createEl('button', { text: t('cancel') });
         cancelBtn.addEventListener('click', () => this.close());
 
-        // 确认按钮（主操作按钮）
+        // Confirm button (primary action)
         const submitBtn = buttonContainer.createEl('button', {
             text: t('confirm'),
             cls: 'mod-cta'
@@ -2895,13 +2895,13 @@ class TextInputModal extends Modal {
                 this.onSubmit(value);
                 this.close();
             } else {
-                // 空值时高亮输入框边框
+                // Highlight the input border when empty
                 inputEl.style.borderColor = 'var(--text-error)';
                 inputEl.focus();
             }
         });
 
-        // 回车键提交，ESC 键取消
+        // Enter to submit, ESC to cancel
         inputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -2912,12 +2912,12 @@ class TextInputModal extends Modal {
             }
         });
 
-        // 输入时移除错误样式
+        // Remove the error style on input
         inputEl.addEventListener('input', () => {
             inputEl.style.borderColor = 'var(--background-modifier-border)';
         });
 
-        // 自动聚焦并选中文本（便于快速修改）
+        // Auto-focus and select the text (for quick edits)
         setTimeout(() => {
             inputEl.focus();
             inputEl.select();
@@ -2931,7 +2931,7 @@ class TextInputModal extends Modal {
 }
 
 /**
- * 文件拖拽导入模态框（避免文件选择器的用户激活问题）
+ * Drag-and-drop import modal (avoids the user-activation issue of the file chooser)
  */
 class FontImportModal extends Modal {
     constructor(app, plugin, onImport) {
@@ -2945,7 +2945,7 @@ class FontImportModal extends Modal {
 
         titleEl.setText(t('importFont'));
 
-        // 拖拽区域
+        // Drop zone
         const dropZone = contentEl.createDiv({
             cls: 'font-import-dropzone',
             attr: {
@@ -2971,7 +2971,7 @@ class FontImportModal extends Modal {
             }
         });
         setIcon(iconContainer, 'folder');
-        // 设置图标大小
+        // Set the icon size
         const iconSvg = iconContainer.querySelector('svg');
         if (iconSvg) {
             iconSvg.setAttribute('width', '48');
@@ -3013,7 +3013,7 @@ class FontImportModal extends Modal {
             text: '支持 .ttf, .otf, .woff, .woff2 格式'
         });
 
-        // 创建隐藏的 input（在 Modal 内部）
+        // Create a hidden input (inside the Modal)
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
@@ -3021,12 +3021,12 @@ class FontImportModal extends Modal {
         input.style.display = 'none';
         contentEl.appendChild(input);
 
-        // 点击区域触发文件选择
+        // Click the zone to trigger file selection
         dropZone.onclick = () => {
             input.click();
         };
 
-        // 文件选择处理
+        // File selection handler
         input.onchange = async () => {
             const files = input.files;
             if (!files || files.length === 0) return;
@@ -3035,7 +3035,7 @@ class FontImportModal extends Modal {
             await this.onImport(files);
         };
 
-        // 拖拽处理
+        // Drag-and-drop handlers
         dropZone.ondragover = (e) => {
             e.preventDefault();
             dropZone.style.background = 'var(--background-modifier-hover)';
@@ -3064,36 +3064,36 @@ class FontImportModal extends Modal {
 }
 
 /**
- * 确认对话框辅助函数（替代 confirm）
- * @param {App} app - Obsidian App 实例
- * @param {string} title - 对话框标题
- * @param {string} message - 确认消息
- * @param {Function} onConfirm - 确认回调函数
- * @param {boolean} isDangerous - 是否为危险操作（显示警告样式）
+ * Confirmation dialog helper (replaces confirm)
+ * @param {App} app - The Obsidian App instance
+ * @param {string} title - The dialog title
+ * @param {string} message - The confirmation message
+ * @param {Function} onConfirm - The confirmation callback
+ * @param {boolean} isDangerous - Whether this is a dangerous operation (applies warning styling)
  */
 function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) {
     const modal = new ConfirmationModal(app);
     modal.setTitle(title);
 
-    // 创建消息内容
+    // Create the message content
     modal.contentEl.createEl('p', {
         text: message,
         attr: { style: 'margin-bottom: 16px;' }
     });
 
-    // 添加确认按钮
+    // Add the confirm button
     modal.addButton((btn) => {
         btn.setButtonText(t('confirm'));
         btn.setCta();
         if (isDangerous) {
-            btn.buttonEl.addClass('mod-warning'); // 危险操作使用警告样式
+            btn.buttonEl.addClass('mod-warning'); // dangerous operation, applies warning styling
         }
         btn.onClick(() => {
             onConfirm();
         });
     });
 
-    // 添加取消按钮
+    // Add the cancel button
     modal.addCancelButton(t('cancel'));
 
     modal.open();
@@ -3101,8 +3101,8 @@ function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) 
 
 // ============================================================================
 
-// 新的优化版设置界面
-// 这个文件将替换 FontManagerSettingTab 类 (852-1494 行)
+// New optimized settings UI
+// This section replaces the FontManagerSettingTab class (lines 852-1494)
 
 class FontManagerSettingTab extends PluginSettingTab {
     constructor(app, plugin) {
@@ -3110,9 +3110,9 @@ class FontManagerSettingTab extends PluginSettingTab {
         this.plugin = plugin;
         this._eventListeners = [];
         this._displayDebounceTimer = null;
-        this._displayDebounceDelay = 300; // 300ms 防抖延迟
+        this._displayDebounceDelay = 300; // 300ms debounce delay
 
-        // 监听设置变化事件（由 data.json 监听器触发）
+        // Listen for settings change events (triggered by the data.json listener)
         this._settingsChangedHandler = () => {
             this._debouncedDisplay();
         };
@@ -3132,8 +3132,8 @@ class FontManagerSettingTab extends PluginSettingTab {
     }
 
     /**
-     * 防抖版本的 display()
-     * 在短时间内多次调用时，只执行最后一次
+     * Debounced version of display()
+     * Only executes the last call when invoked multiple times within a short period
      */
     _debouncedDisplay() {
         if (this._displayDebounceTimer) {
@@ -3146,14 +3146,14 @@ class FontManagerSettingTab extends PluginSettingTab {
     }
 
     /**
-     * 判断字体是否为拉丁字体（通过字体名称启发式判断）
-     * @param {string} fontName - 字体家族名
-     * @returns {boolean} 是否为拉丁字体
+     * Determine whether a font is a Latin font (heuristic check on the font name)
+     * @param {string} fontName - The font family name
+     * @returns {boolean} Whether it is a Latin font
      */
     _isLatinFont(fontName) {
         const lowerName = fontName.toLowerCase();
 
-        // 明确的非拉丁字体关键词
+        // Explicit non-Latin font keywords
         const nonLatinKeywords = [
             // Chinese
             '思源', 'noto sans cjk', 'noto serif cjk', 'source han', '微软雅黑', 'microsoft yahei',
@@ -3194,7 +3194,7 @@ class FontManagerSettingTab extends PluginSettingTab {
 
         const { containerEl } = this;
 
-        // 保存滚动位置
+        // Save the scroll position
         const scrollParent = containerEl.closest('.vertical-tab-content');
         const savedScrollTop = scrollParent ? scrollParent.scrollTop : 0;
 
@@ -3232,7 +3232,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             const style = document.createElement('style');
             style.id = 'local-font-loader-preset-styles';
             style.textContent = `
-/* 预设拖拽管理区域 */
+/* Preset drag-and-drop management area */
 .setting-item-heading-with-button {
     display: flex;
     align-items: center;
@@ -3366,7 +3366,7 @@ class FontManagerSettingTab extends PluginSettingTab {
     vertical-align: middle;
 }
 
-/* 移动端适配 */
+/* Mobile adaptation */
 @media (max-width: 768px) {
     .preset-drag-container {
         gap: 12px;
@@ -3378,7 +3378,7 @@ class FontManagerSettingTab extends PluginSettingTab {
     }
 }
 
-/* 操作系统图标 */
+/* Operating system icons */
 .device-os-icon {
     display: inline-block;
     width: 16px;
@@ -3389,32 +3389,32 @@ class FontManagerSettingTab extends PluginSettingTab {
     flex-shrink: 0;
 }
 
-/* Windows 图标 (FontAwesome brands) */
+/* Windows icon (FontAwesome brands) */
 .device-os-icon.os-windows {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath fill='%23ffffff' d='M0 93.7l183.6-25.3v177.4H0V93.7zm0 324.6l183.6 25.3V268.4H0v149.9zm203.8 28L448 480V268.4H203.8v177.9zm0-380.6v180.1H448V32L203.8 65.7z'/%3E%3C/svg%3E");
 }
 
-/* macOS 图标 (FontAwesome brands) */
+/* macOS icon (FontAwesome brands) */
 .device-os-icon.os-macos {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23ffffff' d='M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z'/%3E%3C/svg%3E");
 }
 
-/* Linux 图标 (FontAwesome brands) */
+/* Linux icon (FontAwesome brands) */
 .device-os-icon.os-linux {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath fill='%23ffffff' d='M220.8 123.3c1 .5 1.8 1.7 3 1.7 1.1 0 2.8-.4 2.9-1.5.2-1.4-1.9-2.3-3.2-2.9-1.7-.7-3.9-1-5.5-.1-.4.2-.8.7-.6 1.1.3 1.3 2.3 1.1 3.4 1.7zm-21.9 1.7c1.2 0 2-1.2 3-1.7 1.1-.6 3.1-.4 3.5-1.6.2-.4-.2-.9-.6-1.1-1.6-.9-3.8-.6-5.5.1-1.3.6-3.4 1.5-3.2 2.9.1 1 1.8 1.5 2.8 1.4zM420 403.8c-3.6-4-5.3-11.6-7.2-19.7-1.8-8.1-3.9-16.8-10.5-22.4-1.3-1.1-2.6-2.1-4-2.9-1.3-.8-2.7-1.5-4.1-2 9.2-27.3 5.6-54.5-3.7-79.1-11.4-30.1-31.3-56.4-46.5-74.4-17.1-21.5-33.7-41.9-33.4-72C311.1 85.4 315.7.1 234.8 0 132.4-.2 158 103.4 156.9 135.2c-1.7 23.4-6.4 41.8-22.5 64.7-18.9 22.5-45.5 58.8-58.1 96.7-6 17.9-8.8 36.1-6.2 53.3-6.5 5.8-11.4 14.7-16.6 20.2-4.2 4.3-10.3 5.9-17 8.3s-14 6-18.5 14.5c-2.1 3.9-2.8 8.1-2.8 12.4 0 3.9.6 7.9 1.2 11.8 1.2 8.1 2.5 15.7.8 20.8-5.2 14.4-5.9 24.4-2.2 31.7 3.8 7.3 11.4 10.5 20.1 12.3 17.3 3.6 40.8 2.7 59.3 12.5 19.8 10.4 39.9 14.1 55.9 10.4 11.6-2.6 21.1-9.6 25.9-20.2 12.5-.1 26.3-5.4 48.3-6.6 14.9-1.2 33.6 5.3 55.1 4.1.6 2.3 1.4 4.6 2.5 6.7v.1c8.3 16.7 23.8 24.3 40.3 23 16.6-1.3 34.1-11 48.3-27.9 13.6-16.4 36-23.2 50.9-32.2 7.4-4.5 13.4-10.1 13.9-18.3.4-8.2-4.4-17.3-15.5-29.7zM223.7 87.3c9.8-22.2 34.2-21.8 44-.4 6.5 14.2 3.6 30.9-4.3 40.4-1.6-.8-5.9-2.6-12.6-4.9 1.1-1.2 3.1-2.7 3.9-4.6 4.8-11.8-.2-27-9.1-27.3-7.3-.5-13.9 10.8-11.8 23-4.1-2-9.4-3.5-13-4.4-1-6.9-.3-14.6 2.9-21.8zM183 75.8c10.1 0 20.8 14.2 19.1 33.5-3.5 1-7.1 2.5-10.2 4.6 1.2-8.9-3.3-20.1-9.6-19.6-8.4.7-9.8 21.2-1.8 28.1 1 .8 1.9-.2-5.9 5.5-15.6-14.6-10.5-52.1 8.4-52.1zm-13.6 60.7c6.2-4.6 13.6-10 14.1-10.5 4.7-4.4 13.5-14.2 27.9-14.2 7.1 0 15.6 2.3 25.9 8.9 6.3 4.1 11.3 4.4 22.6 9.3 8.4 3.5 13.7 9.7 10.5 18.2-2.6 7.1-11 14.4-22.7 18.1-11.1 3.6-19.8 16-38.2 14.9-3.9-.2-7-1-9.6-2.1-8-3.5-12.2-10.4-20-15-8.6-4.8-13.2-10.4-14.7-15.3-1.4-4.9 0-9 4.2-12.3zm3.3 334c-2.7 35.1-43.9 34.4-75.3 18-29.9-15.8-68.6-6.5-76.5-21.9-2.4-4.7-2.4-12.7 2.6-26.4v-.2c2.4-7.6.6-16-.6-23.9-1.2-7.8-1.8-15 .9-20 3.5-6.7 8.5-9.1 14.8-11.3 10.3-3.7 11.8-3.4 19.6-9.9 5.5-5.7 9.5-12.9 14.3-18 5.1-5.5 10-8.1 17.7-6.9 8.1 1.2 15.1 6.8 21.9 16l19.6 35.6c9.5 19.9 43.1 48.4 41 68.9zm-1.4-25.9c-4.1-6.6-9.6-13.6-14.4-19.6 7.1 0 14.2-2.2 16.7-8.9 2.3-6.2 0-14.9-7.4-24.9-13.5-18.2-38.3-32.5-38.3-32.5-13.5-8.4-21.1-18.7-24.6-29.9s-3-23.3-.3-35.2c5.2-22.9 18.6-45.2 27.2-59.2 2.3-1.7.8 3.2-8.7 20.8-8.5 16.1-24.4 53.3-2.6 82.4.6-20.7 5.5-41.8 13.8-61.5 12-27.4 37.3-74.9 39.3-112.7 1.1.8 4.6 3.2 6.2 4.1 4.6 2.7 8.1 6.7 12.6 10.3 12.4 10 28.5 9.2 42.4 1.2 6.2-3.5 11.2-7.5 15.9-9 9.9-3.1 17.8-8.6 22.3-15 7.7 30.4 25.7 74.3 37.2 95.7 6.1 11.4 18.3 35.5 23.6 64.6 3.3-.1 7 .4 10.9 1.4 13.8-35.7-11.7-74.2-23.3-84.9-4.7-4.6-4.9-6.6-2.6-6.5 12.6 11.2 29.2 33.7 35.2 59 2.8 11.6 3.3 23.7.4 35.7 16.4 6.8 35.9 17.9 30.7 34.8-2.2-.1-3.2 0-4.2 0 3.2-10.1-3.9-17.6-22.8-26.1-19.6-8.6-36-8.6-38.3 12.5-12.1 4.2-18.3 14.7-21.4 27.3-2.8 11.2-3.6 24.7-4.4 39.9-.5 7.7-3.6 18-6.8 29-32.1 22.9-76.7 32.9-114.3 7.2zm257.4-11.5c-.9 16.8-41.2 19.9-63.2 46.5-13.2 15.7-29.4 24.4-43.6 25.5s-26.5-4.8-33.7-19.3c-4.7-11.1-2.4-23.1 1.1-36.3 3.7-14.2 9.2-28.8 9.9-40.6.8-15.2 1.7-28.5 4.2-38.7 2.6-10.3 6.6-17.2 13.7-21.1.3-.2.7-.3 1-.5.8 13.2 7.3 26.6 18.8 29.5 12.6 3.3 30.7-7.5 38.4-16.3 9-.3 15.7-.9 22.6 5.1 9.9 8.5 7.1 30.3 17.1 41.6 10.6 11.6 14.9 19.5 13.7 24.6zM173.3 148.7c2 1.9 4.7 4.5 8 7.1 6.6 5.2 15.8 10.6 27.3 10.6 11.6 0 22.5-5.9 31.8-10.8 4.9-2.6 10.9-7 14.8-10.4s5.9-6.3 3.1-6.6-2.6 2.6-6 5.1c-4.4 3.2-9.7 7.4-13.9 9.8-7.4 4.2-19.5 10.2-29.9 10.2s-18.7-4.8-24.9-9.7c-3.1-2.5-5.7-5-7.7-6.9-1.5-1.4-1.9-4.6-4.3-4.9-1.4-.1-1.8 3.7 1.7 6.5z'/%3E%3C/svg%3E");
 }
 
-/* Android 图标 (FontAwesome brands) */
+/* Android icon (FontAwesome brands) */
 .device-os-icon.os-android {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'%3E%3Cpath fill='%23ffffff' d='M420.55 301.93a24 24 0 1 1 24-24 24 24 0 0 1-24 24m-265.1 0a24 24 0 1 1 24-24 24 24 0 0 1-24 24m273.7-144.48 47.94-83a10 10 0 1 0-17.27-10h0l-48.54 84.07a301.25 301.25 0 0 0-246.56 0L116.18 64.45a10 10 0 1 0-17.27 10h0l47.94 83C64.53 202.22 8.24 285.55 0 384H576c-8.24-98.45-64.54-181.78-146.85-226.55'/%3E%3C/svg%3E");
 }
 
-/* iOS 图标 (FontAwesome brands) */
+/* iOS icon (FontAwesome brands) */
 .device-os-icon.os-ios {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23ffffff' d='M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z'/%3E%3C/svg%3E");
 }
 
-/* 默认图标 (通用设备) */
+/* Default icon (generic device) */
 .device-os-icon.os-default {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%23ffffff' d='M384 96V320H64L64 96H384zM64 32C28.7 32 0 60.7 0 96V320c0 35.3 28.7 64 64 64H181.3l-10.7 32H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H352c17.7 0 32-14.3 32-32s-14.3-32-32-32H277.3l-10.7-32H384c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64zm464 0c-26.5 0-48 21.5-48 48V432c0 26.5 21.5 48 48 48h64c26.5 0 48-21.5 48-48V80c0-26.5-21.5-48-48-48H528zm16 64h32c8.8 0 16 7.2 16 16s-7.2 16-16 16H544c-8.8 0-16-7.2-16-16s7.2-16 16-16zm-16 80c0-8.8 7.2-16 16-16h32c8.8 0 16 7.2 16 16s-7.2 16-16 16H544c-8.8 0-16-7.2-16-16zm32 224a32 32 0 1 1 0 64 32 32 0 1 1 0-64z'/%3E%3C/svg%3E");
 }
@@ -3477,9 +3477,9 @@ class FontManagerSettingTab extends PluginSettingTab {
         refreshBtn.setAttribute('aria-label', t('refreshDeviceList'));
         setIcon(refreshBtn, 'refresh-cw');
         this._addEventListener(refreshBtn, 'click', async () => {
-            // 重新加载设置（从文件读取）
+            // Reload settings (read from the file)
             await this.plugin.loadSettings();
-            // 重新渲染整个设置页面
+            // Re-render the entire settings page
             this.display();
         });
 
@@ -3515,7 +3515,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 ).open();
             });
 
-            // 复制预设按钮
+            // Copy preset button
             const copyBtn = presetActions.createEl('button', { cls: 'clickable-icon' });
             copyBtn.setAttribute('aria-label', t('copyPresetCopy'));
             setIcon(copyBtn, 'copy');
@@ -3539,7 +3539,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                             await this.plugin.deletePreset(preset.id);
                             this.display();
                         },
-                        true  // isDangerous = true（危险操作）
+                        true  // isDangerous = true (dangerous operation)
                     );
                 });
             }
@@ -3573,20 +3573,20 @@ class FontManagerSettingTab extends PluginSettingTab {
                 this.display();
             });
 
-            // 获取要显示的设备列表
+            // Get the device list to display
             let devicesToShow = [];
             if (preset.id === 'default-preset' && preset.targetDevices.length === 0) {
-                // 默认全局预设：显示所有未被分配的设备
+                // Default global preset: show all unassigned devices
                 const allDeviceIds = new Set();
 
-                // 收集所有已知设备（从 deviceNameMap）
+                // Collect all known devices (from deviceNameMap)
                 if (this.plugin.settings.deviceNameMap) {
                     Object.keys(this.plugin.settings.deviceNameMap).forEach(id => {
                         allDeviceIds.add(id);
                     });
                 }
 
-                // 找出未被分配的设备（不在任何自定义预设的 targetDevices 中）
+                // Find unassigned devices (not in any custom preset's targetDevices)
                 const assignedDevices = new Set();
                 this.plugin.settings.presets.forEach(p => {
                     if (p.targetDevices.length > 0) {
@@ -3596,7 +3596,7 @@ class FontManagerSettingTab extends PluginSettingTab {
 
                 devicesToShow = Array.from(allDeviceIds).filter(id => !assignedDevices.has(id));
             } else {
-                // 自定义预设：显示其 targetDevices
+                // Custom preset: show its targetDevices
                 devicesToShow = preset.targetDevices;
             }
 
@@ -3615,22 +3615,22 @@ class FontManagerSettingTab extends PluginSettingTab {
                         cls: 'device-item'
                     });
 
-                    // 操作系统图标 + 设备名称容器
+                    // OS icon + device name container
                     const deviceInfoContainer = deviceItem.createDiv({
                         attr: { style: 'display: flex; align-items: center; gap: 8px; flex: 1;' }
                     });
 
-                    // 操作系统图标（使用 CSS 类）
+                    // OS icon (using CSS class)
                     const osIcon = deviceInfoContainer.createSpan({
                         cls: 'device-os-icon'
                     });
 
-                    // 检测操作系统
-                    let osClass = 'os-default'; // 默认图标
+                    // Detect the operating system
+                    let osClass = 'os-default'; // default icon
                     const deviceNameLower = deviceName.toLowerCase();
 
                     if (isCurrent) {
-                        // 当前设备：从 navigator.userAgent 精确检测
+                        // Current device: detect precisely from navigator.userAgent
                         const ua = navigator.userAgent;
                         if (Platform.isMobile) {
                             if (ua.includes('Android')) {
@@ -3650,19 +3650,19 @@ class FontManagerSettingTab extends PluginSettingTab {
                             }
                         }
                     } else {
-                        // 其他设备：结合平台信息和设备名称推断
+                        // Other devices: infer from platform info and device name
                         if (devicePlatform === 'mobile') {
-                            // 移动设备：从名称推断具体系统
+                            // Mobile device: infer the specific OS from the name
                             if (deviceNameLower.includes('android')) {
                                 osClass = 'os-android';
                             } else if (deviceNameLower.includes('ios') || deviceNameLower.includes('iphone') || deviceNameLower.includes('ipad')) {
                                 osClass = 'os-ios';
                             } else {
-                                // 移动设备但不确定系统，使用 Android 作为默认（因为更常见）
+                                // Mobile device with unknown OS, default to Android (more common)
                                 osClass = 'os-android';
                             }
                         } else if (devicePlatform === 'desktop') {
-                            // 桌面设备：从名称推断具体系统
+                            // Desktop device: infer the specific OS from the name
                             if (deviceNameLower.includes('windows')) {
                                 osClass = 'os-windows';
                             } else if (deviceNameLower.includes('mac')) {
@@ -3670,7 +3670,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                             } else if (deviceNameLower.includes('linux')) {
                                 osClass = 'os-linux';
                             } else {
-                                // 桌面设备但不确定系统，使用通用桌面图标
+                                // Desktop device with unknown OS, use a generic desktop icon
                                 osClass = 'os-default';
                             }
                         }
@@ -3678,21 +3678,21 @@ class FontManagerSettingTab extends PluginSettingTab {
 
                     osIcon.addClass(osClass);
 
-                    // 设备名称
+                    // Device name
                     deviceInfoContainer.createSpan({
                         text: isCurrent ? `${deviceName} (${t('currentDevice')})` : deviceName,
                         cls: 'device-name'
                     });
 
-                    // 按钮容器
+                    // Button container
                     const btnContainer = deviceItem.createDiv({ cls: 'device-actions' });
 
-                    // 编辑按钮（所有设备都显示）- 使用白色图标
+                    // Edit button (shown for all devices) - uses a white icon
                     const editBtn = btnContainer.createEl('button', {
                         cls: 'clickable-icon',
                         attr: {
                             'aria-label': t('editDeviceName'),
-                            style: 'color: var(--text-on-accent);' // 白色图标
+                            style: 'color: var(--text-on-accent);' // white icon
                         }
                     });
                     setIcon(editBtn, 'edit');
@@ -3713,7 +3713,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                         ).open();
                     });
 
-                    // 删除按钮（仅非当前设备显示）
+                    // Delete button (only shown for non-current devices)
                     if (!isCurrent) {
                         const removeBtn = btnContainer.createEl('button', {
                             cls: 'clickable-icon',
@@ -3881,7 +3881,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 })
             );
 
-        // 启动设置
+        // Startup settings
         new Setting(containerEl)
             .setName(t('autoLoad'))
             .setDesc(t('autoLoadDesc'))
@@ -3898,10 +3898,10 @@ class FontManagerSettingTab extends PluginSettingTab {
         // ========================================
         containerEl.createEl('h3', { text: t('headerFontApplication') });
 
-        // 预设选择器（选择需要被设置的预设）
+        // Preset selector (select the preset to configure)
         const currentDevicePreset = this.plugin._getDevicePreset();
 
-        // 如果没有显式设置 _activePresetId，默认使用当前设备所属预设
+        // If _activePresetId is not explicitly set, default to the current device's preset
         if (!this._activePresetId) {
             this._activePresetId = currentDevicePreset ? currentDevicePreset.id : 'default-preset';
         }
@@ -3910,7 +3910,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             .setName(t('selectPresetToEdit'))
             .setDesc(t('selectPresetToEditDesc'))
             .addDropdown(dropdown => {
-                // 填充所有预设作为选项
+                // Populate all presets as options
                 this.plugin.settings.presets.forEach(preset => {
                     const label = (preset.id === 'default-preset' && preset.targetDevices.length === 0)
                         ? `${preset.name} (${t('global')})`
@@ -3918,17 +3918,17 @@ class FontManagerSettingTab extends PluginSettingTab {
                     dropdown.addOption(preset.id, label);
                 });
 
-                // 设置当前正在编辑的预设
+                // Set the currently edited preset
                 dropdown.setValue(this._activePresetId);
 
-                // 切换正在编辑的预设
+                // Switch the currently edited preset
                 dropdown.onChange(async (newPresetId) => {
                     this._activePresetId = newPresetId;
-                    this.display(); // 刷新界面以显示选中预设的字体配置
+                    this.display(); // refresh the UI to show the selected preset font config
                 });
             });
 
-        // 显示当前正在编辑的预设信息
+        // Show info about the currently edited preset
         const activePreset = this.plugin.settings.presets.find(p => p.id === this._activePresetId);
         if (activePreset) {
             const presetInfoEl = containerEl.createDiv({
@@ -3951,7 +3951,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 attr: { style: 'margin: 0; font-family: var(--font-monospace); color: var(--text-muted);' }
             });
 
-            // 如果是全局预设，显示提示
+            // If it is the global preset, show a notice
             if (activePreset.id === 'default-preset' && activePreset.targetDevices.length === 0) {
                 const warningContainer = presetInfoContent.createEl('p', {
                     attr: {
@@ -3993,7 +3993,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             }
         ];
 
-        // 在循环外部获取 activePreset，确保所有 onChange 回调引用同一个对象
+        // Get activePreset outside the loop so all onChange callbacks reference the same object
         const activePresetForFonts = this.plugin.settings.presets.find(p => p.id === this._activePresetId);
         if (!activePresetForFonts) {
             console.error('[LocalFontLoader] Active preset not found:', this._activePresetId);
@@ -4005,13 +4005,13 @@ class FontManagerSettingTab extends PluginSettingTab {
                 .setName(fontType.name)
                 .setDesc(fontType.desc);
 
-            // 检查当前预设引用的字体是否存在
+            // Check if the font referenced by the current preset exists
             const selectedFont = activePresetForFonts.fonts[fontType.key];
             const fontExists = this.plugin.settings.availableFonts.some(f =>
                 (f.familyName || f.name) === selectedFont
             );
 
-            // 如果字体不存在，在名称后添加警告图标
+            // If the font does not exist, add a warning icon after the name
             if (selectedFont && !fontExists) {
                 const warningIcon = settingItem.nameEl.createSpan({ cls: 'font-missing-icon' });
                 setIcon(warningIcon, 'x');
@@ -4023,7 +4023,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             settingItem.addDropdown(dropdown => {
                     dropdown.addOption('', t('systemDefault'));
 
-                    // 如果有 specialOptions，添加特殊选项
+                    // If specialOptions exist, add the special options
                     if (fontType.specialOptions) {
                         fontType.specialOptions.forEach(optKey => {
                             if (optKey === 'text') {
@@ -4034,14 +4034,14 @@ class FontManagerSettingTab extends PluginSettingTab {
                         });
                     }
 
-                    // 使用字体家族列表（去重）
+                    // Use the font family list (deduplicated)
                     const uniqueFamilies = new Set();
                     this.plugin.settings.availableFonts.forEach(font => {
                         const familyName = font.familyName || font.name;
                         uniqueFamilies.add(familyName);
                     });
 
-                    // 为每个家族添加选项（显示变体信息）
+                    // Add an option for each family (showing variant info)
                     Array.from(uniqueFamilies).sort().forEach(familyName => {
                         const familyFonts = this.plugin.settings.availableFonts.filter(f =>
                             (f.familyName || f.name) === familyName
@@ -4049,34 +4049,34 @@ class FontManagerSettingTab extends PluginSettingTab {
 
                         const allConverted = familyFonts.every(f => f.hasB64);
 
-                        // 只显示字体名，已转换的加上勾选标记
+                        // Show only the font name, adding a checkmark for converted fonts
                         const label = allConverted ? `${familyName} ✓` : familyName;
 
                         dropdown.addOption(familyName, label);
                     });
 
-                    // 从正在编辑的预设中读取值
+                    // Read the value from the edited preset
                     dropdown.setValue(activePresetForFonts.fonts[fontType.key]);
                     dropdown.onChange(async (value) => {
-                        // 写入正在编辑的预设
+                        // Write to the edited preset
                         activePresetForFonts.fonts[fontType.key] = value;
                         await this.plugin.saveSettings();
 
-                        // 如果正在编辑的预设是当前设备所属预设，立即应用字体
+                        // If the edited preset is the current device's preset, apply fonts immediately
                         const currentDevicePreset = this.plugin._getDevicePreset();
                         if (currentDevicePreset && currentDevicePreset.id === activePresetForFonts.id) {
                             await this.plugin.applyFonts();
                         }
 
-                        // 刷新界面以显示变体警告
-                        // 使用 requestAnimationFrame 确保 DOM 操作在下一帧执行，避免重复渲染
+                        // Refresh the UI to show the variant warning
+                        // Use requestAnimationFrame so DOM ops run in the next frame, avoiding double renders
                         requestAnimationFrame(() => {
                             this.display();
                         });
                     });
                 });
 
-            // 在设置项下方添加变体警告（使用 callout 语法）
+            // Add a variant warning below the setting item (using callout syntax)
             if (activePresetForFonts.fonts[fontType.key]) {
                 const fontForVariantCheck = activePresetForFonts.fonts[fontType.key];
                 const variants = this.plugin.settings.availableFonts.filter(f =>
@@ -4123,12 +4123,12 @@ class FontManagerSettingTab extends PluginSettingTab {
                 }
             }
 
-            // 如果是 Body Text Font，添加 Latin 字体分离选项
+            // If it is the Body Text Font, add Latin font separation options
             if (fontType.supportsLatin) {
                 this.addLatinFontOptions(containerEl, activePresetForFonts);
             }
 
-            // 如果是 Heading Font，添加"应用到文件名标题"选项（仅当未选择 use-text-font 时显示）
+            // If it is the Heading Font, add the "apply to file title" option (only shown when use-text-font is not selected)
             if (fontType.supportsFileTitle) {
                 const currentValue = activePresetForFonts.fonts[fontType.key];
                 if (currentValue && currentValue !== 'use-text-font') {
@@ -4142,24 +4142,24 @@ class FontManagerSettingTab extends PluginSettingTab {
         // ========================================
         containerEl.createEl('h3', { text: t('headerFontFileConfig') });
 
-        // 筛选状态（存储在 this 上，便于重新渲染时保持状态）
+        // Filter state (stored on this to persist across re-renders)
         if (!this._fontFilter) {
             this._fontFilter = 'all'; // 'all' | 'converted' | 'notConverted' | 'notExist'
         }
 
-        // 按钮组容器（筛选 + 展开折叠）
+        // Button group container (filter + expand/collapse)
         const buttonContainerEl = containerEl.createDiv({
             attr: {
                 style: 'margin-bottom: 12px; padding: 12px; background: var(--background-secondary); border-radius: 8px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;'
             }
         });
 
-        // 筛选按钮组
+        // Filter button group
         const filterGroup = buttonContainerEl.createDiv({
             attr: { style: 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap;' }
         });
 
-        // 筛选按钮配置
+        // Filter button config
         const filterButtons = [
             { filter: 'all', icon: 'list', label: t('filterAll') || '全部' },
             { filter: 'converted', icon: 'check', label: t('legendConverted') },
@@ -4197,17 +4197,17 @@ class FontManagerSettingTab extends PluginSettingTab {
             filterButtonElements.push({ btn, filter: btnConfig.filter });
         });
 
-        // 添加分隔符
+        // Add a separator
         buttonContainerEl.createDiv({
             attr: { style: 'width: 1px; height: 24px; background: var(--background-modifier-border);' }
         });
 
-        // 展开/折叠按钮组
+        // Expand/collapse button group
         const expandCollapseGroup = buttonContainerEl.createDiv({
             attr: { style: 'display: flex; gap: 8px; align-items: center;' }
         });
 
-        // 全部展开按钮
+        // Expand all button
         const expandAllBtn = expandCollapseGroup.createEl('button', {
             attr: {
                 style: `
@@ -4242,7 +4242,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             });
         });
 
-        // 全部折叠按钮
+        // Collapse all button
         const collapseAllBtn = expandCollapseGroup.createEl('button', {
             attr: {
                 style: `
@@ -4277,25 +4277,25 @@ class FontManagerSettingTab extends PluginSettingTab {
             });
         });
 
-        // 图例说明容器（独立于按钮组）
+        // Legend container (independent of the button group)
         const legendEl = containerEl.createDiv({
             attr: {
                 style: 'margin-bottom: 16px; padding: 12px; background: var(--background-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 16px; font-size: 0.9em;'
             }
         });
 
-        // 图例说明（左侧）
+        // Legend (left side)
         const legendsContainer = legendEl.createDiv({
             attr: { style: 'display: flex; gap: 16px; flex-wrap: wrap; align-items: center;' }
         });
 
-        // "字体文件状态" 标签
+        // "Font File Status" label
         legendsContainer.createDiv({
             text: t('fontFileStatus'),
             attr: { style: 'font-weight: 600; color: var(--text-normal);' }
         });
 
-        // 竖线分隔符
+        // Vertical separator
         legendsContainer.createDiv({
             attr: { style: 'width: 1px; height: 20px; background: var(--background-modifier-border);' }
         });
@@ -4316,7 +4316,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             item.createSpan({ text: legend.text });
         });
 
-        // 刷新扫描按钮（右侧）
+        // Refresh scan button (right side)
         const rescanBtn = legendEl.createEl('button', {
             attr: {
                 style: `
@@ -4350,19 +4350,19 @@ class FontManagerSettingTab extends PluginSettingTab {
             new Notice(t('fontsRescanned') || '✓ 字体已重新扫描');
         });
 
-        // 字体列表（需要先定义，供按钮事件监听器使用）
+        // Font list (must be defined first for the button event listeners)
         const fontListEl = containerEl.createDiv({
             attr: {
                 style: 'margin: 10px 0; padding: 10px; background: var(--background-secondary); border-radius: 8px; max-height: 400px; overflow-y: auto;'
             }
         });
 
-        // 现在添加筛选按钮的事件监听器
+        // Now add the event listeners for the filter buttons
         filterButtonElements.forEach(({ btn, filter }) => {
             this._addEventListener(btn, 'click', () => {
                 this._fontFilter = filter;
 
-                // 只刷新字体列表和按钮状态，不重新渲染整个页面
+                // Only refresh the font list and button states, not the whole page
                 fontListEl.empty();
                 if (this.plugin.settings.availableFonts.length === 0) {
                     fontListEl.createEl('div', {
@@ -4373,7 +4373,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                     this.renderFontFamilies(fontListEl, this._fontFilter);
                 }
 
-                // 更新所有按钮的激活状态
+                // Update all buttons' active states
                 filterButtonElements.forEach(({ btn: button, filter: f }) => {
                     const isActive = this._fontFilter === f;
                     button.style.background = isActive ? 'var(--interactive-accent)' : 'var(--background-primary)';
@@ -4382,25 +4382,25 @@ class FontManagerSettingTab extends PluginSettingTab {
             });
         });
 
-        // 初始化字体列表内容
+        // Initialize the font list content
         if (this.plugin.settings.availableFonts.length === 0) {
             fontListEl.createEl('div', {
                 text: t('notFoundFontFamily'),
                 attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;' }
             });
         } else {
-            // 按家族显示（可折叠），传入筛选参数
+            // Display by family (collapsible), passing the filter parameter
             this.renderFontFamilies(fontListEl, this._fontFilter);
         }
 
-        // 字体文件操作按钮
+        // Font file operation buttons
         const fontOperationsEl = containerEl.createDiv({
             attr: {
                 style: 'display: flex; gap: 12px; margin: 16px 0;'
             }
         });
 
-        // 导入字体
+        // Import fonts
         const importBtn = fontOperationsEl.createEl('button', {
             text: t('importFont'),
             attr: {
@@ -4409,7 +4409,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             }
         });
 
-        // 使用 Modal 弹窗，避免文件选择器的用户激活问题
+        // Use a Modal popup to avoid the file chooser user-activation issue
         this._addEventListener(importBtn, 'click', () => {
             const modal = new FontImportModal(
                 this.plugin.app,
@@ -4435,7 +4435,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             modal.open();
         });
 
-        // 转换所有字体
+        // Convert all fonts
         const convertBtn = fontOperationsEl.createEl('button', {
             text: t('convertAllFonts'),
             attr: {
@@ -4452,7 +4452,7 @@ class FontManagerSettingTab extends PluginSettingTab {
         });
 
         // ========================================
-        // Fallback 操作
+        // Fallback operations
         // ========================================
         containerEl.createEl('h3', { text: t('headerFallback') });
 
@@ -4508,9 +4508,9 @@ class FontManagerSettingTab extends PluginSettingTab {
                 })
             );
 
-        // 恢复滚动位置（在所有 UI 构建完成后）
+        // Restore the scroll position (after all UI is built)
         if (scrollParent && savedScrollTop > 0) {
-            // 使用双重 requestAnimationFrame 确保 DOM 完全渲染
+            // Use double requestAnimationFrame to ensure the DOM is fully rendered
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     scrollParent.scrollTop = savedScrollTop;
@@ -4519,20 +4519,20 @@ class FontManagerSettingTab extends PluginSettingTab {
         }
     }
 
-    // 添加Latin字体分离选项
+    // Add Latin font separation options
     addLatinFontOptions(containerEl, activePreset) {
-        // Callout: Example - 根据用户语言显示不同的描述
+        // Callout: Example - show different descriptions based on the user language
         const exampleCalloutEl = containerEl.createDiv({ attr: { style: 'margin: 16px 0;' } });
 
-        // 基础描述
+        // Base description
         let exampleMarkdown = `> [!example] ${t('latinFontInfo')}\n> ${t('latinFontInfoDesc')}`;
 
-        // 如果是拉丁语言用户，追加额外提示
+        // If the user is a Latin-language user, append an additional hint
         if (isLatinScriptLocale()) {
             exampleMarkdown += `\n>\n> ${t('latinFontInfoDescForLatinUsers')}`;
         }
 
-        // 使用 Obsidian 原生渲染引擎
+        // Use Obsidian's native rendering engine
         MarkdownRenderer.render(
             this.app,
             exampleMarkdown,
@@ -4541,7 +4541,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             this
         );
 
-        // 启用开关
+        // Toggle switch
         new Setting(containerEl)
             .setName(t('latinFontEnabled'))
             .setDesc(t('latinFontEnabledDesc'))
@@ -4551,11 +4551,11 @@ class FontManagerSettingTab extends PluginSettingTab {
                     activePreset.latinFontEnabled = value;
                     await this.plugin.saveSettings();
                     await this.plugin.applyFonts();
-                    this.display(); // 刷新界面
+                    this.display(); // refresh the UI
                 }));
 
         if (activePreset.latinFontEnabled) {
-            // 选择Latin字体
+            // Select the Latin font
             new Setting(containerEl)
                 .setName(t('latinFont'))
                 .setDesc(t('latinFontDesc'))
@@ -4612,15 +4612,15 @@ class FontManagerSettingTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                         await this.plugin.applyFonts();
 
-                        // 刷新界面以显示警告
-                        // 使用 requestAnimationFrame 确保 DOM 操作在下一帧执行，避免重复渲染
+                        // Refresh the UI to show the warning
+                        // Use requestAnimationFrame so DOM ops run in the next frame, avoiding double renders
                         requestAnimationFrame(() => {
                             this.display();
                         });
                     });
                 });
 
-            // 在 Latin 字体选择器下方显示变体警告
+            // Show the variant warning below the Latin font selector
             if (activePreset.fonts.latin) {
                 const latinFont = activePreset.fonts.latin;
                 const selectedFonts = this.plugin.settings.availableFonts.filter(f =>
@@ -4677,7 +4677,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                         }));
             });
 
-            // 拉丁字体应用于 UI 开关
+            // Latin font for UI toggle
             new Setting(containerEl)
                 .setName(t('latinFontForUI'))
                 .setDesc(t('latinFontForUIDesc'))
@@ -4691,13 +4691,13 @@ class FontManagerSettingTab extends PluginSettingTab {
         }
     }
 
-    // 添加文件名标题选项
+    // Add the file title option
     addFileTitleOption(containerEl, activePreset) {
-        // 检查当前标题字体设置，如果是 'use-text-font' 则不显示此选项
+        // Check the current heading font setting; hide this option if 'use-text-font'
         const headingFontValue = activePreset.fonts.heading;
 
         if (headingFontValue === 'use-text-font') {
-            // 使用正文字体时，不显示此选项
+            // When using the text font, do not show this option
             return;
         }
 
@@ -4713,9 +4713,9 @@ class FontManagerSettingTab extends PluginSettingTab {
                 }));
     }
 
-    // 渲染字体家族（可折叠）
+    // Render font families (collapsible)
     renderFontFamilies(containerEl, filter = 'all') {
-        // 按家族分组
+        // Group by family
         const familiesMap = new Map();
 
         this.plugin.settings.availableFonts.forEach(font => {
@@ -4726,27 +4726,27 @@ class FontManagerSettingTab extends PluginSettingTab {
             familiesMap.get(familyName).push(font);
         });
 
-        // 根据筛选条件过滤家族
+        // Filter families by the filter condition
         const filteredFamilies = Array.from(familiesMap.entries()).filter(([familyName, fonts]) => {
             if (filter === 'all') {
-                return true; // 显示所有
+                return true; // show all
             } else if (filter === 'converted') {
-                // 至少有一个变体已转换
+                // At least one variant is converted
                 return fonts.some(f => f.hasB64);
             } else if (filter === 'cachedOnly') {
-                // 仅缓存（有 B64 但源文件不存在）
+                // Cache only (has B64 but the source file is missing)
                 return fonts.some(f => f.hasB64 && !f.exists);
             } else if (filter === 'notConverted') {
-                // 至少有一个变体未转换
+                // At least one variant is not converted
                 return fonts.some(f => !f.hasB64);
             } else if (filter === 'notExist') {
-                // 至少有一个变体的源文件不存在
+                // At least one variant's source file is missing
                 return fonts.some(f => !f.exists);
             }
             return true;
         });
 
-        // 如果筛选后没有结果，显示提示
+        // If there are no results after filtering, show a hint
         if (filteredFamilies.length === 0) {
             let emptyMessage = t('noConvertedFonts') || '没有已转换的字体';
             if (filter === 'notConverted') {
@@ -4763,7 +4763,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             return;
         }
 
-        // 渲染每个家族
+        // Render each family
         for (const [familyName, fonts] of filteredFamilies) {
             const familyEl = containerEl.createDiv({
                 cls: 'font-family-item',
@@ -4772,7 +4772,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 }
             });
 
-            // 家族标题（可点击展开/收起）
+            // Family title (clickable to expand/collapse)
             const headerEl = familyEl.createDiv({
                 attr: {
                     style: 'padding: 12px; background: var(--background-primary); cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;'
@@ -4783,7 +4783,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 attr: { style: 'display: flex; align-items: center; gap: 12px; flex: 1;' }
             });
 
-            // 展开/收起图标
+            // Expand/collapse icon
             const expandIcon = leftEl.createSpan({
                 cls: 'font-family-toggle',
                 attr: {
@@ -4793,13 +4793,13 @@ class FontManagerSettingTab extends PluginSettingTab {
             });
             setIcon(expandIcon, 'chevron-right');
 
-            // 家族名
+            // Family name
             leftEl.createSpan({
                 text: familyName,
                 attr: { style: 'font-weight: 600; font-family: var(--font-monospace);' }
             });
 
-            // 字体列表（默认折叠）
+            // Font list (collapsed by default)
             const variantsEl = familyEl.createDiv({
                 cls: 'font-variants',
                 attr: {
@@ -4811,11 +4811,11 @@ class FontManagerSettingTab extends PluginSettingTab {
             this._addEventListener(headerEl, 'click', () => {
                 expanded = !expanded;
                 variantsEl.style.display = expanded ? 'block' : 'none';
-                // 旋转图标
+                // Rotate icon
                 expandIcon.style.transform = expanded ? 'rotate(90deg)' : 'rotate(0deg)';
             });
 
-            // 渲染变体列表
+            // Render the variant list
             fonts.forEach(font => {
                 const variantEl = variantsEl.createDiv({
                     attr: {
@@ -4827,34 +4827,34 @@ class FontManagerSettingTab extends PluginSettingTab {
                     attr: { style: 'display: flex; align-items: center; gap: 12px; flex: 1;' }
                 });
 
-                // 状态图标
-                // 四种状态：
-                // 1. 源文件不存在 + 缓存存在 → 蓝色对勾（仅缓存）
-                // 2. 源文件不存在 + 缓存不存在 → 红色问号（完全缺失）
-                // 3. 源文件存在 + 已转换 → 绿色对勾（正常已转换）
-                // 4. 源文件存在 + 未转换 → 灰色圆圈（待转换）
+                // Status icon
+                // Four states:
+                // 1. Source missing + cache exists -> blue check (cache only)
+                // 2. Source missing + cache missing -> red question mark (fully missing)
+                // 3. Source exists + converted -> green check (converted)
+                // 4. Source exists + not converted -> gray circle (pending conversion)
 
                 let iconColor, iconName;
 
                 if (font.exists === false) {
-                    // 源文件不存在
+                    // Source file missing
                     if (font.hasB64) {
-                        // 但缓存存在 → 蓝色对勾
+                        // But the cache exists -> blue check
                         iconColor = 'var(--interactive-accent)';
                         iconName = 'check';
                     } else {
-                        // 缓存也不存在 → 红色问号
+                        // Cache also missing -> red question mark
                         iconColor = 'var(--text-error)';
                         iconName = 'help-circle';
                     }
                 } else {
-                    // 源文件存在
+                    // Source file exists
                     if (font.hasB64) {
-                        // 已转换 → 绿色对勾
+                        // Converted -> green check
                         iconColor = 'var(--color-green)';
                         iconName = 'check';
                     } else {
-                        // 未转换 → 灰色圆圈
+                        // Not converted -> gray circle
                         iconColor = 'var(--text-muted)';
                         iconName = 'circle';
                     }
@@ -4865,7 +4865,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                 });
                 setIcon(statusIconEl, iconName);
 
-                // 变体类型标签
+                // Variant type label
                 const variantLabels = {
                     'regular': 'Regular',
                     'italic': 'Italic',
@@ -4875,18 +4875,18 @@ class FontManagerSettingTab extends PluginSettingTab {
 
                 const variantLabel = variantLabels[font.variantType] || 'Unknown';
 
-                // 变体名称
+                // Variant name
                 infoEl.createSpan({
                     text: variantLabel,
                     attr: { style: 'font-family: var(--font-monospace); font-size: 0.9em;' }
                 });
 
-                // 操作按钮
+                // Action buttons
                 const actionsEl = variantEl.createDiv({
                     attr: { style: 'display: flex; gap: 4px;' }
                 });
 
-                // 重新转换按钮
+                // Reconvert button
                 const convertBtn = actionsEl.createEl('button', {
                     attr: {
                         style: 'padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;',
@@ -4900,7 +4900,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                     this.display();
                 });
 
-                // 删除按钮
+                // Delete button
                 const deleteBtn = actionsEl.createEl('button', {
                     attr: {
                         style: 'padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;',
@@ -4925,7 +4925,7 @@ class FontManagerSettingTab extends PluginSettingTab {
         }
     }
 
-    // 转换单个字体
+    // Convert a single font
     async convertSingleFont(font) {
         try {
             this._log(`[Local Font Loader] Converting ${font.name}...`);
@@ -5002,22 +5002,22 @@ class FontManagerSettingTab extends PluginSettingTab {
         }
     }
 
-    // 删除单个字体
+    // Delete a single font
     async deleteSingleFont(font) {
         try {
-            // 删除源文件
+            // Delete the source file
             await this.plugin.app.vault.adapter.remove(font.path);
 
-            // 删除缓存
+            // Delete the cache
             if (font.b64Path) {
                 try {
                     await this.plugin.app.vault.adapter.remove(font.b64Path);
                 } catch (err) {
-                    // 缓存可能不存在
+                    // Cache may not exist
                 }
             }
 
-            // 从列表中移除
+            // Remove from the list
             const index = this.plugin.settings.availableFonts.indexOf(font);
             if (index > -1) {
                 this.plugin.settings.availableFonts.splice(index, 1);
@@ -5044,7 +5044,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             return;
         }
 
-        // 移除确认逻辑，由 UI 层统一处理
+        // Confirmation logic removed; handled by the UI layer
 
         this._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
         let deleted = 0;
@@ -5052,19 +5052,19 @@ class FontManagerSettingTab extends PluginSettingTab {
         try {
             for (const font of unusedFonts) {
                 try {
-                    // 删除原始字体文件
+                    // Delete the original font file
                     await this.app.vault.adapter.remove(font.path);
 
-                    // 删除缓存文件
+                    // Delete the cache file
                     if (font.hasB64 && font.b64Path) {
                         try {
                             await this.app.vault.adapter.remove(font.b64Path);
                         } catch (error) {
-                            // 忽略缓存删除错误
+                            // Ignore cache deletion errors
                         }
                     }
 
-                    // 从列表中移除
+                    // Remove from the list
                     const index = this.plugin.settings.availableFonts.indexOf(font);
                     if (index > -1) {
                         this.plugin.settings.availableFonts.splice(index, 1);
@@ -5082,7 +5082,7 @@ class FontManagerSettingTab extends PluginSettingTab {
             new Notice(t('deletedUnusedFonts', { count: deleted }));
             this._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
 
-            this.display(); // 刷新界面
+            this.display(); // refresh the UI
 
         } catch (error) {
             this._logError('[Local Font Loader] 批量删除失败:', error);
@@ -5092,7 +5092,7 @@ class FontManagerSettingTab extends PluginSettingTab {
 
     hide() {
         this._cleanupEventListeners();
-        // 清理自定义事件监听器
+        // Clean up custom event listeners
         if (this._settingsChangedHandler) {
             this.plugin.app.workspace.off('local-font-loader:settings-changed', this._settingsChangedHandler);
         }
@@ -5102,7 +5102,7 @@ class FontManagerSettingTab extends PluginSettingTab {
 
 
 // ============================================================================
-// ── 导出 ──
+// ==== Export ====
 // ============================================================================
 
 module.exports = LocalFontLoaderPlugin;

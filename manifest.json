@@ -1,7 +1,7 @@
 {
 	"id": "local-font-loader",
 	"name": "Local Font Loader",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"minAppVersion": "0.15.0",
 	"description": "Load local fonts (TTF/OTF/WOFF/WOFF2) with Base64 caching. Manage UI, text, code, and math fonts separately. Support cross-device font presets.",
 	"author": "CoreVortex",

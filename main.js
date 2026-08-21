@@ -1344,8 +1344,8 @@ const DEFAULT_SETTINGS = {
     fontFamilies: [],         // Global font family grouping info (shared by all presets)
     autoLoadOnStartup: true,
 
-    // Device identification (仅保留 deviceNameMap，会被云同步)
-    // deviceId 存储在 localStorage，不会被同步
+    // Device identification (会被云同步)
+    deviceFingerprints: {},   // Device fingerprint mapping { fingerprint: deviceId }
     deviceNameMap: {},        // Device name mapping { deviceId: deviceName }
 
     // Global settings
@@ -1441,43 +1441,41 @@ class LocalFontLoaderPlugin extends Plugin {
         // Load settings
         await this.loadSettings();
 
-        // 初始化设备 ID（使用 localStorage 存储，避免被云同步覆盖）
-        const localDeviceId = window.localStorage.getItem('local-font-loader-device-id');
+        // 自动检测并注册设备
+        // 使用设备指纹（平台 + UA 哈希）作为唯一标识
+        const deviceFingerprint = this._generateDeviceFingerprint();
 
-        if (!localDeviceId) {
-            // 首次使用，生成新的设备 ID 并存储到 localStorage
+        // 检查设备是否已存在
+        let existingDeviceId = null;
+        if (this.settings.deviceFingerprints && this.settings.deviceFingerprints[deviceFingerprint]) {
+            // 设备已存在，使用现有 ID
+            existingDeviceId = this.settings.deviceFingerprints[deviceFingerprint];
+            this.currentDeviceId = existingDeviceId;
+            this._log(`[Local Font Loader] Device recognized: ${existingDeviceId}`);
+        } else {
+            // 新设备，生成新 ID 并记录
             const newDeviceId = this._generateUUID();
-            window.localStorage.setItem('local-font-loader-device-id', newDeviceId);
-            this.currentDeviceId = newDeviceId;
-
-            // 生成默认设备名称
             const defaultDeviceName = this._getDefaultDeviceName();
 
-            // 将设备信息记录到 deviceNameMap（会被同步）
+            // 初始化数据结构
+            if (!this.settings.deviceFingerprints) {
+                this.settings.deviceFingerprints = {};
+            }
             if (!this.settings.deviceNameMap) {
                 this.settings.deviceNameMap = {};
             }
+
+            // 记录设备指纹映射
+            this.settings.deviceFingerprints[deviceFingerprint] = newDeviceId;
             this.settings.deviceNameMap[newDeviceId] = defaultDeviceName;
+
+            this.currentDeviceId = newDeviceId;
 
             await this.saveSettings();
             this._log(`[Local Font Loader] New device registered: ${newDeviceId} (${defaultDeviceName})`);
-        } else {
-            // 已有设备 ID，使用现有的
-            this.currentDeviceId = localDeviceId;
-
-            // 确保设备名称存在于 deviceNameMap
-            if (!this.settings.deviceNameMap) {
-                this.settings.deviceNameMap = {};
-            }
-            if (!this.settings.deviceNameMap[localDeviceId]) {
-                this.settings.deviceNameMap[localDeviceId] = this._getDefaultDeviceName();
-                await this.saveSettings();
-            }
-
-            this._log(`[Local Font Loader] Device loaded: ${localDeviceId}`);
         }
 
-        // 确保当前设备有对应的预设（新增）
+        // 确保当前设备有对应的预设
         await this._ensureDevicePreset();
 
         // Add Ribbon icon
@@ -1818,6 +1816,29 @@ class LocalFontLoaderPlugin extends Plugin {
         else if (ua.includes('iOS')) osName = 'iOS';
 
         return `${platform}-${osName}`;
+    }
+
+    /**
+     * 生成设备指纹（用于识别设备）
+     * 基于平台和 UA 的简单哈希
+     * @returns {string} 设备指纹
+     */
+    _generateDeviceFingerprint() {
+        const platform = Platform.isMobile ? 'mobile' : 'desktop';
+        const ua = navigator.userAgent;
+
+        // 简单哈希函数
+        const hash = (str) => {
+            let h = 0;
+            for (let i = 0; i < str.length; i++) {
+                h = ((h << 5) - h) + str.charCodeAt(i);
+                h = h & h; // 转换为32位整数
+            }
+            return Math.abs(h).toString(36);
+        };
+
+        // 组合平台和 UA 哈希作为指纹
+        return `${platform}-${hash(ua)}`;
     }
 
     /**
@@ -3228,6 +3249,14 @@ class FontManagerSettingTab extends PluginSettingTab {
 .device-move-btn {
     margin-left: 4px;
     padding: 4px;
+    color: var(--text-normal);
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.device-move-btn:hover {
+    opacity: 1;
+    color: var(--interactive-accent);
 }
 
 .font-missing-icon {

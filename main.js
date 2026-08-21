@@ -1825,12 +1825,22 @@ class LocalFontLoaderPlugin extends Plugin {
 
     /**
      * 生成设备指纹（用于识别设备）
-     * 基于平台和 UA 的简单哈希
+     * 基于平台、UA、屏幕分辨率、时区等多个因素
      * @returns {string} 设备指纹
      */
     _generateDeviceFingerprint() {
         const platform = Platform.isMobile ? 'mobile' : 'desktop';
         const ua = navigator.userAgent;
+
+        // 收集多个设备特征
+        const features = [
+            ua,
+            `${screen.width}x${screen.height}`,           // 屏幕分辨率
+            `${screen.availWidth}x${screen.availHeight}`, // 可用屏幕尺寸
+            new Date().getTimezoneOffset().toString(),    // 时区偏移
+            navigator.language,                            // 语言
+            navigator.hardwareConcurrency || 'unknown'     // CPU 核心数
+        ];
 
         // 简单哈希函数
         const hash = (str) => {
@@ -1842,8 +1852,11 @@ class LocalFontLoaderPlugin extends Plugin {
             return Math.abs(h).toString(36);
         };
 
-        // 组合平台和 UA 哈希作为指纹
-        return `${platform}-${hash(ua)}`;
+        // 组合所有特征并哈希
+        const fingerprint = hash(features.join('|'));
+
+        // 组合平台和指纹
+        return `${platform}-${fingerprint}`;
     }
 
     /**

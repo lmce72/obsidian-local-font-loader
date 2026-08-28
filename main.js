@@ -1465,33 +1465,41 @@ class LocalFontLoaderPlugin extends Plugin {
     async onload() {
         this._log('[Local Font Loader] Plugin loading...');
 
-        // Load settings
-        await this.loadSettings();
+        try {
+            // Load settings
+            await this.loadSettings();
+            this._log('[Local Font Loader] Settings loaded successfully');
 
-        // Auto-detect and register device
-        // Use a device fingerprint (platform + UA hash) as the unique identifier
-        const deviceFingerprint = this._generateDeviceFingerprint();
-
-        // Check if the device already exists
-        let existingDeviceId = null;
-        if (this.settings.deviceFingerprints && this.settings.deviceFingerprints[deviceFingerprint]) {
-            // Device exists, use the existing ID
-            existingDeviceId = this.settings.deviceFingerprints[deviceFingerprint];
-            this.currentDeviceId = existingDeviceId;
-
-            // Ensure deviceNameMap has a name (may be lost during data cleanup)
-            if (!this.settings.deviceNameMap) {
-                this.settings.deviceNameMap = {};
-            }
-            if (!this.settings.deviceNameMap[existingDeviceId]) {
-                this.settings.deviceNameMap[existingDeviceId] = this._getDefaultDeviceName();
-                await this.saveSettings();
-                this._log(`[Local Font Loader] Device name restored: ${existingDeviceId}`);
+            // Validate settings structure
+            if (!this.settings.presets || this.settings.presets.length === 0) {
+                console.error('[Local Font Loader] Critical: presets array is empty or undefined');
+                throw new Error('Settings validation failed: presets missing');
             }
 
-            this._log(`[Local Font Loader] Device recognized: ${existingDeviceId}`);
-        } else {
-            // New device, generate a new ID and register it
+            // Auto-detect and register device
+            // Use a device fingerprint (platform + UA hash) as the unique identifier
+            const deviceFingerprint = this._generateDeviceFingerprint();
+
+            // Check if the device already exists
+            let existingDeviceId = null;
+            if (this.settings.deviceFingerprints && this.settings.deviceFingerprints[deviceFingerprint]) {
+                // Device exists, use the existing ID
+                existingDeviceId = this.settings.deviceFingerprints[deviceFingerprint];
+                this.currentDeviceId = existingDeviceId;
+
+                // Ensure deviceNameMap has a name (may be lost during data cleanup)
+                if (!this.settings.deviceNameMap) {
+                    this.settings.deviceNameMap = {};
+                }
+                if (!this.settings.deviceNameMap[existingDeviceId]) {
+                    this.settings.deviceNameMap[existingDeviceId] = this._getDefaultDeviceName();
+                    await this.saveSettings();
+                    this._log(`[Local Font Loader] Device name restored: ${existingDeviceId}`);
+                }
+
+                this._log(`[Local Font Loader] Device recognized: ${existingDeviceId}`);
+            } else {
+                // New device, generate a new ID and register it
             const newDeviceId = this._generateUUID();
             const defaultDeviceName = this._getDefaultDeviceName();
 
@@ -1515,8 +1523,13 @@ class LocalFontLoaderPlugin extends Plugin {
 
         // Ensure the current device has a preset
         await this._ensureDevicePreset();
+        this._log('[Local Font Loader] Device preset ensured');
+    } catch (error) {
+        console.error('[Local Font Loader] Failed during initialization:', error);
+        // 即使初始化失败，也要继续加载插件，避免阻塞 Obsidian
+    }
 
-        // Add Ribbon icon
+    // Add Ribbon icon
         this.addRibbonIcon('type', 'Local Font Loader', () => {
             // Open settings panel directly
             this.app.setting.open();
@@ -1596,9 +1609,21 @@ class LocalFontLoaderPlugin extends Plugin {
                             }
                             // External change (e.g. multi-device sync): reload settings and refresh the UI
                             await this.loadSettings();
+                            this._log('[Local Font Loader] Settings reloaded from data.json');
+
+                            // 重新应用字体配置（如果启用了自动加载）
+                            if (this.settings.autoLoadOnStartup) {
+                                this._log('[Local Font Loader] Re-applying fonts after settings reload...');
+                                try {
+                                    await this.applyFonts();
+                                    this._log('[Local Font Loader] Fonts re-applied successfully');
+                                } catch (error) {
+                                    console.error('[Local Font Loader] Failed to re-apply fonts:', error);
+                                }
+                            }
+
                             // Notify the settings panel to refresh
                             this.app.workspace.trigger('local-font-loader:settings-changed');
-                            this._log('[Local Font Loader] Settings reloaded from data.json');
                         } catch (error) {
                             this._logError('[Local Font Loader] Failed to reload settings from data.json:', error);
                         }
@@ -1609,15 +1634,31 @@ class LocalFontLoaderPlugin extends Plugin {
 
         // Scan fonts (if the list is empty)
         if (this.settings.availableFonts.length === 0) {
+            this._log('[Local Font Loader] Font list is empty, scanning...');
             await this.scanFonts();
         }
 
         // Scan font source-file existence once at startup (not persisted; status-only)
-        await this._refreshFontExistence();
+        try {
+            await this._refreshFontExistence();
+            this._log('[Local Font Loader] Font existence check completed');
+        } catch (error) {
+            console.error('[Local Font Loader] Font existence check failed:', error);
+        }
 
         // Auto-load fonts on startup
         if (this.settings.autoLoadOnStartup) {
-            await this.applyFonts();
+            this._log('[Local Font Loader] Auto-loading fonts...');
+            try {
+                await this.applyFonts();
+                this._log('[Local Font Loader] Fonts applied successfully');
+            } catch (error) {
+                console.error('[Local Font Loader] Failed to apply fonts:', error);
+                // 显示用户友好的错误提示
+                new Notice('⚠️ Local Font Loader: 字体加载失败，请检查控制台日志', 5000);
+            }
+        } else {
+            this._log('[Local Font Loader] Auto-load disabled, skipping font application');
         }
 
         this._log('[Local Font Loader] ✓ Plugin loaded');
@@ -1649,7 +1690,22 @@ class LocalFontLoaderPlugin extends Plugin {
         const data = await this.loadData();
 
         // Backward compatibility: migrate legacy data
-        if (data && !data.presets) {
+        // 检查条件增强：不仅检查 presets 是否存在，还要检查 default-preset 的 fonts 配置是否有效
+        const needsMigration = !data ||
+                              !data.presets ||
+                              data.presets.length === 0 ||
+                              (() => {
+                                  const defaultPreset = data.presets.find(p => p.id === 'default-preset');
+                                  if (!defaultPreset) return true;
+                                  // 检查 fonts 对象是否有效（至少有一个非空字段）
+                                  const fonts = defaultPreset.fonts || {};
+                                  const hasValidFonts = Object.values(fonts).some(v => v && v.trim() !== '');
+                                  return !hasValidFonts;
+                              })();
+
+        if (data && needsMigration) {
+            this._log('[Local Font Loader] 检测到配置需要迁移或修复，正在处理...');
+
             // Migrate legacy font config to the default preset (keep user config as global default)
             const defaultPreset = {
                 id: 'default-preset',
@@ -1662,6 +1718,8 @@ class LocalFontLoaderPlugin extends Plugin {
             };
 
             data.presets = [defaultPreset];
+
+            this._log('[Local Font Loader] ✓ 配置迁移完成');
         }
 
         // Clean up legacy deviceId and deviceName fields (deprecated)

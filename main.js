@@ -11,7 +11,7 @@
  * - Command Palette integration
  *
  * @author CoreVortex
- * @version 1.2.4
+ * @version 1.3.0
  * @license MIT
  */
 
@@ -235,6 +235,10 @@ const TRANSLATIONS = {
         presetCopied: 'Preset copied',
         deviceReassigned: 'Device reassigned to preset',
         dragDeviceHere: 'Drag devices here to assign to this preset',
+        cleanupDevices: 'Clean up unbound devices',
+        cleanupDevicesNone: 'No unbound devices to clean up',
+        confirmCleanupDevices: 'These devices are neither this device nor bound to any preset, and will be removed from the list:\n\n{0}',
+        cleanupDevicesDone: 'Cleaned up {0} device(s)',
         currentDeviceName: 'Current Device Name',
         deviceId: 'Device ID',
         deviceNamePlaceholder: 'e.g., Desktop-Mac, Mobile-Android',
@@ -462,6 +466,10 @@ const TRANSLATIONS = {
         presetCopied: '预设已复制',
         deviceReassigned: '设备已重新分配到预设',
         dragDeviceHere: '拖动设备到此处以分配到该预设',
+        cleanupDevices: '清理未绑定设备',
+        cleanupDevicesNone: '没有可清理的未绑定设备',
+        confirmCleanupDevices: '以下设备既非本机、也未绑定任何预设，将从列表中移除：\n\n{0}',
+        cleanupDevicesDone: '已清理 {0} 台设备',
         currentDeviceName: '当前设备名称',
         deviceId: '设备 ID',
         deviceNamePlaceholder: '例如：桌面-Mac、移动-安卓',
@@ -1089,6 +1097,10 @@ const TRANSLATIONS = {
         presetCopied: '預設已複製',
         deviceReassigned: '裝置已重新分配到預設',
         dragDeviceHere: '拖動裝置到此處以分配到該預設',
+        cleanupDevices: '清理未綁定裝置',
+        cleanupDevicesNone: '沒有可清理的未綁定裝置',
+        confirmCleanupDevices: '以下裝置既非本機、也未綁定任何預設，將從列表中移除：\n\n{0}',
+        cleanupDevicesDone: '已清理 {0} 台裝置',
         currentDeviceName: '目前裝置名稱',
         deviceId: '裝置 ID',
         deviceNamePlaceholder: '例如：桌面-Mac、行動-安卓',
@@ -1346,8 +1358,11 @@ const DEFAULT_SETTINGS = {
     autoLoadOnStartup: true,
 
     // Device identification (synced via cloud)
-    deviceFingerprints: {},   // Device fingerprint mapping { fingerprint: deviceId }
-    deviceNameMap: {},        // Device name mapping { deviceId: deviceName }
+    // NOTE: the real per-device identity lives in device-local storage, NOT here — see
+    // _getOrCreateLocalDeviceId(). This map is a one-time migration ledger only.
+    deviceFingerprints: {},   // Legacy fingerprint → deviceId / 旧指纹到设备 ID 的映射
+    deviceNameMap: {},        // { deviceId: displayName } / 设备显示名映射
+    deviceMeta: {},           // { deviceId: { platform, os, osVersion, model } } / 设备元信息映射
 
     // Global settings
     latinFontForUI: false,    // Apply Latin font to UI elements (global)
@@ -1462,6 +1477,93 @@ class LocalFontLoaderPlugin extends Plugin {
             .replace(/'/g, "\\'");
     }
 
+    /**
+     * Builds every high-priority code-font rule from one shared template:
+     * inline code, multi-line code blocks and code block line numbers.
+     *
+     * Priority:
+     * User CSS snippets commonly scope code-font rules with a `:root` prefix and repeat the
+     * container classes, e.g. `:root .markdown-preview-view code:not(pre code)` (specificity
+     * 2-0-3) or `:root .markdown-source-view.mod-cm6 .cm-inline-code` (4-0-0). A selector that
+     * cannot outrank those loses even though both sides use `!important`, because specificity
+     * is compared before source order.
+     *
+     * Two things give us the margin, applied uniformly to every selector below:
+     *   1. the shared `:root body` scope prefix — one class-level weight plus one element-level;
+     *   2. each selector keeps its NATURAL container classes (`.markdown-preview-view`,
+     *      `.markdown-source-view.mod-cm6`, …) instead of a bare tag, which is what the DOM
+     *      actually looks like anyway.
+     * Together they clear the snippet rules: inline code reaches 3-0-4 in reading view and
+     * 5-0-1 in the editor, against the snippet's 2-0-3 and 4-0-0.
+     *
+     * Note this is a deliberate escalation over that snippet — if the snippet is later given
+     * more container classes, the margin shrinks.
+     *
+     *
+     * @param {string} fontFamily The raw (unescaped) monospace family name
+     * @returns {string} The CSS text
+     */
+    _buildCodeFontRules(fontFamily) {
+        const fontStack = `"${this._escapeCssString(fontFamily)}", monospace`;
+        const PRIORITY_SCOPE = ':root body';
+
+        /**
+         * Emits one scoped rule
+         * @param {string} comment Section label
+         * @param {string[]} selectors Selectors without the scope prefix
+         * @param {string} extraDeclarations Additional declarations
+         */
+        const emitRule = (comment, selectors, extraDeclarations = '') => {
+            let css = `/* ${comment} */\n`;
+            css += selectors.map(selector => `${PRIORITY_SCOPE} ${selector}`).join(',\n') + ' {\n';
+            css += `  font-family: ${fontStack} !important;\n`;
+            if (extraDeclarations) {
+                css += extraDeclarations;
+            }
+            css += `}\n\n`;
+            return css;
+        };
+
+        let css = `/* Code Block Font (High Priority) */\n`;
+
+        // Inline code
+        // Reading view needs >= 2-0-4; the editor needs >= 4-0-1.
+        css += emitRule('Inline code', [
+            '.markdown-preview-view.markdown-rendered code:not(pre code)',
+            '.markdown-preview-view code:not(pre code)',
+            '.markdown-rendered code:not(pre code)',
+            '.markdown-source-view.mod-cm6.cm-s-obsidian .cm-inline-code',
+            '.markdown-source-view.mod-cm6 .cm-inline-code',
+            '.cm-inline-code',
+            'code:not(pre code)'
+        ]);
+
+        // Multi-line code blocks
+        // Reading view needs >= 2-0-3; the editor needs >= 4-0-1.
+        css += emitRule('Code blocks', [
+            '.markdown-preview-view.markdown-rendered pre code',
+            '.markdown-preview-view pre code',
+            '.markdown-preview-view pre',
+            '.markdown-source-view.mod-cm6.cm-s-obsidian .cm-line.HyperMD-codeblock',
+            '.markdown-source-view.mod-cm6 .cm-line.HyperMD-codeblock',
+            '.markdown-source-view.mod-cm6.cm-s-obsidian .cm-line:has(.cm-hmd-codeblock)',
+            '.markdown-source-view.mod-cm6 .cm-line:has(.cm-hmd-codeblock)',
+            '.HyperMD-codeblock',
+            '.cm-s-obsidian pre.HyperMD-codeblock',
+            'pre code',
+            'pre'
+        ]);
+
+        // Line numbers — previously had no rule at all, so they inherited the body text font.
+        css += emitRule('Code block line numbers', [
+            '.code-styler-line-number',
+            '.cm-gutter.cm-lineNumbers',
+            '.cm-lineNumbers .cm-gutterElement'
+        ]);
+
+        return css;
+    }
+
     async onload() {
         this._log('[Local Font Loader] Plugin loading...');
 
@@ -1476,57 +1578,66 @@ class LocalFontLoaderPlugin extends Plugin {
                 throw new Error('Settings validation failed: presets missing');
             }
 
-            // Auto-detect and register device
-            // Use a device fingerprint (platform + UA hash) as the unique identifier
-            const deviceFingerprint = this._generateDeviceFingerprint();
+            // Auto-detect and register this device
+            //
+            // Identity is a UUID persisted in Obsidian's DEVICE-LOCAL storage: it survives
+            // restarts and never travels through data.json sync, because a synced id would make
+            // every device believe it is the same one. The legacy fingerprint map is consulted
+            // exactly once, during migration, so devices that already installed the plugin keep
+            // the id their presets are bound to.
+            //
+            const deviceId = this._getOrCreateLocalDeviceId();
+            this.currentDeviceId = deviceId;
 
-            // Check if the device already exists
-            let existingDeviceId = null;
-            if (this.settings.deviceFingerprints && this.settings.deviceFingerprints[deviceFingerprint]) {
-                // Device exists, use the existing ID
-                existingDeviceId = this.settings.deviceFingerprints[deviceFingerprint];
-                this.currentDeviceId = existingDeviceId;
-
-                // Ensure deviceNameMap has a name (may be lost during data cleanup)
-                if (!this.settings.deviceNameMap) {
-                    this.settings.deviceNameMap = {};
-                }
-                if (!this.settings.deviceNameMap[existingDeviceId]) {
-                    this.settings.deviceNameMap[existingDeviceId] = this._getDefaultDeviceName();
-                    await this.saveSettings();
-                    this._log(`[Local Font Loader] Device name restored: ${existingDeviceId}`);
-                }
-
-                this._log(`[Local Font Loader] Device recognized: ${existingDeviceId}`);
-            } else {
-                // New device, generate a new ID and register it
-            const newDeviceId = this._generateUUID();
-            const defaultDeviceName = this._getDefaultDeviceName();
-
-            // Initialize data structures
-            if (!this.settings.deviceFingerprints) {
-                this.settings.deviceFingerprints = {};
-            }
             if (!this.settings.deviceNameMap) {
                 this.settings.deviceNameMap = {};
             }
+            if (!this.settings.deviceMeta) {
+                this.settings.deviceMeta = {};
+            }
 
-            // Record the device fingerprint mapping
-            this.settings.deviceFingerprints[deviceFingerprint] = newDeviceId;
-            this.settings.deviceNameMap[newDeviceId] = defaultDeviceName;
+            const deviceInfo = this._detectDeviceInfo();
+            const previousMeta = this.settings.deviceMeta[deviceId];
+            const metaChanged = !previousMeta
+                || previousMeta.platform !== deviceInfo.platform
+                || previousMeta.os !== deviceInfo.os
+                || previousMeta.osVersion !== deviceInfo.osVersion
+                || previousMeta.model !== deviceInfo.model;
 
-            this.currentDeviceId = newDeviceId;
+            const isKnownDevice = Boolean(this.settings.deviceNameMap[deviceId]);
 
-            await this.saveSettings();
-            this._log(`[Local Font Loader] New device registered: ${newDeviceId} (${defaultDeviceName})`);
-        }
+            // A name this plugin generated is refreshed on upgrade (e.g. "Desktop-Linux" becomes
+            // the hostname); a name the user typed is never touched.
+            const storedName = this.settings.deviceNameMap[deviceId];
+            const generatedNameOutdated = isKnownDevice
+                && this._isGeneratedDeviceName(storedName)
+                && storedName !== this._getDefaultDeviceName(deviceInfo);
+
+            if (!isKnownDevice) {
+                this.settings.deviceMeta[deviceId] = { ...deviceInfo };
+                this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
+                await this.saveSettings();
+                this._log(`[Local Font Loader] New device registered: ${deviceId} (${this.settings.deviceNameMap[deviceId]})`);
+            } else if (metaChanged || generatedNameOutdated) {
+                this.settings.deviceMeta[deviceId] = { ...deviceInfo };
+
+                if (generatedNameOutdated) {
+                    this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
+                    this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[deviceId]}`);
+                }
+
+                await this.saveSettings();
+                this._log(`[Local Font Loader] Device metadata refreshed: ${deviceId}`);
+            } else {
+                this._log(`[Local Font Loader] Device recognized: ${deviceId}`);
+            }
 
         // Ensure the current device has a preset
         await this._ensureDevicePreset();
         this._log('[Local Font Loader] Device preset ensured');
     } catch (error) {
         console.error('[Local Font Loader] Failed during initialization:', error);
-        // 即使初始化失败，也要继续加载插件，避免阻塞 Obsidian
+        // Continue loading the plugin even if initialization failed, so Obsidian is not blocked
     }
 
     // Add Ribbon icon
@@ -1611,7 +1722,7 @@ class LocalFontLoaderPlugin extends Plugin {
                             await this.loadSettings();
                             this._log('[Local Font Loader] Settings reloaded from data.json');
 
-                            // 重新应用字体配置（如果启用了自动加载）
+                            // Re-apply the font configuration (when auto-load is enabled)
                             if (this.settings.autoLoadOnStartup) {
                                 this._log('[Local Font Loader] Re-applying fonts after settings reload...');
                                 try {
@@ -1654,7 +1765,7 @@ class LocalFontLoaderPlugin extends Plugin {
                 this._log('[Local Font Loader] Fonts applied successfully');
             } catch (error) {
                 console.error('[Local Font Loader] Failed to apply fonts:', error);
-                // 显示用户友好的错误提示
+                // Show a user-friendly error
                 new Notice('⚠️ Local Font Loader: 字体加载失败，请检查控制台日志', 5000);
             }
         } else {
@@ -1690,14 +1801,14 @@ class LocalFontLoaderPlugin extends Plugin {
         const data = await this.loadData();
 
         // Backward compatibility: migrate legacy data
-        // 检查条件增强：不仅检查 presets 是否存在，还要检查 default-preset 的 fonts 配置是否有效
+        // Stricter validation: check not only that presets exist, but that the default preset's fonts config is valid
         const needsMigration = !data ||
                               !data.presets ||
                               data.presets.length === 0 ||
                               (() => {
                                   const defaultPreset = data.presets.find(p => p.id === 'default-preset');
                                   if (!defaultPreset) return true;
-                                  // 检查 fonts 对象是否有效（至少有一个非空字段）
+                                  // Check that the fonts object is valid (at least one non-empty field)
                                   const fonts = defaultPreset.fonts || {};
                                   const hasValidFonts = Object.values(fonts).some(v => v && v.trim() !== '');
                                   return !hasValidFonts;
@@ -1932,12 +2043,66 @@ class LocalFontLoaderPlugin extends Plugin {
             preset.targetDevices = preset.targetDevices.filter(id => id !== deviceId);
         });
 
-        // Remove from the device name map
+        // Remove from the device name map and its metadata
         if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
             delete this.settings.deviceNameMap[deviceId];
         }
+        if (this.settings.deviceMeta && this.settings.deviceMeta[deviceId]) {
+            delete this.settings.deviceMeta[deviceId];
+        }
 
         await this.saveSettings();
+    }
+
+    /**
+     * Lists devices that can be safely pruned: not this device, not bound to any preset,
+     * and no longer referenced by the name map.
+     *
+     * The legacy fingerprint ledger is deliberately left untouched — a device that has not yet
+     * been opened since the upgrade still needs its fingerprint entry to migrate onto its
+     * original id. Pruning it would strand that device with a brand-new id and break its
+     * preset bindings.
+     *
+     *
+     * @returns {Array<{id: string, name: string}>} The prunable devices
+     */
+    getPrunableDevices() {
+        const boundDeviceIds = new Set();
+        this.settings.presets.forEach(preset => {
+            (preset.targetDevices || []).forEach(id => boundDeviceIds.add(id));
+        });
+
+        const prunable = [];
+        Object.keys(this.settings.deviceNameMap || {}).forEach(deviceId => {
+            if (deviceId === this.currentDeviceId) return;
+            if (boundDeviceIds.has(deviceId)) return;
+            prunable.push({ id: deviceId, name: this._getDeviceName(deviceId) });
+        });
+
+        return prunable;
+    }
+
+    /**
+     * Removes stale device entries from the name map and metadata.
+     *
+     * @returns {Promise<number>} How many devices were pruned
+     */
+    async pruneUnboundDevices() {
+        const prunable = this.getPrunableDevices();
+
+        prunable.forEach(({ id }) => {
+            delete this.settings.deviceNameMap[id];
+            if (this.settings.deviceMeta) {
+                delete this.settings.deviceMeta[id];
+            }
+        });
+
+        if (prunable.length > 0) {
+            await this.saveSettings();
+        }
+
+        this._log(`[Local Font Loader] Pruned ${prunable.length} unbound device(s)`);
+        return prunable.length;
     }
 
     /**
@@ -1956,21 +2121,27 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * Get the platform type of a device (reverse lookup via deviceFingerprints)
+     * Get the platform type of a device.
+     *
+     * Prefers the metadata a device recorded about itself; the legacy fingerprint ledger is
+     * only a fallback for entries created before deviceMeta existed.
+     *
      * @param {string} deviceId - The device ID
      * @returns {string} - The platform type: 'mobile' or 'desktop', or 'unknown' if not found
      */
     _getDevicePlatform(deviceId) {
-        if (!this.settings.deviceFingerprints) {
-            return 'unknown';
+        const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
+        if (meta && meta.platform) {
+            return meta.platform;
         }
 
-        // Reverse lookup: find the fingerprint in deviceFingerprints
-        for (const [fingerprint, id] of Object.entries(this.settings.deviceFingerprints)) {
-            if (id === deviceId) {
-                // Fingerprint format: platform-hash (e.g., mobile-abc123 or desktop-xyz789)
-                const platform = fingerprint.split('-')[0];
-                return platform; // 'mobile' or 'desktop'
+        // Legacy fallback: reverse lookup in deviceFingerprints
+        if (this.settings.deviceFingerprints) {
+            for (const [fingerprint, id] of Object.entries(this.settings.deviceFingerprints)) {
+                if (id === deviceId) {
+                    // Fingerprint format: platform-hash (e.g., mobile-abc123 or desktop-xyz789)
+                    return fingerprint.split('-')[0];
+                }
             }
         }
 
@@ -1996,26 +2167,222 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * Get the default device name
-     * @returns {string} The default device name
+     * Resolves this installation's stable device id, creating it once if needed.
+     *
+     * Stored via Obsidian's device-local storage so it never syncs: data.json carries the
+     * synced device *list*, while "which of them am I" must stay local. Generation uses a
+     * UUID; the legacy fingerprint ledger is consulted a single time so upgrading devices
+     * keep the id their presets are already bound to. If device-local storage is unavailable,
+     * the legacy fingerprint id is used so the plugin still functions.
+     *
+     *
+     * @returns {string} The device id
      */
-    _getDefaultDeviceName() {
-        const platform = Platform.isMobile ? 'Mobile' : 'Desktop';
-        const ua = navigator.userAgent;
+    _getOrCreateLocalDeviceId() {
+        const STORAGE_KEY = 'local-font-loader-device-id';
 
-        let osName = 'Unknown';
-        if (ua.includes('Windows')) osName = 'Windows';
-        else if (ua.includes('Mac')) osName = 'Mac';
-        else if (ua.includes('Linux')) osName = 'Linux';
-        else if (ua.includes('Android')) osName = 'Android';
-        else if (ua.includes('iOS')) osName = 'iOS';
+        try {
+            const storedId = this.app.loadLocalStorage(STORAGE_KEY);
+            if (storedId && typeof storedId === 'string') {
+                return storedId;
+            }
 
-        return `${platform}-${osName}`;
+            // One-time migration from the legacy fingerprint system
+            const legacyFingerprint = this._generateDeviceFingerprint();
+            const legacyId = this.settings.deviceFingerprints
+                ? this.settings.deviceFingerprints[legacyFingerprint]
+                : null;
+
+            const deviceId = legacyId || this._generateUUID();
+            this.app.saveLocalStorage(STORAGE_KEY, deviceId);
+
+            this._log(`[Local Font Loader] Device id ${legacyId ? 'migrated from legacy fingerprint' : 'created'}: ${deviceId}`);
+            return deviceId;
+        } catch (error) {
+            console.error('[Local Font Loader] Failed to resolve device-local id, falling back to fingerprint:', error);
+
+            const fallbackFingerprint = this._generateDeviceFingerprint();
+            return (this.settings.deviceFingerprints && this.settings.deviceFingerprints[fallbackFingerprint])
+                || this._generateUUID();
+        }
     }
 
     /**
-     * Generate a device fingerprint (for device identification)
-     * Based on platform, UA, screen resolution, timezone, and other factors
+     * Detects platform, OS, OS version and — where the user agent exposes it — the device model.
+     *
+     * Match order matters: an Android UA also contains "Linux" and an iOS UA also contains
+     * "Mac OS X", so those two must be tested before the desktop branches — otherwise their
+     * branches are unreachable and every Android reports as Linux. iOS deliberately omits the
+     * hardware model, so it degrades to the device family plus the system version.
+     *
+     *
+     * @returns {{platform: string, os: string, osVersion: string, model: string, hostname: string}}
+     */
+    _detectDeviceInfo() {
+        const ua = navigator.userAgent;
+        const platform = Platform.isMobile ? 'mobile' : 'desktop';
+        // Desktop-only; empty on mobile
+        const hostname = this._getDesktopHostname();
+
+        // iOS — must precede macOS ("like Mac OS X")
+        if (/iPhone|iPad|iPod/.test(ua)) {
+            const versionMatch = ua.match(/OS (\d+)[._](\d+)/);
+            return {
+                platform: 'mobile',
+                os: 'ios',
+                osVersion: versionMatch ? `${versionMatch[1]}.${versionMatch[2]}` : '',
+                model: /iPad/.test(ua) ? 'iPad' : (/iPod/.test(ua) ? 'iPod' : 'iPhone'),
+                hostname: ''
+            };
+        }
+
+        // Android — must precede Linux ("Linux; Android 13; …")
+        if (/Android/.test(ua)) {
+            const versionMatch = ua.match(/Android\s+([\d.]+)/);
+
+            // The model sits inside the first parenthesised block, after the locale and
+            // possibly a "wv" marker, usually followed by "Build/…".
+            const platformBlock = (ua.match(/\(([^)]*)\)/) || [])[1] || '';
+            let model = '';
+            const segments = platformBlock.split(';').map(segment => segment.trim());
+            for (let i = segments.length - 1; i >= 0; i--) {
+                const segment = segments[i];
+                const isLocale = /^[a-z]{2}(-[A-Za-z]{2})?$/.test(segment);
+                const isMarker = /^wv$/i.test(segment) || /^Android\s/i.test(segment);
+                if (!segment || isLocale || isMarker) {
+                    continue;
+                }
+                model = segment.replace(/\s*Build\/.*$/i, '').trim();
+                if (model) {
+                    break;
+                }
+            }
+
+            return {
+                platform: 'mobile',
+                os: 'android',
+                osVersion: versionMatch ? versionMatch[1] : '',
+                model,
+                hostname: ''
+            };
+        }
+
+        if (/Windows/.test(ua)) {
+            return { platform, os: 'windows', osVersion: '', model: '', hostname: hostname };
+        }
+        if (/Mac OS X|Macintosh/.test(ua)) {
+            return { platform: 'desktop', os: 'macos', osVersion: '', model: '', hostname };
+        }
+        if (/Linux|X11/.test(ua)) {
+            return { platform: 'desktop', os: 'linux', osVersion: '', model: '', hostname };
+        }
+
+        return { platform, os: 'unknown', osVersion: '', model: '', hostname };
+    }
+
+    /**
+     * Reads the machine's hostname.
+     *
+     * Desktop only: it goes through Node's `os` module, which the mobile WebView does not have.
+     * Guarded on both the platform check and a try/catch, because a plugin that throws during
+     * device detection would fail to load entirely.
+     *
+     *
+     * @returns {string} The hostname, or an empty string when unavailable
+     */
+    _getDesktopHostname() {
+        if (!Platform.isDesktopApp) {
+            return '';
+        }
+
+        try {
+            const os = require('os');
+            return String(os.hostname() || '').trim();
+        } catch (error) {
+            console.error('[Local Font Loader] Failed to read hostname:', error);
+            return '';
+        }
+    }
+
+    /**
+     * Tells whether a name is one this plugin generated rather than one the user typed.
+     *
+     * Only generated names are ever refreshed on upgrade — a user-chosen name is never
+     * overwritten.
+     *
+     * @param {string} name - The stored device name
+     * @returns {boolean} True when the name matches a generated default
+     */
+    _isGeneratedDeviceName(name) {
+        if (!name) {
+            return false;
+        }
+        // Covers both the legacy "Desktop-Linux" form and the current "Mobile-Android" one.
+        return /^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|Android|Unknown)$/.test(name);
+    }
+
+    /**
+     * Get the default device name.
+     *
+     * Desktops report their hostname, because several machines otherwise all read as
+     * "Desktop-Linux" and cannot be told apart. Mobile has no hostname to read, so it keeps the
+     * platform + OS form; on Android the UA model is already shown on the device's sub-line.
+     *
+     *
+     * @param {object} [deviceInfo] Pre-computed info from _detectDeviceInfo()
+     * @returns {string} The default device name
+     */
+    _getDefaultDeviceName(deviceInfo) {
+        const info = deviceInfo || this._detectDeviceInfo();
+
+        if (info.platform === 'desktop' && info.hostname) {
+            return info.hostname;
+        }
+
+        const osLabels = {
+            ios: 'iOS',
+            android: 'Android',
+            windows: 'Windows',
+            macos: 'Mac',
+            linux: 'Linux',
+            unknown: 'Unknown'
+        };
+
+        const osLabel = osLabels[info.os] || 'Unknown';
+        const platform = info.platform === 'mobile' ? 'Mobile' : 'Desktop';
+
+        return `${platform}-${osLabel}`;
+    }
+
+    /**
+     * Get the OS key recorded for a device, for icon and model rendering.
+     * @param {string} deviceId - The device ID
+     * @returns {string} One of 'android' | 'ios' | 'windows' | 'macos' | 'linux' | 'unknown'
+     */
+    _getDeviceOs(deviceId) {
+        const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
+        return (meta && meta.os) ? meta.os : 'unknown';
+    }
+
+    /**
+     * Get the model string recorded for a device (may be empty when the UA omits it).
+     * @param {string} deviceId - The device ID
+     * @returns {string} The model, or an empty string
+     */
+    _getDeviceModel(deviceId) {
+        const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
+        return (meta && meta.model) ? meta.model : '';
+    }
+
+    /**
+     * Generate a device fingerprint.
+     *
+     * MIGRATION ONLY — this is no longer an identity source. Screen size, timezone offset and
+     * language all drift (rotation, split screen, DST, zoom), so a fingerprint-based id
+     * produced a new "device" on nearly every launch. It is kept solely to map already-installed
+     * devices onto their previous id once.
+     *
+     *
      * @returns {string} The device fingerprint
      */
     _generateDeviceFingerprint() {
@@ -2589,6 +2956,32 @@ class LocalFontLoaderPlugin extends Plugin {
 
             varsCss += '}\n\n';
 
+            // Monospace variables must ALSO be declared on <body>
+            //
+            // Obsidian core writes its appearance font settings as INLINE styles on <body>
+            // (verified via CDP: body.style holds e.g. --font-monospace-override).
+            // A declaration on :root (html) never competes with it, because <body> carries its
+            // own declaration and descendants inherit from <body>, not from <html>.
+            // Consequence without this block: var(--font-monospace) resolves to Obsidian's own
+            // setting. Every rule that reads the variable instead of inheriting our direct
+            // font-family rules — Code Styler line numbers, user CSS snippets that fall back to
+            // var(--font-monospace) — then lands on a system font that mobile devices do not have.
+            //
+            if (fontsConfig.monospace) {
+                const monospaceStack = `"${this._escapeCssString(fontsConfig.monospace)}", monospace`;
+
+                varsCss += `/* Monospace variables - body scope (overrides Obsidian core inline style) */\n`;
+                varsCss += `body {\n`;
+                varsCss += `  --font-monospace: ${monospaceStack} !important;\n`;
+                varsCss += `  --font-monospace-override: ${monospaceStack} !important;\n`;
+                varsCss += `  --font-monospace-default: ${monospaceStack} !important;\n`;
+                varsCss += `  --font-monospace-theme: ${monospaceStack} !important;\n`;
+                varsCss += `  --font-code: ${monospaceStack} !important;\n`;
+                varsCss += `}\n\n`;
+
+                this._log(`[Local Font Loader] Monospace variables re-declared on <body> to override Obsidian core inline style`);
+            }
+
             // If Latin font for UI is enabled, add direct UI element overrides
             if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
                 varsCss += `/* UI Elements - Latin Font Separation (High Priority) */\n`;
@@ -2701,42 +3094,10 @@ class LocalFontLoaderPlugin extends Plugin {
             }
 
             if (fontsConfig.monospace) {
-                varsCss += `/* Code Block Font (High Priority) */\n`;
-                const monospaceFontFamily = `"${this._escapeCssString(fontsConfig.monospace)}"`;
-
-                // Code block selectors shared by desktop and mobile
-                varsCss += `/* Inline code */\n`;
-                varsCss += `body code,\n`;
-                varsCss += `body .cm-inline-code,\n`;
-                varsCss += `body .markdown-preview-view code {\n`;
-                varsCss += `  font-family: ${monospaceFontFamily}, monospace !important;\n`;
-                varsCss += `}\n\n`;
-
-                varsCss += `/* Code blocks */\n`;
-                varsCss += `body pre,\n`;
-                varsCss += `body pre code,\n`;
-                varsCss += `body .markdown-preview-view pre,\n`;
-                varsCss += `body .markdown-preview-view pre code,\n`;
-                varsCss += `body .HyperMD-codeblock,\n`;
-                varsCss += `body .cm-s-obsidian pre.HyperMD-codeblock,\n`;
-                varsCss += `body .markdown-source-view.mod-cm6 .HyperMD-codeblock,\n`;
-                varsCss += `body .markdown-source-view.mod-cm6 .cm-line.HyperMD-codeblock {\n`;
-                varsCss += `  font-family: ${monospaceFontFamily}, monospace !important;\n`;
-                varsCss += `}\n\n`;
-
-                // Mobile-specific selectors
-                varsCss += `/* Mobile code blocks */\n`;
-                varsCss += `body.is-mobile code,\n`;
-                varsCss += `body.is-mobile pre,\n`;
-                varsCss += `body.is-mobile pre code,\n`;
-                varsCss += `body.is-mobile .markdown-preview-view code,\n`;
-                varsCss += `body.is-mobile .markdown-preview-view pre,\n`;
-                varsCss += `body.is-mobile .markdown-source-view code,\n`;
-                varsCss += `body.is-mobile .HyperMD-codeblock {\n`;
-                varsCss += `  font-family: ${monospaceFontFamily}, monospace !important;\n`;
-                varsCss += `}\n\n`;
-
-                this._log(`[Local Font Loader] Code block font applied with high priority selectors`);
+                // All code-font rules come from one shared template (inline code / code blocks /
+                // line numbers) so priority is decided in exactly one place.
+                varsCss += this._buildCodeFontRules(fontsConfig.monospace);
+                this._log(`[Local Font Loader] Code font applied (inline code, code blocks, line numbers)`);
             }
 
             // Heading font
@@ -3815,7 +4176,6 @@ class FontManagerSettingTab extends PluginSettingTab {
                 devicesToShow.forEach(deviceId => {
                     const deviceName = this.plugin._getDeviceName(deviceId);
                     const isCurrent = deviceId === this.plugin.currentDeviceId;
-                    const devicePlatform = this.plugin._getDevicePlatform(deviceId);
 
                     const deviceItem = devicesContainer.createDiv({
                         cls: 'device-item'
@@ -3831,64 +4191,62 @@ class FontManagerSettingTab extends PluginSettingTab {
                         cls: 'device-os-icon'
                     });
 
-                    // Detect the operating system
-                    let osClass = 'os-default'; // default icon
-                    const deviceNameLower = deviceName.toLowerCase();
+                    // Operating system: read the metadata each device recorded about itself.
+                    // Never infer it from the device name — the name is user-editable, so a rename
+                    // used to flip the icon to the wrong OS.
+                    const osIconClasses = {
+                        android: 'os-android',
+                        ios: 'os-ios',
+                        windows: 'os-windows',
+                        macos: 'os-macos',
+                        linux: 'os-linux'
+                    };
+                    const detectedOs = this.plugin._getDeviceOs(deviceId);
+                    osIcon.addClass(osIconClasses[detectedOs] || 'os-default');
 
-                    if (isCurrent) {
-                        // Current device: detect precisely from navigator.userAgent
-                        const ua = navigator.userAgent;
-                        if (Platform.isMobile) {
-                            if (ua.includes('Android')) {
-                                osClass = 'os-android';
-                            } else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) {
-                                osClass = 'os-ios';
-                            } else {
-                                osClass = 'os-default';
-                            }
-                        } else {
-                            if (ua.includes('Windows')) {
-                                osClass = 'os-windows';
-                            } else if (ua.includes('Mac')) {
-                                osClass = 'os-macos';
-                            } else if (ua.includes('Linux')) {
-                                osClass = 'os-linux';
-                            }
-                        }
-                    } else {
-                        // Other devices: infer from platform info and device name
-                        if (devicePlatform === 'mobile') {
-                            // Mobile device: infer the specific OS from the name
-                            if (deviceNameLower.includes('android')) {
-                                osClass = 'os-android';
-                            } else if (deviceNameLower.includes('ios') || deviceNameLower.includes('iphone') || deviceNameLower.includes('ipad')) {
-                                osClass = 'os-ios';
-                            } else {
-                                // Mobile device with unknown OS, default to Android (more common)
-                                osClass = 'os-android';
-                            }
-                        } else if (devicePlatform === 'desktop') {
-                            // Desktop device: infer the specific OS from the name
-                            if (deviceNameLower.includes('windows')) {
-                                osClass = 'os-windows';
-                            } else if (deviceNameLower.includes('mac')) {
-                                osClass = 'os-macos';
-                            } else if (deviceNameLower.includes('linux')) {
-                                osClass = 'os-linux';
-                            } else {
-                                // Desktop device with unknown OS, use a generic desktop icon
-                                osClass = 'os-default';
-                            }
-                        }
-                    }
+                    // Device name + descriptive sub-line
+                    const textContainer = deviceInfoContainer.createDiv({
+                        attr: { style: 'display: flex; flex-direction: column; gap: 2px; min-width: 0;' }
+                    });
 
-                    osIcon.addClass(osClass);
-
-                    // Device name
-                    deviceInfoContainer.createSpan({
+                    textContainer.createSpan({
                         text: isCurrent ? `${deviceName} (${t('currentDevice')})` : deviceName,
                         cls: 'device-name'
                     });
+
+                    // Sub-line: the model when the user agent exposes one, otherwise the
+                    // platform plus the system version.
+                    const metaParts = [];
+                    const deviceModel = this.plugin._getDeviceModel(deviceId);
+                    if (deviceModel) {
+                        metaParts.push(deviceModel);
+                    }
+
+                    // Devices that have not reported in since this version simply show no
+                    // sub-line until their next launch.
+                    if (detectedOs !== 'unknown') {
+                        const osLabels = {
+                            android: 'Android',
+                            ios: 'iOS',
+                            windows: 'Windows',
+                            macos: 'macOS',
+                            linux: 'Linux'
+                        };
+                        const deviceMeta = this.plugin.settings.deviceMeta && this.plugin.settings.deviceMeta[deviceId];
+                        const osText = (deviceMeta && deviceMeta.osVersion)
+                            ? `${osLabels[detectedOs]} ${deviceMeta.osVersion}`
+                            : osLabels[detectedOs];
+                        if (osText !== deviceModel) {
+                            metaParts.push(osText);
+                        }
+                    }
+
+                    if (metaParts.length > 0) {
+                        textContainer.createSpan({
+                            text: metaParts.join(' · '),
+                            cls: 'device-meta'
+                        });
+                    }
 
                     // Button container
                     const btnContainer = deviceItem.createDiv({ cls: 'device-actions' });
@@ -4000,6 +4358,41 @@ class FontManagerSettingTab extends PluginSettingTab {
                     this._addEventListener(deviceItem, 'dragend', () => {
                         deviceItem.classList.remove('dragging');
                     });
+                });
+            }
+
+            // Global zone footer: an explicit, confirmed cleanup for stale device entries.
+            // Shown only where duplicates actually surface, and it lists exactly which devices
+            // would go, so nothing is removed silently.
+            if (preset.id === 'default-preset' && preset.targetDevices.length === 0) {
+                const cleanupFooter = presetSection.createDiv({ cls: 'device-cleanup-footer' });
+
+                const cleanupBtn = cleanupFooter.createEl('button', {
+                    text: t('cleanupDevices'),
+                    cls: 'mod-warning'
+                });
+
+                this._addEventListener(cleanupBtn, 'click', async () => {
+                    const prunable = this.plugin.getPrunableDevices();
+
+                    if (prunable.length === 0) {
+                        new Notice(t('cleanupDevicesNone'), 3000);
+                        return;
+                    }
+
+                    const deviceNames = prunable.map(device => device.name).join('、');
+
+                    showConfirmDialog(
+                        this.plugin.app,
+                        t('cleanupDevices'),
+                        t('confirmCleanupDevices').replace('{0}', deviceNames),
+                        async () => {
+                            const removedCount = await this.plugin.pruneUnboundDevices();
+                            new Notice(`✓ ${t('cleanupDevicesDone').replace('{0}', String(removedCount))}`, 3000);
+                            this.display();
+                        },
+                        true  // isDangerous = true
+                    );
                 });
             }
         });

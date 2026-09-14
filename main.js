@@ -11,7 +11,7 @@
  * - Command Palette integration
  *
  * @author CoreVortex
- * @version 1.3.0
+ * @version 1.4.0
  * @license MIT
  */
 
@@ -1360,9 +1360,9 @@ const DEFAULT_SETTINGS = {
     // Device identification (synced via cloud)
     // NOTE: the real per-device identity lives in device-local storage, NOT here — see
     // _getOrCreateLocalDeviceId(). This map is a one-time migration ledger only.
-    deviceFingerprints: {},   // Legacy fingerprint → deviceId / 旧指纹到设备 ID 的映射
-    deviceNameMap: {},        // { deviceId: displayName } / 设备显示名映射
-    deviceMeta: {},           // { deviceId: { platform, os, osVersion, model } } / 设备元信息映射
+    deviceFingerprints: {},   // Legacy fingerprint → deviceId (migration ledger only)
+    deviceNameMap: {},        // { deviceId: displayName }
+    deviceMeta: {},           // { deviceId: { platform, os, model, hostname } }
 
     // Global settings
     latinFontForUI: false,    // Apply Latin font to UI elements (global)
@@ -1564,6 +1564,67 @@ class LocalFontLoaderPlugin extends Plugin {
         return css;
     }
 
+    /**
+     * Builds the high-priority UI-font rules from one shared selector list.
+     *
+     * Why direct rules instead of variables:
+     * Obsidian core writes its appearance font settings onto <body>, so a declaration the plugin
+     * makes on :root never wins inside the body. Declaring `--font-interface` is therefore not
+     * enough — floating UI that has no rule of its own (a Notice, a tooltip) simply inherits the
+     * core font. Only a direct `font-family` rule on the element is authoritative.
+     *
+     * Floating UI belongs to the UI font: notices, tooltips, the command palette, completion
+     * suggestions and hover previews are chrome, not document content.
+     *
+     * Each selector is emitted under both `body …` and `body.is-mobile …`, because Obsidian's
+     * mobile stylesheet outranks a plain `body …` selector on several of these elements.
+     *
+     * @param {string} uiFontFamily The CSS family list, already escaped and quoted
+     * @returns {string} The CSS text
+     */
+    _buildUiFontRules(uiFontFamily) {
+        const UI_SELECTORS = [
+            // Workspace chrome
+            '.workspace',
+            '.workspace-leaf-content',
+            '.workspace-tab-header',
+            '.workspace-tab-header-container',
+            '.nav-file-title',
+            '.nav-folder-title',
+            '.tree-item-inner',
+            '.sidebar',
+            '.sidebar-content',
+            // Menus, modals and settings
+            '.menu',
+            '.menu-item',
+            '.modal',
+            '.modal-content',
+            '.setting-item',
+            '.setting-item-name',
+            '.setting-item-description',
+            // Floating UI
+            '.notice',
+            '.notice-container',
+            '.tooltip',
+            '.prompt',
+            '.prompt-input',
+            '.suggestion-container',
+            '.suggestion-item',
+            '.popover',
+            '.hover-popover',
+            '.cm-tooltip',
+            '.cm-tooltip-autocomplete'
+        ];
+
+        let css = `/* UI Elements (High Priority) */\n`;
+        css += UI_SELECTORS.map(selector => `body ${selector}`).join(',\n') + ',\n';
+        css += UI_SELECTORS.map(selector => `body.is-mobile ${selector}`).join(',\n') + ' {\n';
+        css += `  font-family: ${uiFontFamily}, sans-serif !important;\n`;
+        css += `}\n\n`;
+
+        return css;
+    }
+
     async onload() {
         this._log('[Local Font Loader] Plugin loading...');
 
@@ -1586,7 +1647,7 @@ class LocalFontLoaderPlugin extends Plugin {
             // exactly once, during migration, so devices that already installed the plugin keep
             // the id their presets are bound to.
             //
-            const deviceId = this._getOrCreateLocalDeviceId();
+            const deviceId = await this._getOrCreateLocalDeviceId();
             this.currentDeviceId = deviceId;
 
             if (!this.settings.deviceNameMap) {
@@ -1598,11 +1659,16 @@ class LocalFontLoaderPlugin extends Plugin {
 
             const deviceInfo = this._detectDeviceInfo();
             const previousMeta = this.settings.deviceMeta[deviceId];
+            // A shape mismatch counts as a change too, so metadata written by an older version
+            // (an entry still carrying a dropped key, for instance) is rewritten instead of
+            // lingering forever — those keys are no longer compared, so nothing else would
+            // ever notice them.
             const metaChanged = !previousMeta
                 || previousMeta.platform !== deviceInfo.platform
                 || previousMeta.os !== deviceInfo.os
-                || previousMeta.osVersion !== deviceInfo.osVersion
-                || previousMeta.model !== deviceInfo.model;
+                || previousMeta.model !== deviceInfo.model
+                || previousMeta.hostname !== deviceInfo.hostname
+                || Object.keys(previousMeta).length !== Object.keys(deviceInfo).length;
 
             const isKnownDevice = Boolean(this.settings.deviceNameMap[deviceId]);
 
@@ -1610,7 +1676,7 @@ class LocalFontLoaderPlugin extends Plugin {
             // the hostname); a name the user typed is never touched.
             const storedName = this.settings.deviceNameMap[deviceId];
             const generatedNameOutdated = isKnownDevice
-                && this._isGeneratedDeviceName(storedName)
+                && this._isGeneratedDeviceName(storedName, previousMeta)
                 && storedName !== this._getDefaultDeviceName(deviceInfo);
 
             if (!isKnownDevice) {
@@ -2085,10 +2151,15 @@ class LocalFontLoaderPlugin extends Plugin {
     /**
      * Removes stale device entries from the name map and metadata.
      *
+     * Also drops metadata orphaned by an earlier removal: a device id present in deviceMeta but
+     * absent from deviceNameMap can no longer be listed or cleaned from the UI, so leaving it
+     * would make the two maps drift apart silently.
+     *
      * @returns {Promise<number>} How many devices were pruned
      */
     async pruneUnboundDevices() {
         const prunable = this.getPrunableDevices();
+        const nameMap = this.settings.deviceNameMap || {};
 
         prunable.forEach(({ id }) => {
             delete this.settings.deviceNameMap[id];
@@ -2097,12 +2168,20 @@ class LocalFontLoaderPlugin extends Plugin {
             }
         });
 
-        if (prunable.length > 0) {
+        let orphanCount = 0;
+        Object.keys(this.settings.deviceMeta || {}).forEach(id => {
+            if (!nameMap[id]) {
+                delete this.settings.deviceMeta[id];
+                orphanCount++;
+            }
+        });
+
+        if (prunable.length > 0 || orphanCount > 0) {
             await this.saveSettings();
         }
 
-        this._log(`[Local Font Loader] Pruned ${prunable.length} unbound device(s)`);
-        return prunable.length;
+        this._log(`[Local Font Loader] Pruned ${prunable.length} unbound device(s), ${orphanCount} orphaned metadata entr(ies)`);
+        return prunable.length + orphanCount;
     }
 
     /**
@@ -2167,44 +2246,118 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * Resolves this installation's stable device id, creating it once if needed.
+     * Resolves this installation's stable device id, creating it exactly once.
      *
-     * Stored via Obsidian's device-local storage so it never syncs: data.json carries the
-     * synced device *list*, while "which of them am I" must stay local. Generation uses a
-     * UUID; the legacy fingerprint ledger is consulted a single time so upgrading devices
-     * keep the id their presets are already bound to. If device-local storage is unavailable,
-     * the legacy fingerprint id is used so the plugin still functions.
+     * The id is the single source of truth for identity: names, models and hostnames are only
+     * ever displayed, never used to match a device, so renaming a device or upgrading its OS
+     * can never fork it into a second entry.
      *
+     * It is kept in Obsidian's device-local storage, which lives in the app profile rather than
+     * the vault — so it is neither synced between devices nor carried over by a vault copy.
+     * Once written it is authoritative for the life of the installation: this method returns
+     * the stored value unchanged and never re-derives it.
      *
-     * @returns {string} The device id
+     * @returns {Promise<string>} The device id
      */
-    _getOrCreateLocalDeviceId() {
+    async _getOrCreateLocalDeviceId() {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
+        // 1. An already stored id is final — never recomputed, never replaced.
+        let storedId = null;
         try {
-            const storedId = this.app.loadLocalStorage(STORAGE_KEY);
-            if (storedId && typeof storedId === 'string') {
-                return storedId;
-            }
-
-            // One-time migration from the legacy fingerprint system
-            const legacyFingerprint = this._generateDeviceFingerprint();
-            const legacyId = this.settings.deviceFingerprints
-                ? this.settings.deviceFingerprints[legacyFingerprint]
-                : null;
-
-            const deviceId = legacyId || this._generateUUID();
-            this.app.saveLocalStorage(STORAGE_KEY, deviceId);
-
-            this._log(`[Local Font Loader] Device id ${legacyId ? 'migrated from legacy fingerprint' : 'created'}: ${deviceId}`);
-            return deviceId;
+            storedId = this.app.loadLocalStorage(STORAGE_KEY);
         } catch (error) {
-            console.error('[Local Font Loader] Failed to resolve device-local id, falling back to fingerprint:', error);
-
-            const fallbackFingerprint = this._generateDeviceFingerprint();
-            return (this.settings.deviceFingerprints && this.settings.deviceFingerprints[fallbackFingerprint])
-                || this._generateUUID();
+            console.error('[Local Font Loader] Failed to read device-local id:', error);
         }
+
+        if (storedId && typeof storedId === 'string') {
+            // Sealing also covers devices that were already given an id by an earlier version:
+            // their ledger entries would otherwise stay claimable by an identical device.
+            if (this._sealLegacyEntries(storedId)) {
+                await this.saveSettings();
+                this._log(`[Local Font Loader] Legacy ledger sealed for held id: ${storedId}`);
+            }
+            return storedId;
+        }
+
+        // 2. First launch on this device: adopt the id it had under the legacy fingerprint
+        //    system, or mint a fresh UUID when it cannot be identified there.
+        const deviceId = (await this._claimLegacyDeviceId()) || this._generateUUID();
+
+        // 3. Persist it, then read it back — a silent write failure would hand this device a new
+        //    identity on every launch, which is precisely the duplication this system prevents.
+        try {
+            this.app.saveLocalStorage(STORAGE_KEY, deviceId);
+            const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
+            if (confirmed !== deviceId) {
+                console.error(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
+            } else {
+                this._log(`[Local Font Loader] Device id persisted: ${deviceId}`);
+            }
+        } catch (error) {
+            console.error('[Local Font Loader] Failed to persist device-local id:', error);
+        }
+
+        return deviceId;
+    }
+
+    /**
+     * Adopts this device's id from the legacy fingerprint ledger, and seals it.
+     *
+     * The ledger entry is consumed rather than read: every fingerprint pointing at the claimed
+     * id is deleted. Two identical devices (same model, screen, locale and core count) produce
+     * the same fingerprint, so without sealing they would both migrate onto the same id and be
+     * permanently conflated — the exact duplication this ledger was meant to prevent. A device
+     * arriving second now finds nothing to claim and mints its own UUID.
+     *
+     * This runs at most once per installation, because the resulting id is persisted locally.
+     *
+     * @returns {Promise<string|null>} The claimed id, or null when there is nothing to claim
+     */
+    async _claimLegacyDeviceId() {
+        const ledger = this.settings.deviceFingerprints;
+        if (!ledger) {
+            return null;
+        }
+
+        const fingerprint = this._generateDeviceFingerprint();
+        const claimedId = ledger[fingerprint];
+        if (!claimedId) {
+            return null;
+        }
+
+        this._sealLegacyEntries(claimedId);
+        await this.saveSettings();
+        this._log(`[Local Font Loader] Legacy device id claimed and sealed: ${claimedId}`);
+
+        return claimedId;
+    }
+
+    /**
+     * Deletes every legacy ledger entry pointing at an id that is now held by a real device.
+     *
+     * An id is held permanently once a device has it, so the ledger must stop offering it to
+     * anyone else. Identical devices produce identical fingerprints, and a stale entry would
+     * otherwise let a second one migrate onto an identity that is already in use.
+     *
+     * @param {string} deviceId - The id to seal
+     * @returns {boolean} True when the ledger was modified
+     */
+    _sealLegacyEntries(deviceId) {
+        const ledger = this.settings.deviceFingerprints;
+        if (!ledger) {
+            return false;
+        }
+
+        let changed = false;
+        Object.keys(ledger).forEach(key => {
+            if (ledger[key] === deviceId) {
+                delete ledger[key];
+                changed = true;
+            }
+        });
+
+        return changed;
     }
 
     /**
@@ -2212,11 +2365,12 @@ class LocalFontLoaderPlugin extends Plugin {
      *
      * Match order matters: an Android UA also contains "Linux" and an iOS UA also contains
      * "Mac OS X", so those two must be tested before the desktop branches — otherwise their
-     * branches are unreachable and every Android reports as Linux. iOS deliberately omits the
-     * hardware model, so it degrades to the device family plus the system version.
+     * branches are unreachable and every Android reports as Linux.
      *
+     * No OS version is recorded anywhere, on purpose: a system upgrade would otherwise change
+     * the stored metadata and make every synced device look like it had changed.
      *
-     * @returns {{platform: string, os: string, osVersion: string, model: string, hostname: string}}
+     * @returns {{platform: string, os: string, model: string, hostname: string}}
      */
     _detectDeviceInfo() {
         const ua = navigator.userAgent;
@@ -2224,60 +2378,67 @@ class LocalFontLoaderPlugin extends Plugin {
         // Desktop-only; empty on mobile
         const hostname = this._getDesktopHostname();
 
-        // iOS — must precede macOS ("like Mac OS X")
-        if (/iPhone|iPad|iPod/.test(ua)) {
-            const versionMatch = ua.match(/OS (\d+)[._](\d+)/);
+        // Apple platforms — must precede macOS ("like Mac OS X").
+        //
+        // Obsidian's own flags are preferred over user-agent sniffing here: since iPadOS 13 an
+        // iPad reports "Macintosh; Intel Mac OS X", which is indistinguishable from a real Mac
+        // by user agent alone, so `Platform.isIosApp` + `Platform.isTablet` is what actually
+        // separates iPadOS from iOS and macOS.
+        if (Platform.isIosApp || /iPhone|iPad|iPod/.test(ua)) {
+            const isTablet = Platform.isTablet || /iPad/.test(ua);
             return {
                 platform: 'mobile',
-                os: 'ios',
-                osVersion: versionMatch ? `${versionMatch[1]}.${versionMatch[2]}` : '',
-                model: /iPad/.test(ua) ? 'iPad' : (/iPod/.test(ua) ? 'iPod' : 'iPhone'),
+                os: isTablet ? 'ipados' : 'ios',
+                model: isTablet ? 'iPad' : (/iPod/.test(ua) ? 'iPod' : 'iPhone'),
                 hostname: ''
             };
         }
 
         // Android — must precede Linux ("Linux; Android 13; …")
         if (/Android/.test(ua)) {
-            const versionMatch = ua.match(/Android\s+([\d.]+)/);
-
-            // The model sits inside the first parenthesised block, after the locale and
-            // possibly a "wv" marker, usually followed by "Build/…".
+            // The model is the first meaningful segment AFTER the "Android <version>" one,
+            // usually carrying a "Build/…" suffix. The block also contains "Linux" ahead of the
+            // version and sometimes a locale or a "wv" marker, so the scan must be anchored on
+            // the version segment — walking the block backwards picks up "Linux" as a model.
             const platformBlock = (ua.match(/\(([^)]*)\)/) || [])[1] || '';
-            let model = '';
             const segments = platformBlock.split(';').map(segment => segment.trim());
-            for (let i = segments.length - 1; i >= 0; i--) {
+            const androidIndex = segments.findIndex(segment => /^Android\s/i.test(segment));
+            let model = '';
+
+            for (let i = (androidIndex >= 0 ? androidIndex + 1 : 0); i < segments.length; i++) {
                 const segment = segments[i];
-                const isLocale = /^[a-z]{2}(-[A-Za-z]{2})?$/.test(segment);
-                const isMarker = /^wv$/i.test(segment) || /^Android\s/i.test(segment);
-                if (!segment || isLocale || isMarker) {
+                if (!segment) {
+                    continue;
+                }
+                if (/^wv$/i.test(segment)) {
+                    continue;
+                }
+                if (/^[a-z]{2}(-[A-Za-z]{2})?$/.test(segment)) {
                     continue;
                 }
                 model = segment.replace(/\s*Build\/.*$/i, '').trim();
-                if (model) {
-                    break;
-                }
+                break;
             }
 
             return {
                 platform: 'mobile',
                 os: 'android',
-                osVersion: versionMatch ? versionMatch[1] : '',
                 model,
                 hostname: ''
             };
         }
 
         if (/Windows/.test(ua)) {
-            return { platform, os: 'windows', osVersion: '', model: '', hostname: hostname };
+            return { platform, os: 'windows', model: '', hostname: hostname };
         }
         if (/Mac OS X|Macintosh/.test(ua)) {
-            return { platform: 'desktop', os: 'macos', osVersion: '', model: '', hostname };
+            return { platform: 'desktop', os: 'macos', model: '', hostname };
         }
         if (/Linux|X11/.test(ua)) {
-            return { platform: 'desktop', os: 'linux', osVersion: '', model: '', hostname };
+            return { platform: 'desktop', os: 'linux', model: '', hostname };
         }
 
-        return { platform, os: 'unknown', osVersion: '', model: '', hostname };
+        return { platform, os: 'unknown', model: '', hostname };
     }
 
     /**
@@ -2311,23 +2472,34 @@ class LocalFontLoaderPlugin extends Plugin {
      * overwritten.
      *
      * @param {string} name - The stored device name
+     * @param {object} [meta] The device's recorded metadata, when available
      * @returns {boolean} True when the name matches a generated default
      */
-    _isGeneratedDeviceName(name) {
+    _isGeneratedDeviceName(name, meta) {
         if (!name) {
             return false;
         }
-        // Covers both the legacy "Desktop-Linux" form and the current "Mobile-Android" one.
-        return /^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|Android|Unknown)$/.test(name);
+
+        // Legacy "Desktop-Linux" / "Mobile-Android" forms
+        if (/^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|iPadOS|Android|Unknown)$/.test(name)) {
+            return true;
+        }
+
+        // A name that merely echoes the device's own hostname or model was also produced by the
+        // default-naming rule, so it must keep following that rule if the rule changes.
+        if (meta && (name === meta.hostname || name === meta.model)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Get the default device name.
      *
-     * Desktops report their hostname, because several machines otherwise all read as
-     * "Desktop-Linux" and cannot be told apart. Mobile has no hostname to read, so it keeps the
-     * platform + OS form; on Android the UA model is already shown on the device's sub-line.
-     *
+     * Names the device after what it actually is, because "Desktop-Linux" and "Mobile-Android"
+     * are indistinguishable across several machines: the hostname on a desktop, the model on a
+     * phone. The platform + OS form is only a fallback for the cases where neither is available.
      *
      * @param {object} [deviceInfo] Pre-computed info from _detectDeviceInfo()
      * @returns {string} The default device name
@@ -2335,12 +2507,18 @@ class LocalFontLoaderPlugin extends Plugin {
     _getDefaultDeviceName(deviceInfo) {
         const info = deviceInfo || this._detectDeviceInfo();
 
-        if (info.platform === 'desktop' && info.hostname) {
+        // What the device actually is: the hostname on a desktop, the model on a phone
+        if (info.hostname) {
             return info.hostname;
         }
+        if (info.model) {
+            return info.model;
+        }
 
+        // Fallback when the platform exposes neither
         const osLabels = {
             ios: 'iOS',
+            ipados: 'iPadOS',
             android: 'Android',
             windows: 'Windows',
             macos: 'Mac',
@@ -2357,11 +2535,25 @@ class LocalFontLoaderPlugin extends Plugin {
     /**
      * Get the OS key recorded for a device, for icon and model rendering.
      * @param {string} deviceId - The device ID
-     * @returns {string} One of 'android' | 'ios' | 'windows' | 'macos' | 'linux' | 'unknown'
+     * @returns {string} One of 'android' | 'ios' | 'ipados' | 'windows' | 'macos' | 'linux' | 'unknown'
      */
     _getDeviceOs(deviceId) {
         const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
         return (meta && meta.os) ? meta.os : 'unknown';
+    }
+
+    /**
+     * Get the machine name recorded for a device (desktops only; empty elsewhere).
+     *
+     * This is what makes a renamed desktop still identifiable: the display name is
+     * user-editable, so the machine it actually is has to be shown separately.
+     *
+     * @param {string} deviceId - The device ID
+     * @returns {string} The hostname, or an empty string
+     */
+    _getDeviceHostname(deviceId) {
+        const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
+        return (meta && meta.hostname) ? meta.hostname : '';
     }
 
     /**
@@ -2982,89 +3174,14 @@ class LocalFontLoaderPlugin extends Plugin {
                 this._log(`[Local Font Loader] Monospace variables re-declared on <body> to override Obsidian core inline style`);
             }
 
-            // If Latin font for UI is enabled, add direct UI element overrides
+            // UI font: one shared template covers workspace chrome and floating UI.
             if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
-                varsCss += `/* UI Elements - Latin Font Separation (High Priority) */\n`;
-                const uiFontFamily = `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.ui)}"`;
-
-                // Use higher-specificity selectors to force overrides
-                varsCss += `.app-container body,\n`;
-                varsCss += `body.app-container,\n`;
-                varsCss += `.app-container,\n`;
-                varsCss += `body .workspace,\n`;
-                varsCss += `body .workspace-leaf-content,\n`;
-                varsCss += `body .workspace-tab-header,\n`;
-                varsCss += `body .workspace-tab-header-container,\n`;
-                varsCss += `body .nav-file-title,\n`;
-                varsCss += `body .nav-folder-title,\n`;
-                varsCss += `body .tree-item-inner,\n`;
-                varsCss += `body .menu,\n`;
-                varsCss += `body .menu-item,\n`;
-                varsCss += `body .modal,\n`;
-                varsCss += `body .modal-content,\n`;
-                varsCss += `body .setting-item,\n`;
-                varsCss += `body .setting-item-name,\n`;
-                varsCss += `body .setting-item-description,\n`;
-                varsCss += `body .sidebar,\n`;
-                varsCss += `body .sidebar-content {\n`;
-                varsCss += `  font-family: ${uiFontFamily}, sans-serif !important;\n`;
-                varsCss += `}\n\n`;
-
-                // Additional mobile overrides
-                varsCss += `/* Mobile UI Elements - Extra Override */\n`;
-                varsCss += `body.is-mobile .workspace,\n`;
-                varsCss += `body.is-mobile .workspace-leaf-content,\n`;
-                varsCss += `body.is-mobile .workspace-tab-header,\n`;
-                varsCss += `body.is-mobile .nav-file-title,\n`;
-                varsCss += `body.is-mobile .nav-folder-title,\n`;
-                varsCss += `body.is-mobile .tree-item-inner,\n`;
-                varsCss += `body.is-mobile .menu,\n`;
-                varsCss += `body.is-mobile .menu-item,\n`;
-                varsCss += `body.is-mobile .modal,\n`;
-                varsCss += `body.is-mobile .setting-item {\n`;
-                varsCss += `  font-family: ${uiFontFamily}, sans-serif !important;\n`;
-                varsCss += `}\n\n`;
-
+                // Latin font separation: Latin first, then the non-Latin UI font as fallback
+                varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.ui)}"`);
                 this._log(`[Local Font Loader] Latin font also applied to UI elements (desktop + mobile)`);
             } else if (fontsConfig.ui) {
-                // Only set the UI font, do not enable Latin font separation
-                varsCss += `/* UI Elements (High Priority) */\n`;
-                varsCss += `.app-container body,\n`;
-                varsCss += `body.app-container,\n`;
-                varsCss += `.app-container,\n`;
-                varsCss += `body .workspace,\n`;
-                varsCss += `body .workspace-leaf-content,\n`;
-                varsCss += `body .workspace-tab-header,\n`;
-                varsCss += `body .workspace-tab-header-container,\n`;
-                varsCss += `body .nav-file-title,\n`;
-                varsCss += `body .nav-folder-title,\n`;
-                varsCss += `body .tree-item-inner,\n`;
-                varsCss += `body .menu,\n`;
-                varsCss += `body .menu-item,\n`;
-                varsCss += `body .modal,\n`;
-                varsCss += `body .modal-content,\n`;
-                varsCss += `body .setting-item,\n`;
-                varsCss += `body .setting-item-name,\n`;
-                varsCss += `body .setting-item-description,\n`;
-                varsCss += `body .sidebar,\n`;
-                varsCss += `body .sidebar-content {\n`;
-                varsCss += `  font-family: "${this._escapeCssString(fontsConfig.ui)}", sans-serif !important;\n`;
-                varsCss += `}\n\n`;
-
-                // Additional mobile overrides
-                varsCss += `/* Mobile UI Elements - Extra Override */\n`;
-                varsCss += `body.is-mobile .workspace,\n`;
-                varsCss += `body.is-mobile .workspace-leaf-content,\n`;
-                varsCss += `body.is-mobile .workspace-tab-header,\n`;
-                varsCss += `body.is-mobile .nav-file-title,\n`;
-                varsCss += `body.is-mobile .nav-folder-title,\n`;
-                varsCss += `body.is-mobile .tree-item-inner,\n`;
-                varsCss += `body.is-mobile .menu,\n`;
-                varsCss += `body.is-mobile .menu-item,\n`;
-                varsCss += `body.is-mobile .modal,\n`;
-                varsCss += `body.is-mobile .setting-item {\n`;
-                varsCss += `  font-family: "${this._escapeCssString(fontsConfig.ui)}", sans-serif !important;\n`;
-                varsCss += `}\n\n`;
+                varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.ui)}"`);
+                this._log(`[Local Font Loader] UI font applied (workspace chrome + floating UI)`);
             }
 
             // Universal for mobile and desktop: apply directly to elements
@@ -4197,6 +4314,7 @@ class FontManagerSettingTab extends PluginSettingTab {
                     const osIconClasses = {
                         android: 'os-android',
                         ios: 'os-ios',
+                        ipados: 'os-ipados',
                         windows: 'os-windows',
                         macos: 'os-macos',
                         linux: 'os-linux'
@@ -4214,31 +4332,36 @@ class FontManagerSettingTab extends PluginSettingTab {
                         cls: 'device-name'
                     });
 
-                    // Sub-line: the model when the user agent exposes one, otherwise the
-                    // platform plus the system version.
+                    // Sub-line: what the machine actually is, then which OS it runs.
+                    //
+                    // The identifier is the hostname on a desktop and the model on a phone
+                    // (Android exposes one; iOS does not, so it falls back to the device family).
+                    // It is skipped when the display name already is that identifier, so a device
+                    // left on its default name does not read twice.
+                    //
+                    // No OS version is shown: a system upgrade would change it constantly.
                     const metaParts = [];
-                    const deviceModel = this.plugin._getDeviceModel(deviceId);
-                    if (deviceModel) {
-                        metaParts.push(deviceModel);
+                    const identifier = this.plugin._getDeviceHostname(deviceId)
+                        || this.plugin._getDeviceModel(deviceId);
+
+                    if (identifier && identifier !== deviceName) {
+                        metaParts.push(identifier);
                     }
 
                     // Devices that have not reported in since this version simply show no
                     // sub-line until their next launch.
-                    if (detectedOs !== 'unknown') {
-                        const osLabels = {
-                            android: 'Android',
-                            ios: 'iOS',
-                            windows: 'Windows',
-                            macos: 'macOS',
-                            linux: 'Linux'
-                        };
-                        const deviceMeta = this.plugin.settings.deviceMeta && this.plugin.settings.deviceMeta[deviceId];
-                        const osText = (deviceMeta && deviceMeta.osVersion)
-                            ? `${osLabels[detectedOs]} ${deviceMeta.osVersion}`
-                            : osLabels[detectedOs];
-                        if (osText !== deviceModel) {
-                            metaParts.push(osText);
-                        }
+                    const osLabels = {
+                        android: 'Android',
+                        ios: 'iOS',
+                        ipados: 'iPadOS',
+                        windows: 'Windows',
+                        macos: 'macOS',
+                        linux: 'Linux'
+                    };
+                    const osText = osLabels[detectedOs];
+
+                    if (osText && osText !== identifier) {
+                        metaParts.push(osText);
                     }
 
                     if (metaParts.length > 0) {

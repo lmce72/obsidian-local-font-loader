@@ -11,7 +11,7 @@
  * - Command Palette integration
  *
  * @author CoreVortex
- * @version 1.4.0
+ * @version 1.5.0
  * @license MIT
  */
 
@@ -134,6 +134,10 @@ const TRANSLATIONS = {
         monospaceRequirementBody: 'Code fonts must be monospace. Regular Latin fonts will cause code alignment issues.',
         mathFontRequirement: 'Math Font Required',
         mathFontRequirementBody: 'LaTeX math fonts must be dedicated math fonts (e.g., Latin Modern Math, XITS Math). Regular fonts cannot render math symbols correctly.',
+        mathFontMismatchTitle: 'Math font metrics do not match',
+        mathFontMismatchBody: '"{fontFamily}" has different glyph metrics from the fonts MathJax builds its layout from, so radicals leave a gap between the hook and the bar, and superscripts/subscripts drift away from their base. A math font with Computer Modern metrics — Latin Modern Math above all — removes this entirely.',
+        mathFontNotMathTitle: 'Not a usable math font',
+        mathFontNotMathBody: '"{fontFamily}" does not provide the required math glyphs ({missing}), so MathJax falls back for them and the formula layout drifts. Please choose a dedicated math font.',
         missingVariantTitle: 'Missing Font Variants',
         missingVariantBody: '{latinFont} is missing the following variants: {missingList}. Missing styles will use browser synthesis (lower quality).',
 
@@ -367,6 +371,10 @@ const TRANSLATIONS = {
         monospaceRequirementBody: '代码字体必须选择等宽字体（Monospace），普通拉丁字体会导致代码对齐错乱。',
         mathFontRequirement: '数学字体要求',
         mathFontRequirementBody: 'LaTeX 数学字体必须选择专用数学字体（如 Latin Modern Math、XITS Math），普通字体无法正确渲染数学符号。',
+        mathFontMismatchTitle: '数学字体度量不匹配',
+        mathFontMismatchBody: '「{fontFamily}」的字形度量与 MathJax 排版所依据的字体不一致，会出现根号横杠与钩子脱开、上下标与底数浮离的问题。改用 Computer Modern 度量的数学字体（首选 Latin Modern Math）可从根上消除。',
+        mathFontNotMathTitle: '不是可用的数学字体',
+        mathFontNotMathBody: '「{fontFamily}」未提供所需的数学字形（{missing}），MathJax 会改用回退字体渲染，公式排版会随之错位。请改选专用数学字体。',
         missingVariantTitle: '缺少字体变体',
         missingVariantBody: '{latinFont} 缺少以下变体：{missingList}。缺失的样式将使用浏览器合成（效果较差）。',
 
@@ -1001,6 +1009,10 @@ const TRANSLATIONS = {
         monospaceRequirementBody: '程式碼字型必須選擇等寬字型（Monospace），普通拉丁字型會導致程式碼對齊錯亂。',
         mathFontRequirement: '數學字型要求',
         mathFontRequirementBody: 'LaTeX 數學字型必須選擇專用數學字型（如 Latin Modern Math、XITS Math），普通字型無法正確渲染數學符號。',
+        mathFontMismatchTitle: '數學字型度量不相容',
+        mathFontMismatchBody: '「{fontFamily}」的字形度量與 MathJax 排版所依據的字型不一致，會出現根號橫槓與鉤子脫開、上下標與底數浮離的問題。改用 Computer Modern 度量的數學字型（首選 Latin Modern Math）可從根本消除。',
+        mathFontNotMathTitle: '不是可用的數學字型',
+        mathFontNotMathBody: '「{fontFamily}」未提供所需的數學字形（{missing}），MathJax 會改用回退字型渲染，公式排版會隨之錯位。請改選專用數學字型。',
         missingVariantTitle: '缺少字型變體',
         missingVariantBody: '{latinFont} 缺少以下變體：{missingList}。缺失的樣式將使用瀏覽器合成（效果較差）。',
 
@@ -1594,6 +1606,41 @@ class LocalFontLoaderPlugin extends Plugin {
             '.tree-item-inner',
             '.sidebar',
             '.sidebar-content',
+            // In-note chrome
+            // The note title and the properties panel are chrome, not document content: the
+            // title is also where Obsidian puts file-level controls, and the properties panel
+            // reads file metadata. Without these, both inherit the body text font — and the
+            // property cells fall all the way through to Obsidian's own interface font.
+            //
+            // The title needs its container classes spelled out: Obsidian ships
+            // `.inline-title:not([data-level])` at specificity 2-0-0 pointing at a variable it
+            // never defines, so a bare `body .inline-title` (1-0-1) loses and the element just
+            // inherits the text font instead.
+            '.markdown-preview-view .inline-title',
+            '.markdown-source-view .inline-title',
+            '.inline-title',
+            // Obsidian scopes several of its own property rules under .metadata-container
+            // (e.g. `.metadata-container .metadata-add-button` at 2-0-0), so the bare form
+            // alone loses on specificity. Both forms are emitted for every element here.
+            '.metadata-container',
+            '.metadata-properties-heading',
+            '.metadata-container .metadata-properties-heading',
+            '.metadata-property',
+            '.metadata-container .metadata-property',
+            '.metadata-property-key',
+            '.metadata-container .metadata-property-key',
+            '.metadata-property-key-input',
+            '.metadata-container .metadata-property-key-input',
+            '.metadata-property-value',
+            '.metadata-container .metadata-property-value',
+            '.metadata-input-longtext',
+            '.metadata-container .metadata-input-longtext',
+            '.metadata-input-text',
+            '.metadata-container .metadata-input-text',
+            '.metadata-add-button',
+            '.metadata-container .metadata-add-button',
+            '.multi-select-pill',
+            '.multi-select-pill-content',
             // Menus, modals and settings
             '.menu',
             '.menu-item',
@@ -2906,6 +2953,335 @@ class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
+     * Adopts the configured math font's own metrics into MathJax's layout tables.
+     *
+     * MathJax lays out maths from a pre-built metric table, not from the font file: each glyph
+     * carries [height, depth, width] computed offline for MathJax's own TeX fonts, and every
+     * padding, script offset and stretchy-assembly width is derived from those numbers. Swapping
+     * the font that draws a glyph without swapping those numbers leaves the glyph from one font
+     * laid out with another font's geometry — which is what puts a gap between a radical's hook
+     * and its bar, and makes superscripts drift away from their base.
+     *
+     * This measures the rendered font and writes the measurements back, so MathJax recomputes
+     * its geometry from what is actually drawn. Measuring the rendered font rather than the
+     * declared one also means a glyph the family lacks is measured as the fallback that will
+     * draw it, which is the honest answer.
+     *
+     * Cost is paid once per font change, never per render: afterwards MathJax works from the
+     * table exactly as it always did.
+     *
+     * @param {string} familyName - The configured math font family
+     * @returns {boolean} True when metrics were adopted
+     */
+    _adoptMathFontMetrics(familyName) {
+        const mathJax = window.MathJax;
+        if (!familyName || !mathJax || !mathJax.config || !mathJax.config.chtml) {
+            return false;
+        }
+        const fontData = mathJax.config.chtml.font;
+        if (!fontData || !fontData.variant) {
+            return false;
+        }
+        if (!document.fonts || !document.fonts.check(`16px "${familyName}"`)) {
+            return false;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 8;
+        canvas.height = 8;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return false;
+        }
+
+        const SIZE = 200;
+        const measure = (char) => {
+            try {
+                ctx.font = `${SIZE}px "${familyName}"`;
+                const m = ctx.measureText(char);
+                return {
+                    h: (m.actualBoundingBoxAscent || 0) / SIZE,
+                    d: (m.actualBoundingBoxDescent || 0) / SIZE,
+                    w: m.width / SIZE
+                };
+            } catch (error) {
+                return null;
+            }
+        };
+
+        // Start from the pristine table every time, so repeated runs cannot compound.
+        this._restoreMathFontMetrics();
+
+        const snapshot = { chars: [], delimiters: [] };
+        let adopted = 0;
+
+        Object.keys(fontData.variant).forEach(variantName => {
+            const chars = fontData.variant[variantName].chars;
+            if (!chars) return;
+
+            Object.keys(chars).forEach(code => {
+                const entry = chars[code];
+                if (!Array.isArray(entry) || entry.length < 3) return;
+
+                const extra = entry[3] || {};
+                const codePoint = Number(code);
+                // The plugin's own content override draws the Unicode math-italic character for
+                // the italic alphabet, so those are measured at their own codepoint; everything
+                // else is drawn as the table's substitute character.
+                const isMathItalicRange = (codePoint >= 0x1D434 && codePoint <= 0x1D467);
+                const drawChar = isMathItalicRange
+                    ? String.fromCodePoint(codePoint)
+                    : (extra.c ? String(extra.c) : String.fromCodePoint(codePoint));
+
+                const measured = measure(drawChar);
+                if (!measured || (measured.w === 0 && measured.h === 0)) {
+                    // The font does not provide this glyph; leave MathJax's own value in place so
+                    // its own face still lays the fallback out correctly.
+                    return;
+                }
+
+                snapshot.chars.push({ variantName, code, values: [entry[0], entry[1], entry[2]] });
+                entry[0] = measured.h;
+                entry[1] = measured.d;
+                entry[2] = measured.w;
+                adopted++;
+            });
+        });
+
+        // Horizontal and vertical stretchy assemblies carry their own height/depth/width.
+        Object.keys(fontData.delimiters || {}).forEach(code => {
+            const delimiter = fontData.delimiters[code];
+            if (!delimiter || !Array.isArray(delimiter.HDW)) return;
+
+            const measured = measure(String.fromCodePoint(Number(code)));
+            if (!measured || (measured.w === 0 && measured.h === 0)) return;
+
+            snapshot.delimiters.push({ code, values: delimiter.HDW.slice() });
+            delimiter.HDW = [measured.h, measured.d, measured.w];
+        });
+
+        this._mathFontSnapshot = snapshot;
+        this._log(`[Local Font Loader] Math font metrics adopted from "${familyName}": ${adopted} glyphs, ${snapshot.delimiters.length} delimiters`);
+
+        return true;
+    }
+
+    /**
+     * Puts MathJax's original metrics back.
+     */
+    _restoreMathFontMetrics() {
+        const snapshot = this._mathFontSnapshot;
+        const mathJax = window.MathJax;
+        if (!snapshot || !mathJax || !mathJax.config || !mathJax.config.chtml) {
+            this._mathFontSnapshot = null;
+            return;
+        }
+
+        const fontData = mathJax.config.chtml.font;
+
+        snapshot.chars.forEach(({ variantName, code, values }) => {
+            const chars = fontData.variant[variantName] && fontData.variant[variantName].chars;
+            if (chars && chars[code]) {
+                chars[code][0] = values[0];
+                chars[code][1] = values[1];
+                chars[code][2] = values[2];
+            }
+        });
+
+        snapshot.delimiters.forEach(({ code, values }) => {
+            if (fontData.delimiters && fontData.delimiters[code]) {
+                fontData.delimiters[code].HDW = values.slice();
+            }
+        });
+
+        this._log(`[Local Font Loader] Math font metrics restored (${snapshot.chars.length} glyphs)`);
+        this._mathFontSnapshot = null;
+    }
+
+    /**
+     * Makes MathJax rebuild its stylesheet so adopted metrics take effect.
+     *
+     * MathJax caches generated CSS, and in adaptive mode only ever adds rules for glyphs it has
+     * not yet emitted — so clearing the cache alone leaves the sheet with holes instead of a
+     * clean rebuild. Adaptive mode is therefore switched off for the rebuild, which is what makes
+     * it emit everything.
+     *
+     * The rebuild is driven by a throwaway typeset rather than by re-rendering open notes:
+     * a note in editing mode has no preview to rerender, so relying on views would leave the
+     * stylesheet deleted and the maths unstyled. Typesetting one isolated formula regenerates it
+     * deterministically, wherever the user happens to be.
+     *
+     * @returns {Promise<boolean>} True when the stylesheet was rebuilt
+     */
+    async _rebuildMathJaxStyles() {
+        const mathJax = window.MathJax;
+        if (!mathJax || !mathJax.startup || !mathJax.startup.output) {
+            return false;
+        }
+
+        const output = mathJax.startup.output;
+        try {
+            if (output.options) {
+                output.options.adaptiveCSS = false;
+            }
+            output.clearCache();
+
+            const existing = document.getElementById('MJX-CHTML-styles');
+            if (existing) {
+                existing.remove();
+            }
+
+            // Forces MathJax to lay out a formula, which is what regenerates the stylesheet.
+            const scratch = document.createElement('div');
+            scratch.style.display = 'none';
+            document.body.appendChild(scratch);
+            await MarkdownRenderer.render(this.app, '$x$', scratch, '', this);
+            scratch.remove();
+
+            return !!document.getElementById('MJX-CHTML-styles');
+        } catch (error) {
+            console.error('[Local Font Loader] Failed to rebuild MathJax styles:', error);
+            return false;
+        } finally {
+            // Always restore adaptive mode, even if the rebuild failed — leaving it off would
+            // inflate the stylesheet on every subsequent render.
+            try {
+                if (output.options) {
+                    output.options.adaptiveCSS = true;
+                }
+            } catch (error) {
+                console.error('[Local Font Loader] Failed to restore adaptive CSS mode:', error);
+            }
+        }
+    }
+
+    /**
+     * Re-renders open reading views so the rebuilt stylesheet reaches them.
+     */
+    _refreshMathViews() {
+        try {
+            this.app.workspace.iterateAllLeaves(leaf => {
+                const view = leaf.view;
+                if (view && view.previewMode && typeof view.previewMode.rerender === 'function') {
+                    view.previewMode.rerender(true);
+                }
+            });
+        } catch (error) {
+            console.error('[Local Font Loader] Failed to refresh math views:', error);
+        }
+    }
+
+    /**
+     * Judges whether a math font can lay out correctly under MathJax CHTML.
+     *
+     * MathJax bakes per-glyph padding computed from its own TeX fonts, which use Computer Modern
+     * metrics: digit 0.5em, plus 0.778em, math-italic x 0.557em, and a surd whose ink spans
+     * 0.2031em below and 0.8125em above the baseline. A substituted font aligns only when its
+     * own metrics land near those — otherwise radicals grow a gap between the hook and the bar,
+     * and scripts drift away from their base. Nothing in the CSS can compensate, so the honest
+     * move is to say so rather than silently render it wrong.
+     *
+     * The measurement runs on the rendered font, not on its declared name: a glyph the family
+     * lacks is served by a fallback face, and canvas reports that face's metrics — so the verdict
+     * follows what actually gets drawn.
+     *
+     * @param {string} familyName - The font family to inspect
+     * @returns {{status: string, deviations: Array, missing?: string[]}}
+     *          status is 'ok' | 'mismatch' | 'notMathFont' | 'unavailable'
+     */
+    _evaluateMathFont(familyName) {
+        // Reference metrics of MathJax's own TeX fonts, in em
+        const REFERENCE = {
+            surdAbove: 0.8125,
+            surdBelow: 0.2031,
+            mathItalicX: 0.557,
+            digitOne: 0.5,
+            plus: 0.778
+        };
+        const TOLERANCE = 0.1;
+
+        if (!familyName || typeof document === 'undefined' || !document.fonts) {
+            return { status: 'unavailable', deviations: [] };
+        }
+
+        // An unloaded family would be measured against its fallback, giving a verdict about the
+        // wrong font entirely — better to stay silent until it is actually available.
+        try {
+            if (!document.fonts.check(`16px "${familyName}"`)) {
+                return { status: 'unavailable', deviations: [] };
+            }
+        } catch (error) {
+            return { status: 'unavailable', deviations: [] };
+        }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return { status: 'unavailable', deviations: [] };
+        }
+
+        const SIZE = 200;
+        const advanceOf = (char) => {
+            try {
+                ctx.font = `${SIZE}px "${familyName}"`;
+                return ctx.measureText(char).width / SIZE;
+            } catch (error) {
+                return 0;
+            }
+        };
+        const inkOf = (char) => {
+            try {
+                ctx.font = `${SIZE}px "${familyName}"`;
+                const metrics = ctx.measureText(char);
+                return {
+                    above: (metrics.actualBoundingBoxAscent || 0) / SIZE,
+                    below: (metrics.actualBoundingBoxDescent || 0) / SIZE
+                };
+            } catch (error) {
+                return { above: 0, below: 0 };
+            }
+        };
+
+        const surd = inkOf('√');
+        const measured = {
+            surdAbove: surd.above,
+            surdBelow: surd.below,
+            mathItalicX: advanceOf('\u{1D465}'),
+            digitOne: advanceOf('1'),
+            plus: advanceOf('+')
+        };
+
+        // A math font has to carry the math alphanumerics; without them MathJax renders every
+        // variable from a fallback face and the layout drifts regardless of metrics.
+        const missing = [];
+        if (measured.mathItalicX <= 0) missing.push('\u{1D465}');
+        if (measured.surdAbove <= 0) missing.push('√');
+        if (missing.length > 0) {
+            return { status: 'notMathFont', deviations: [], missing };
+        }
+
+        const deviations = [];
+        Object.keys(REFERENCE).forEach(metric => {
+            const actual = measured[metric];
+            if (!actual) return;
+            const ratio = Math.abs(actual - REFERENCE[metric]) / REFERENCE[metric];
+            if (ratio > TOLERANCE) {
+                deviations.push({
+                    metric,
+                    actual: Number(actual.toFixed(3)),
+                    expected: REFERENCE[metric],
+                    percent: Math.round(ratio * 100)
+                });
+            }
+        });
+
+        return {
+            status: deviations.length > 0 ? 'mismatch' : 'ok',
+            deviations
+        };
+    }
+
+    /**
      * Check whether a font exists in the vault
      * @param {string} fontName - The font name or family name
      * @returns {boolean} Whether the font exists
@@ -3279,15 +3655,40 @@ class LocalFontLoaderPlugin extends Plugin {
                 }
 
                 varsCss += `\n/* Apply fonts */\n`;
+
+                // TEMPORARY MEASURE — pending replacement.
+                //
+                // MathJax's stretchy size variants (TEX-S1 .. TEX-S4) are purpose-built tall glyph
+                // sets, not uniform scalings: measured at 100px the surd's advance saturates at 100
+                // while its ink height grows 120 -> 180 -> 240, and the parenthesis narrows relative
+                // to its height. No size-adjust can reproduce that, so these variants are excluded
+                // from the font override and keep MathJax's own families.
+                //
+                // Overriding them was what broke roots over tall content: the selector swapped in a
+                // normal-size glyph while MathJax's padding — computed for the tall variant — stayed
+                // in place, leaving the surd's hook short of the radical's bar.
+                //
+                // The catch is that this mixes typefaces: ordinary glyphs come from the user's math
+                // font while stretched ones come from MathJax's. That is a stopgap, not the intended
+                // end state. It exists because no ordinary font ships taller variants of its own, and
+                // it becomes unnecessary once the configured math font is metrically compatible with
+                // MathJax's TeX fonts (Computer Modern metrics — e.g. Latin Modern Math), where the
+                // variants can be dropped and one typeface used throughout.
+                //
+                // Note too that excluding them does NOT fix radicals over short content: those use the
+                // base surd, whose metrics still differ from MathJax's baked padding. The same font
+                // swap resolves both.
+                const sizeVariantGuard = [1, 2, 3, 4].map(n => `:not(.TEX-S${n})`).join('');
+
                 varsCss += `/* Italic variables */\n`;
-                varsCss += `body mjx-c.TEX-I::before {\n`;
+                varsCss += `body mjx-c.TEX-I${sizeVariantGuard}::before {\n`;
                 varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXTEX-I, MJXZERO, serif !important;\n`;
                 varsCss += `  font-style: normal !important;\n`;
                 varsCss += `}\n\n`;
                 varsCss += `/* Numbers and operators */\n`;
-                varsCss += `body mjx-mn mjx-c::before,\n`;
-                varsCss += `body mjx-mo mjx-c::before,\n`;
-                varsCss += `body mjx-c:not(.TEX-I)::before {\n`;
+                varsCss += `body mjx-mn mjx-c${sizeVariantGuard}::before,\n`;
+                varsCss += `body mjx-mo mjx-c${sizeVariantGuard}::before,\n`;
+                varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard}::before {\n`;
                 varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
                 varsCss += `}\n\n`;
                 varsCss += `/* Container */\n`;
@@ -3296,7 +3697,50 @@ class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
                 varsCss += `}\n\n`;
 
+                // Stretchy assembly pieces must keep MathJax's own font.
+                //
+                // A stretchy delimiter is assembled from pieces addressed by PRIVATE USE
+                // codepoints — \underbrace, for instance, is built from U+E152 / U+E153 / U+E154 /
+                // U+E156. Those glyphs exist only in MathJax's TeX fonts; no general math font
+                // carries them, so pointing them at the user's font renders empty boxes and the
+                // brace breaks into a row of squares. This cannot be fixed by metrics: the glyph
+                // is simply absent, so the pieces have to stay on MathJax's faces.
+                //
+                // Emitted after the blanket rules and carrying the SAME guard chain plus the
+                // stretchy scope, which puts it one element-level above them (5-4 against 5-3).
+                // A shorter selector does not win: the guards are :not() pseudo-classes and
+                // contribute five class-level points to the very rule being overridden.
+                varsCss += `/* Stretchy assembly pieces — keep MathJax's own glyphs */\n`;
+                const stretchyScopes = [
+                    'mjx-stretchy-h mjx-c',
+                    'mjx-stretchy-v mjx-c',
+                    'mjx-stretchy-h mjx-ext mjx-c',
+                    'mjx-stretchy-v mjx-ext mjx-c'
+                ];
+                stretchyScopes.forEach((scope, index) => {
+                    varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard}::before`;
+                    varsCss += (index === stretchyScopes.length - 1) ? ' {\n' : ',\n';
+                });
+                varsCss += `  font-family: MJXZERO, MJXTEX, serif !important;\n`;
+                varsCss += `}\n\n`;
+
                 this._log(`[Local Font Loader] Math font applied with high priority selectors`);
+
+                // Adopt the font's own metrics, then have MathJax rebuild the geometry it derives
+                // from them. Drawing the glyph is not enough on its own: without matching metrics
+                // the layout is computed for a different font, which is what breaks radicals and
+                // scripts. Both steps are one-off, so rendering afterwards costs nothing extra.
+                // 采纳字体自身的度量，再让 MathJax 依此重建几何。只换绘制字体是不够的 ——
+                // 度量不匹配时排版仍按另一套字体计算，根号与上下标因此错位。两步均为一次性开销。
+                setTimeout(() => {
+                    try {
+                        if (this._adoptMathFontMetrics(fontsConfig.math)) {
+                            this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
+                        }
+                    } catch (error) {
+                        console.error('[Local Font Loader] Failed to adopt math font metrics:', error);
+                    }
+                }, 300);
             }
 
             this.applyCss(varsCss, 'local-font-loader-vars');
@@ -3467,6 +3911,11 @@ class LocalFontLoaderPlugin extends Plugin {
         const varsStyle = document.getElementById('local-font-loader-vars');
         if (faceStyle) faceStyle.remove();
         if (varsStyle) varsStyle.remove();
+
+        // Hand MathJax its own metrics back. They live on a global object shared with every other
+        // renderer, so leaving them adopted after the plugin stops managing the font would keep
+        // shaping maths from a table the plugin no longer stands behind.
+        this._restoreMathFontMetrics();
     }
 
     async clearCache() {
@@ -3866,6 +4315,7 @@ class FontManagerSettingTab extends PluginSettingTab {
         // Default case: assume Latin font (conservative strategy)
         return true;
     }
+
 
     display() {
         this._isVisible = true; // Mark the settings tab visible (settings-changed guard)
@@ -4742,6 +5192,22 @@ class FontManagerSettingTab extends PluginSettingTab {
                 warningIcon.setAttribute('aria-label', t('fontNotFound'));
             }
 
+            // Math font: flag a font that MathJax cannot lay out correctly. Checked once here and
+            // reused for the callout below, so the two indicators can never disagree.
+            const mathVerdict = (fontType.key === 'math' && selectedFont && fontExists)
+                ? this.plugin._evaluateMathFont(selectedFont)
+                : null;
+
+            if (mathVerdict && (mathVerdict.status === 'mismatch' || mathVerdict.status === 'notMathFont')) {
+                const mathWarningIcon = settingItem.nameEl.createSpan({ cls: 'font-incompatible-icon' });
+                setIcon(mathWarningIcon, 'alert-triangle');
+                mathWarningIcon.style.color = 'var(--text-warning)';
+                mathWarningIcon.style.marginLeft = '8px';
+                mathWarningIcon.setAttribute('aria-label', t(
+                    mathVerdict.status === 'notMathFont' ? 'mathFontNotMathTitle' : 'mathFontMismatchTitle'
+                ));
+            }
+
             settingItem.addDropdown(dropdown => {
                     dropdown.addOption('', t('systemDefault'));
 
@@ -4838,10 +5304,30 @@ class FontManagerSettingTab extends PluginSettingTab {
                 if (fontType.key === 'math') {
                     const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
 
-                    const infoMd = `> [!info] ${t('mathFontRequirement')}
+                    if (mathVerdict && mathVerdict.status === 'notMathFont') {
+                        const warningMd = `> [!warning] ${t('mathFontNotMathTitle')}
+> ${t('mathFontNotMathBody', { fontFamily: selectedFont, missing: (mathVerdict.missing || []).join(', ') })}`;
+
+                        MarkdownRenderer.render(this.app, warningMd, infoCallout, '', this);
+                    } else if (mathVerdict && mathVerdict.status === 'mismatch') {
+                        // List the offending metrics, so the warning says which measurements failed
+                        // rather than just asserting incompatibility.
+                        const detail = mathVerdict.deviations
+                            .map(d => `${d.metric}: ${d.actual}em (MathJax ${d.expected}em, ±${d.percent}%)`)
+                            .join('\n> ');
+
+                        const warningMd = `> [!warning] ${t('mathFontMismatchTitle')}
+> ${t('mathFontMismatchBody', { fontFamily: selectedFont })}
+>
+> ${detail}`;
+
+                        MarkdownRenderer.render(this.app, warningMd, infoCallout, '', this);
+                    } else {
+                        const infoMd = `> [!info] ${t('mathFontRequirement')}
 > ${t('mathFontRequirementBody')}`;
 
-                    MarkdownRenderer.render(this.app, infoMd, infoCallout, '', this);
+                        MarkdownRenderer.render(this.app, infoMd, infoCallout, '', this);
+                    }
                 }
             }
 
@@ -5067,9 +5553,12 @@ class FontManagerSettingTab extends PluginSettingTab {
             rescanBtn.disabled = true;
             rescanBtn.style.opacity = '0.5';
             await this.plugin.scanFonts();
-            rescanBtn.disabled = false;
-            rescanBtn.style.opacity = '1';
             new Notice(t('fontsRescanned') || '✓ 字体已重新扫描');
+
+            // Re-render so the font dropdowns pick up the rescanned list — they read
+            // settings.availableFonts when they are built, so without this the new families stay
+            // invisible until the settings tab is reopened by hand.
+            this.display();
         });
 
         // Font list (must be defined first for the button event listeners)
@@ -5168,9 +5657,12 @@ class FontManagerSettingTab extends PluginSettingTab {
             convertBtn.disabled = true;
             convertBtn.textContent = t('converting') || '转换中...';
             await this.plugin.convertAllFonts();
-            convertBtn.disabled = false;
-            convertBtn.textContent = t('convertAllFonts');
             new Notice(t('allFontsConverted') || '✓ 所有字体已转换');
+
+            // Re-render so newly converted families show their ✓ and become selectable.
+            // This rebuilds the button too, so its label and disabled state no longer need
+            // restoring by hand here.
+            this.display();
         });
 
         // ========================================

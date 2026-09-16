@@ -488,9 +488,13 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             let expanded = false;
             this._addEventListener(headerEl, 'click', () => {
                 expanded = !expanded;
-                variantsEl.style.display = expanded ? 'block' : 'none';
+                variantsEl.setCssStyles({
+                    display: expanded ? 'block' : 'none',
+                });
                 // Rotate icon
-                expandIcon.style.transform = expanded ? 'rotate(90deg)' : 'rotate(0deg)';
+                expandIcon.setCssStyles({
+                    transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                });
             });
 
             // Render the variant list

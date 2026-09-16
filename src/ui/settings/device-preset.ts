@@ -354,7 +354,9 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                             e.stopPropagation();
 
                             const selectEl = document.createElement('select');
-                            selectEl.style.cssText = 'position: absolute; opacity: 0; pointer-events: none;';
+                            selectEl.setCssStyles({
+                                cssText: 'position: absolute; opacity: 0; pointer-events: none;',
+                            });
 
                             tab.plugin.settings.presets.forEach(p => {
                                 const option = selectEl.appendChild(document.createElement('option'));

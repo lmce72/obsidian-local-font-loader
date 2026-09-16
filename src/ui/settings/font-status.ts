@@ -117,8 +117,12 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
                 const toggle = familyItem.querySelector<HTMLElement>('.font-family-toggle');
                 const variants = familyItem.querySelector<HTMLElement>('.font-variants');
                 if (toggle && variants && variants.style.display === 'none') {
-                    toggle.style.transform = 'rotate(90deg)';
-                    variants.style.display = 'block';
+                    toggle.setCssStyles({
+                        transform: 'rotate(90deg)',
+                    });
+                    variants.setCssStyles({
+                        display: 'block',
+                    });
                 }
             });
         });
@@ -152,8 +156,12 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
                 const toggle = familyItem.querySelector<HTMLElement>('.font-family-toggle');
                 const variants = familyItem.querySelector<HTMLElement>('.font-variants');
                 if (toggle && variants && variants.style.display !== 'none') {
-                    toggle.style.transform = 'rotate(0deg)';
-                    variants.style.display = 'none';
+                    toggle.setCssStyles({
+                        transform: 'rotate(0deg)',
+                    });
+                    variants.setCssStyles({
+                        display: 'none',
+                    });
                 }
             });
         });
@@ -224,7 +232,9 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
 
         tab._addEventListener(rescanBtn, 'click', async () => {
             rescanBtn.disabled = true;
-            rescanBtn.style.opacity = '0.5';
+            rescanBtn.setCssStyles({
+                opacity: '0.5',
+            });
             await tab.plugin.scanFonts();
             new Notice(t('fontsRescanned') || '✓ 字体已重新扫描');
 
@@ -260,8 +270,10 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
                 // Update all buttons' active states
                 filterButtonElements.forEach(({ btn: button, filter: f }) => {
                     const isActive = tab._fontFilter === f;
-                    button.style.background = isActive ? 'var(--interactive-accent)' : 'var(--background-primary)';
-                    button.style.color = isActive ? 'var(--text-on-accent)' : 'var(--text-normal)';
+                    button.setCssStyles({
+                        background: isActive ? 'var(--interactive-accent)' : 'var(--background-primary)',
+                        color: isActive ? 'var(--text-on-accent)' : 'var(--text-normal)',
+                    });
                 });
             });
         });

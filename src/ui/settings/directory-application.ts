@@ -134,8 +134,10 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                 });
                 const warningIcon = warningContainer.createSpan({ cls: 'warning-icon' });
                 setIcon(warningIcon, 'alert-triangle');
-                warningIcon.style.display = 'inline-flex';
-                warningIcon.style.flexShrink = '0';
+                warningIcon.setCssStyles({
+                    display: 'inline-flex',
+                    flexShrink: '0',
+                });
                 warningContainer.createSpan({ text: t('usingGlobalPreset') });
             }
         }
@@ -189,8 +191,10 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             if (selectedFont && !fontExists) {
                 const warningIcon = settingItem.nameEl.createSpan({ cls: 'font-missing-icon' });
                 setIcon(warningIcon, 'x');
-                warningIcon.style.color = 'var(--text-error)';
-                warningIcon.style.marginLeft = '8px';
+                warningIcon.setCssStyles({
+                    color: 'var(--text-error)',
+                    marginLeft: '8px',
+                });
                 warningIcon.setAttribute('aria-label', t('fontNotFound'));
             }
 
@@ -203,8 +207,10 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             if (mathVerdict && (mathVerdict.status === 'mismatch' || mathVerdict.status === 'notMathFont')) {
                 const mathWarningIcon = settingItem.nameEl.createSpan({ cls: 'font-incompatible-icon' });
                 setIcon(mathWarningIcon, 'alert-triangle');
-                mathWarningIcon.style.color = 'var(--text-warning)';
-                mathWarningIcon.style.marginLeft = '8px';
+                mathWarningIcon.setCssStyles({
+                    color: 'var(--text-warning)',
+                    marginLeft: '8px',
+                });
                 mathWarningIcon.setAttribute('aria-label', t(
                     mathVerdict.status === 'notMathFont' ? 'mathFontNotMathTitle' : 'mathFontMismatchTitle'
                 ));

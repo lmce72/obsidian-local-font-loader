@@ -1108,6 +1108,21 @@ export default class LocalFontLoaderPlugin extends Plugin {
             };
         }
 
+        // Desktop OS comes from the platform itself rather than the user agent: Obsidian exposes
+        // no flag for it, and sniffing the UA is what the plugin guidelines ask against.
+        // `process.platform` is Node's own answer and exists only where Node does.
+        const nodePlatform = this._getDesktopOsPlatform();
+        if (nodePlatform === 'win32') {
+            return { platform, os: 'windows', model: '', hostname: hostname };
+        }
+        if (nodePlatform === 'darwin') {
+            return { platform: 'desktop', os: 'macos', model: '', hostname };
+        }
+        if (nodePlatform) {
+            return { platform: 'desktop', os: 'linux', model: '', hostname };
+        }
+
+        // Node was unavailable (mobile, or a desktop build without it): fall back to the UA.
         if (/Windows/.test(ua)) {
             return { platform, os: 'windows', model: '', hostname: hostname };
         }
@@ -1119,6 +1134,27 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
 
         return { platform, os: 'unknown', model: '', hostname };
+    }
+
+    /**
+     * Reads this desktop's OS from Node, which the mobile WebView does not have.
+     *
+     * Kept separate from the UA path so the desktop branch never has to sniff a user agent, and
+     * returns null (rather than throwing) wherever Node is out of reach.
+     *
+     * @returns Node's `process.platform` value, or null when unavailable
+     */
+    _getDesktopOsPlatform(): string | null {
+        if (!Platform.isDesktopApp) {
+            return null;
+        }
+        try {
+            const process = (window as unknown as { process?: { platform?: string } }).process;
+            return process?.platform ?? null;
+        } catch (error) {
+            console.error('[Local Font Loader] Could not read the desktop platform:', error);
+            return null;
+        }
     }
 
     /**
@@ -1137,7 +1173,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
 
         try {
-            const os = require('os');
+            const nodeRequire = (window as unknown as { require?: (id: string) => unknown }).require;
+            const os = nodeRequire?.('os') as { hostname(): string } | undefined;
+            if (!os) return '';
             return String(os.hostname() || '').trim();
         } catch (error) {
             console.error('[Local Font Loader] Failed to read hostname:', error);
@@ -1796,7 +1834,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             // Forces MathJax to lay out a formula, which is what regenerates the stylesheet.
             const scratch = document.createElement('div');
-            scratch.style.display = 'none';
+            scratch.setCssStyles({
+                display: 'none',
+            });
             document.body.appendChild(scratch);
             // A throwaway Component: the plugin outlives every render and must not be used
             // as one, or each render would leak into the plugin's own lifecycle.

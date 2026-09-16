@@ -1152,19 +1152,23 @@ class TextInputModal extends import_obsidian.Modal {
         "aria-label": this.titleText
       }
     });
-    inputEl.style.width = "100%";
-    inputEl.style.marginBottom = "16px";
-    inputEl.style.padding = "8px";
-    inputEl.style.fontSize = "14px";
-    inputEl.style.border = "1px solid var(--background-modifier-border)";
-    inputEl.style.borderRadius = "4px";
-    inputEl.style.backgroundColor = "var(--background-primary)";
-    inputEl.style.color = "var(--text-normal)";
+    inputEl.setCssStyles({
+      width: "100%",
+      marginBottom: "16px",
+      padding: "8px",
+      fontSize: "14px",
+      border: "1px solid var(--background-modifier-border)",
+      borderRadius: "4px",
+      backgroundColor: "var(--background-primary)",
+      color: "var(--text-normal)"
+    });
     const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.justifyContent = "flex-end";
-    buttonContainer.style.gap = "8px";
-    buttonContainer.style.marginTop = "16px";
+    buttonContainer.setCssStyles({
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "8px",
+      marginTop: "16px"
+    });
     const cancelBtn = buttonContainer.createEl("button", { text: t("cancel") });
     cancelBtn.addEventListener("click", () => this.close());
     const submitBtn = buttonContainer.createEl("button", {
@@ -1177,7 +1181,9 @@ class TextInputModal extends import_obsidian.Modal {
         this.onSubmit(value);
         this.close();
       } else {
-        inputEl.style.borderColor = "var(--text-error)";
+        inputEl.setCssStyles({
+          borderColor: "var(--text-error)"
+        });
         inputEl.focus();
       }
     });
@@ -1191,7 +1197,9 @@ class TextInputModal extends import_obsidian.Modal {
       }
     });
     inputEl.addEventListener("input", () => {
-      inputEl.style.borderColor = "var(--background-modifier-border)";
+      inputEl.setCssStyles({
+        borderColor: "var(--background-modifier-border)"
+      });
     });
     window.setTimeout(() => {
       inputEl.focus();
@@ -1243,8 +1251,10 @@ class FontImportModal extends import_obsidian.Modal {
     if (iconSvg) {
       iconSvg.setAttribute("width", "48");
       iconSvg.setAttribute("height", "48");
-      iconSvg.style.display = "block";
-      iconSvg.style.margin = "0 auto";
+      iconSvg.setCssStyles({
+        display: "block",
+        margin: "0 auto"
+      });
     }
     const title = dropZone.createDiv({
       attr: {
@@ -1280,7 +1290,9 @@ class FontImportModal extends import_obsidian.Modal {
     input.type = "file";
     input.multiple = true;
     input.accept = ".ttf,.otf,.woff,.woff2";
-    input.style.display = "none";
+    input.setCssStyles({
+      display: "none"
+    });
     contentEl.appendChild(input);
     dropZone.onclick = () => {
       input.click();
@@ -1294,14 +1306,20 @@ class FontImportModal extends import_obsidian.Modal {
     };
     dropZone.ondragover = (e) => {
       e.preventDefault();
-      dropZone.style.background = "var(--background-modifier-hover)";
+      dropZone.setCssStyles({
+        background: "var(--background-modifier-hover)"
+      });
     };
     dropZone.ondragleave = () => {
-      dropZone.style.background = "var(--background-secondary)";
+      dropZone.setCssStyles({
+        background: "var(--background-secondary)"
+      });
     };
     dropZone.ondrop = async (e) => {
       e.preventDefault();
-      dropZone.style.background = "var(--background-secondary)";
+      dropZone.setCssStyles({
+        background: "var(--background-secondary)"
+      });
       const files = e.dataTransfer.files;
       if (!files || files.length === 0)
         return;
@@ -1562,7 +1580,9 @@ function renderDeviceAndPresetSection(tab, containerEl) {
           tab._addEventListener(moveBtn, "click", async (e) => {
             e.stopPropagation();
             const selectEl = document.createElement("select");
-            selectEl.style.cssText = "position: absolute; opacity: 0; pointer-events: none;";
+            selectEl.setCssStyles({
+              cssText: "position: absolute; opacity: 0; pointer-events: none;"
+            });
             tab.plugin.settings.presets.forEach((p) => {
               const option = selectEl.appendChild(document.createElement("option"));
               option.value = p.id;
@@ -1710,8 +1730,10 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
       });
       const warningIcon = warningContainer.createSpan({ cls: "warning-icon" });
       import_obsidian3.setIcon(warningIcon, "alert-triangle");
-      warningIcon.style.display = "inline-flex";
-      warningIcon.style.flexShrink = "0";
+      warningIcon.setCssStyles({
+        display: "inline-flex",
+        flexShrink: "0"
+      });
       warningContainer.createSpan({ text: t("usingGlobalPreset") });
     }
   }
@@ -1754,16 +1776,20 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     if (selectedFont && !fontExists) {
       const warningIcon = settingItem.nameEl.createSpan({ cls: "font-missing-icon" });
       import_obsidian3.setIcon(warningIcon, "x");
-      warningIcon.style.color = "var(--text-error)";
-      warningIcon.style.marginLeft = "8px";
+      warningIcon.setCssStyles({
+        color: "var(--text-error)",
+        marginLeft: "8px"
+      });
       warningIcon.setAttribute("aria-label", t("fontNotFound"));
     }
     const mathVerdict = fontType.key === "math" && selectedFont && fontExists ? tab.plugin._evaluateMathFont(selectedFont) : null;
     if (mathVerdict && (mathVerdict.status === "mismatch" || mathVerdict.status === "notMathFont")) {
       const mathWarningIcon = settingItem.nameEl.createSpan({ cls: "font-incompatible-icon" });
       import_obsidian3.setIcon(mathWarningIcon, "alert-triangle");
-      mathWarningIcon.style.color = "var(--text-warning)";
-      mathWarningIcon.style.marginLeft = "8px";
+      mathWarningIcon.setCssStyles({
+        color: "var(--text-warning)",
+        marginLeft: "8px"
+      });
       mathWarningIcon.setAttribute("aria-label", t(mathVerdict.status === "notMathFont" ? "mathFontNotMathTitle" : "mathFontMismatchTitle"));
     }
     settingItem.addDropdown((dropdown) => {
@@ -1934,8 +1960,12 @@ function renderFontStatusSection(tab, containerEl) {
       const toggle = familyItem.querySelector(".font-family-toggle");
       const variants = familyItem.querySelector(".font-variants");
       if (toggle && variants && variants.style.display === "none") {
-        toggle.style.transform = "rotate(90deg)";
-        variants.style.display = "block";
+        toggle.setCssStyles({
+          transform: "rotate(90deg)"
+        });
+        variants.setCssStyles({
+          display: "block"
+        });
       }
     });
   });
@@ -1966,8 +1996,12 @@ function renderFontStatusSection(tab, containerEl) {
       const toggle = familyItem.querySelector(".font-family-toggle");
       const variants = familyItem.querySelector(".font-variants");
       if (toggle && variants && variants.style.display !== "none") {
-        toggle.style.transform = "rotate(0deg)";
-        variants.style.display = "none";
+        toggle.setCssStyles({
+          transform: "rotate(0deg)"
+        });
+        variants.setCssStyles({
+          display: "none"
+        });
       }
     });
   });
@@ -2024,7 +2058,9 @@ function renderFontStatusSection(tab, containerEl) {
   rescanBtn.createSpan({ text: t("rescanFonts") || "重新扫描" });
   tab._addEventListener(rescanBtn, "click", async () => {
     rescanBtn.disabled = true;
-    rescanBtn.style.opacity = "0.5";
+    rescanBtn.setCssStyles({
+      opacity: "0.5"
+    });
     await tab.plugin.scanFonts();
     new import_obsidian4.Notice(t("fontsRescanned") || "✓ 字体已重新扫描");
     tab.display();
@@ -2048,8 +2084,10 @@ function renderFontStatusSection(tab, containerEl) {
       }
       filterButtonElements.forEach(({ btn: button, filter: f }) => {
         const isActive = tab._fontFilter === f;
-        button.style.background = isActive ? "var(--interactive-accent)" : "var(--background-primary)";
-        button.style.color = isActive ? "var(--text-on-accent)" : "var(--text-normal)";
+        button.setCssStyles({
+          background: isActive ? "var(--interactive-accent)" : "var(--background-primary)",
+          color: isActive ? "var(--text-on-accent)" : "var(--text-normal)"
+        });
       });
     });
   });
@@ -2467,8 +2505,12 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
       let expanded = false;
       this._addEventListener(headerEl, "click", () => {
         expanded = !expanded;
-        variantsEl.style.display = expanded ? "block" : "none";
-        expandIcon.style.transform = expanded ? "rotate(90deg)" : "rotate(0deg)";
+        variantsEl.setCssStyles({
+          display: expanded ? "block" : "none"
+        });
+        expandIcon.setCssStyles({
+          transform: expanded ? "rotate(90deg)" : "rotate(0deg)"
+        });
       });
       fonts.forEach((font) => {
         const variantEl = variantsEl.createDiv({
@@ -3296,6 +3338,16 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
         hostname: ""
       };
     }
+    const nodePlatform = this._getDesktopOsPlatform();
+    if (nodePlatform === "win32") {
+      return { platform, os: "windows", model: "", hostname };
+    }
+    if (nodePlatform === "darwin") {
+      return { platform: "desktop", os: "macos", model: "", hostname };
+    }
+    if (nodePlatform) {
+      return { platform: "desktop", os: "linux", model: "", hostname };
+    }
     if (/Windows/.test(ua)) {
       return { platform, os: "windows", model: "", hostname };
     }
@@ -3307,12 +3359,27 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     }
     return { platform, os: "unknown", model: "", hostname };
   }
+  _getDesktopOsPlatform() {
+    if (!import_obsidian7.Platform.isDesktopApp) {
+      return null;
+    }
+    try {
+      const process = window.process;
+      return process?.platform ?? null;
+    } catch (error) {
+      console.error("[Local Font Loader] Could not read the desktop platform:", error);
+      return null;
+    }
+  }
   _getDesktopHostname() {
     if (!import_obsidian7.Platform.isDesktopApp) {
       return "";
     }
     try {
-      const os = require("os");
+      const nodeRequire = window.require;
+      const os = nodeRequire?.("os");
+      if (!os)
+        return "";
       return String(os.hostname() || "").trim();
     } catch (error) {
       console.error("[Local Font Loader] Failed to read hostname:", error);
@@ -3723,7 +3790,9 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
         existing.remove();
       }
       const scratch = document.createElement("div");
-      scratch.style.display = "none";
+      scratch.setCssStyles({
+        display: "none"
+      });
       document.body.appendChild(scratch);
       const typesetComponent = new import_obsidian7.Component;
       typesetComponent.load();

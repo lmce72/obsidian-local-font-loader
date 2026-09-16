@@ -42,21 +42,25 @@ export class TextInputModal extends Modal {
         });
 
         // Style setup (using Obsidian CSS variables)
-        inputEl.style.width = '100%';
-        inputEl.style.marginBottom = '16px';
-        inputEl.style.padding = '8px';
-        inputEl.style.fontSize = '14px';
-        inputEl.style.border = '1px solid var(--background-modifier-border)';
-        inputEl.style.borderRadius = '4px';
-        inputEl.style.backgroundColor = 'var(--background-primary)';
-        inputEl.style.color = 'var(--text-normal)';
+        inputEl.setCssStyles({
+            width: '100%',
+            marginBottom: '16px',
+            padding: '8px',
+            fontSize: '14px',
+            border: '1px solid var(--background-modifier-border)',
+            borderRadius: '4px',
+            backgroundColor: 'var(--background-primary)',
+            color: 'var(--text-normal)',
+        });
 
         // Create the button container
         const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
-        buttonContainer.style.display = 'flex';
-        buttonContainer.style.justifyContent = 'flex-end';
-        buttonContainer.style.gap = '8px';
-        buttonContainer.style.marginTop = '16px';
+        buttonContainer.setCssStyles({
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '8px',
+            marginTop: '16px',
+        });
 
         // Cancel button
         const cancelBtn = buttonContainer.createEl('button', { text: t('cancel') });
@@ -74,7 +78,9 @@ export class TextInputModal extends Modal {
                 this.close();
             } else {
                 // Highlight the input border when empty
-                inputEl.style.borderColor = 'var(--text-error)';
+                inputEl.setCssStyles({
+                    borderColor: 'var(--text-error)',
+                });
                 inputEl.focus();
             }
         });
@@ -92,7 +98,9 @@ export class TextInputModal extends Modal {
 
         // Remove the error style on input
         inputEl.addEventListener('input', () => {
-            inputEl.style.borderColor = 'var(--background-modifier-border)';
+            inputEl.setCssStyles({
+                borderColor: 'var(--background-modifier-border)',
+            });
         });
 
         // Auto-focus and select the text (for quick edits)
@@ -157,8 +165,10 @@ export class FontImportModal extends Modal {
         if (iconSvg) {
             iconSvg.setAttribute('width', '48');
             iconSvg.setAttribute('height', '48');
-            iconSvg.style.display = 'block';
-            iconSvg.style.margin = '0 auto';
+            iconSvg.setCssStyles({
+                display: 'block',
+                margin: '0 auto',
+            });
         }
 
         const title = dropZone.createDiv({
@@ -199,7 +209,9 @@ export class FontImportModal extends Modal {
         input.type = 'file';
         input.multiple = true;
         input.accept = '.ttf,.otf,.woff,.woff2';
-        input.style.display = 'none';
+        input.setCssStyles({
+            display: 'none',
+        });
         contentEl.appendChild(input);
 
         // Click the zone to trigger file selection
@@ -219,16 +231,22 @@ export class FontImportModal extends Modal {
         // Drag-and-drop handlers
         dropZone.ondragover = (e) => {
             e.preventDefault();
-            dropZone.style.background = 'var(--background-modifier-hover)';
+            dropZone.setCssStyles({
+                background: 'var(--background-modifier-hover)',
+            });
         };
 
         dropZone.ondragleave = () => {
-            dropZone.style.background = 'var(--background-secondary)';
+            dropZone.setCssStyles({
+                background: 'var(--background-secondary)',
+            });
         };
 
         dropZone.ondrop = async (e) => {
             e.preventDefault();
-            dropZone.style.background = 'var(--background-secondary)';
+            dropZone.setCssStyles({
+                background: 'var(--background-secondary)',
+            });
 
             const files = e.dataTransfer.files;
             if (!files || files.length === 0) return;

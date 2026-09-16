@@ -25,7 +25,15 @@ function resolveVersion() {
     return ref.replace(/^v/, '').trim();
 }
 
-/** Returns the body of the section for `version`, or null when there is none. */
+/**
+ * Returns the release body for `version`.
+ *
+ * The changelog is written for developers — build tooling, refactors, internal fixes — and is
+ * the wrong thing to put in front of someone who just wants to know what changed. So the release
+ * body is only the short summary placed directly under the version heading, before the first
+ * `###` subsection. Falls back to the whole section when there is no such summary, so a version
+ * written without one still publishes something rather than nothing.
+ */
 function extractSection(changelog, version) {
     const lines = changelog.split('\n');
     const start = lines.findIndex(line => {
@@ -45,7 +53,13 @@ function extractSection(changelog, version) {
         }
     }
 
-    return lines.slice(start + 1, end).join('\n').trim();
+    const section = lines.slice(start + 1, end);
+    const firstSubsection = section.findIndex(line => line.startsWith('###'));
+    const summary = (firstSubsection === -1 ? section : section.slice(0, firstSubsection))
+        .join('\n')
+        .trim();
+
+    return summary || section.join('\n').trim();
 }
 
 function main() {

@@ -1,6 +1,14 @@
 # Changelog
 
+<!--
+  The text directly under a version heading — before the first `###` — becomes the GitHub Release
+  body, so it is read by users rather than by developers. Keep it short and free of build jargon;
+  everything below it is the developer record and never reaches the release.
+-->
+
 ## [1.5.2] - 2026-09-16
+
+默认字体目录改为独立的 `Local-Fonts/`，新安装开箱即用；同时修复若干问题，建议更新。
 
 ### 🔧 工程化
 

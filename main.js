@@ -1090,8 +1090,8 @@ function parseFontMetadata(arrayBuffer) {
 
 // src/constants.ts
 var DEFAULT_SETTINGS = {
-  fontSourceDir: "Components/Library/Fonts",
-  b64OutputDir: "Components/Library/Fonts/B64Font",
+  fontSourceDir: "Local-Fonts",
+  b64OutputDir: "Local-Fonts/UsableCssFont",
   availableFonts: [],
   fontFamilies: [],
   autoLoadOnStartup: true,
@@ -1849,7 +1849,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
 var import_obsidian3 = require("obsidian");
 function renderDirectoryAndApplicationSection(tab, containerEl) {
   containerEl.createEl("h3", { text: t("headerDirectoryConfig") });
-  new import_obsidian3.Setting(containerEl).setName(t("fontSourceDir")).setDesc(t("fontSourceDirDesc")).addText((text) => text.setPlaceholder("Components/Library/Fonts").setValue(tab.plugin.settings.fontSourceDir).onChange(async (value) => {
+  new import_obsidian3.Setting(containerEl).setName(t("fontSourceDir")).setDesc(t("fontSourceDirDesc")).addText((text) => text.setPlaceholder("Local-Fonts").setValue(tab.plugin.settings.fontSourceDir).onChange(async (value) => {
     tab.plugin.settings.fontSourceDir = value;
     await tab.plugin.saveSettings();
   })).addButton((btn) => btn.setButtonText(t("scanFonts")).onClick(async () => {
@@ -1857,7 +1857,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     new import_obsidian3.Notice("✓ Font list updated");
     tab.display();
   }));
-  new import_obsidian3.Setting(containerEl).setName(t("cacheDir")).setDesc(t("cacheDirDesc")).addText((text) => text.setPlaceholder("Components/Library/Fonts/B64Font").setValue(tab.plugin.settings.b64OutputDir).onChange(async (value) => {
+  new import_obsidian3.Setting(containerEl).setName(t("cacheDir")).setDesc(t("cacheDirDesc")).addText((text) => text.setPlaceholder("Local-Fonts/UsableCssFont").setValue(tab.plugin.settings.b64OutputDir).onChange(async (value) => {
     tab.plugin.settings.b64OutputDir = value;
     await tab.plugin.saveSettings();
   }));
@@ -3627,10 +3627,14 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     this._isScanning = true;
     try {
       this._log("[Local Font Loader] Scanning font family folders...");
+      try {
+        await this.app.vault.adapter.mkdir(this.settings.fontSourceDir);
+      } catch (err) {}
       const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
+      const cacheFolderName = this.settings.b64OutputDir.split("/").filter(Boolean).pop();
       const fontDirs = dirList.folders.filter((dir) => {
         const basename = dir.split("/").pop();
-        return basename !== "B64Font";
+        return basename !== cacheFolderName;
       });
       this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
       let b64Files = [];

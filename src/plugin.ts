@@ -1378,11 +1378,24 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             this._log('[Local Font Loader] Scanning font family folders...');
 
+            // Create the source directory on first run instead of failing to list it.
+            try {
+                await this.app.vault.adapter.mkdir(this.settings.fontSourceDir);
+            } catch (err) {
+                // Already present — the only expected failure here.
+            }
+
             // Get all subfolders in font directory
             const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
+
+            // Exclude the Base64 cache by its configured name rather than a hard-coded one: the
+            // cache defaults to living inside the source folder, and a renamed cache would
+            // otherwise be scanned as though it were a font family.
+            const cacheFolderName = this.settings.b64OutputDir.split('/').filter(Boolean).pop();
+
             const fontDirs = dirList.folders.filter(dir => {
                 const basename = dir.split('/').pop();
-                return basename !== 'B64Font'; // Exclude cache directory
+                return basename !== cacheFolderName;
             });
 
             this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);

@@ -27,7 +27,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             .setName(t('fontSourceDir'))
             .setDesc(t('fontSourceDirDesc'))
             .addText(text => text
-                .setPlaceholder('Components/Library/Fonts')
+                .setPlaceholder('Local-Fonts')
                 .setValue(tab.plugin.settings.fontSourceDir)
                 .onChange(async (value) => {
                     tab.plugin.settings.fontSourceDir = value;
@@ -47,7 +47,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             .setName(t('cacheDir'))
             .setDesc(t('cacheDirDesc'))
             .addText(text => text
-                .setPlaceholder('Components/Library/Fonts/B64Font')
+                .setPlaceholder('Local-Fonts/UsableCssFont')
                 .setValue(tab.plugin.settings.b64OutputDir)
                 .onChange(async (value) => {
                     tab.plugin.settings.b64OutputDir = value;

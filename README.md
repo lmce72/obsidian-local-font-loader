@@ -100,6 +100,34 @@ This plugin was developed with the assistance of **Claude** (Anthropic), an AI a
 
 If you encounter any issues or have feature requests, please [open an issue on GitHub](https://github.com/lmce72/obsidian-local-font-loader/issues).
 
+### Development
+
+The plugin is built with [Bun](https://bun.sh). `main.js` at the repository root is a **build
+artifact** — edit the modules under `src/` and rebuild, never the bundle itself.
+
+```bash
+bun run build          # bundle src/ into main.js
+bun run dev            # rebuild on change
+bun run check          # parse every source module
+bun run sync-version   # copy the version from package.json into manifest.json
+```
+
+| Path | Contents |
+| --- | --- |
+| `src/main.js` | entry point — exports the plugin class |
+| `src/plugin.js` | the plugin class: font scanning, conversion, device identity, CSS generation |
+| `src/ui/settings-tab.js` | settings UI |
+| `src/ui/modals.js` | modal dialogs |
+| `src/i18n.js` | translations and locale helpers |
+| `src/constants.js` | default settings |
+| `src/font-metadata.js` | OpenType / TrueType name-table reader |
+
+`obsidian` is kept external, so the build needs no dependencies.
+
+**Releasing:** add a `CHANGELOG.md` section for the version, set it in `package.json`, run
+`bun run sync-version`, then push a tag. CI builds `main.js` from `src/` and publishes the
+release with the changelog section as its body.
+
 ---
 
 ## 简体中文

@@ -19,6 +19,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Build main.js from src/ so the published artifact always corresponds to the tagged
+      # source, whether or not the committed bundle was refreshed before tagging.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build plugin
+        run: bun run build
+
       # Build the release body from this tag's section in CHANGELOG.md, so a published
       # release always carries the fix list for that exact version. Writes a placeholder
       # rather than failing when the version has no section.

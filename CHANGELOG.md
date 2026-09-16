@@ -6,6 +6,39 @@
   everything below it is the developer record and never reaches the release.
 -->
 
+## [1.5.3] - 2026-09-16
+
+提升与 Obsidian 的兼容性（弹出窗口、社区插件审核要求），并修复若干问题，建议更新。
+
+### 🐛 Bug 修復
+
+1. **修復彈出視窗中的計時器與動畫不生效**
+   - `setTimeout` / `clearTimeout` / `requestAnimationFrame` 未掛在 `window` 上，
+     在彈出視窗中不作用
+
+2. **修復桌面端系統判定依賴 User-Agent**
+   - 改由 `process.platform` 判定 Windows / macOS / Linux，更可靠
+   - 僅在 Node 不可用時才回落到 UA
+
+3. **修復外掛實例被當作渲染元件使用**
+   - `MarkdownRenderer` 的 Component 生命週期原本橫跨整個工作階段，
+     設定頁每次重繪都會殘留渲染產物
+   - 改為每次渲染建立短生命週期元件，隨設定頁重繪一併卸載
+
+### 🔧 相容性
+
+4. **宣告真實所需的最低版本**
+   - `minAppVersion` 由 `0.15.0` 更正為 `1.13.0`
+   - 程式實際使用 `loadLocalStorage`（1.8.7）、`ConfirmationModal` 與
+     `Modal.setTitle` / `addButton`（1.13.0）
+
+5. **設定頁樣式表交由 Obsidian 載入**
+   - 原本於執行時建立 `<style>` 元素注入，現併入 `styles.css`
+
+6. **靜態樣式改以 `setCssStyles` 設定**，不再逐條賦值 `element.style`
+
+7. **設定頁標題改用 `Setting.setHeading()`**，不再直接建立 `h2`
+
 ## [1.5.2] - 2026-09-16
 
 默认字体目录改为独立的 `Local-Fonts/`，新安装开箱即用；同时修复若干问题，建议更新。

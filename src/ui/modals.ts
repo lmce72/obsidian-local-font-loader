@@ -4,7 +4,7 @@
  */
 import { Modal, ConfirmationModal, Notice, Setting, setIcon } from 'obsidian';
 
-import { t } from '../i18n.js';
+import { t } from '../i18n';
 
 /**
  * Text input modal (replaces prompt)
@@ -13,6 +13,11 @@ import { t } from '../i18n.js';
  * @extends {Modal}
  */
 export class TextInputModal extends Modal {
+    titleText: string;
+    placeholder: string;
+    defaultValue: string;
+    onSubmit: (value: string) => void;
+
     constructor(app, title, placeholder, defaultValue, onSubmit) {
         super(app);
         this.titleText = title;
@@ -107,6 +112,9 @@ export class TextInputModal extends Modal {
  * Drag-and-drop import modal (avoids the user-activation issue of the file chooser)
  */
 export class FontImportModal extends Modal {
+    plugin: { settings: { fontSourceDir: string }; saveSettings: () => Promise<void> };
+    onImport: (files: FileList) => void | Promise<void>;
+
     constructor(app, plugin, onImport) {
         super(app);
         this.plugin = plugin;

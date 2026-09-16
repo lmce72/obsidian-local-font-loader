@@ -108,21 +108,27 @@ artifact** — edit the modules under `src/` and rebuild, never the bundle itsel
 ```bash
 bun run build          # bundle src/ into main.js
 bun run dev            # rebuild on change
-bun run check          # parse every source module
+bun run typecheck      # tsc --noEmit over src/
 bun run sync-version   # copy the version from package.json into manifest.json
 ```
 
 | Path | Contents |
 | --- | --- |
-| `src/main.js` | entry point — exports the plugin class |
-| `src/plugin.js` | the plugin class: font scanning, conversion, device identity, CSS generation |
-| `src/ui/settings-tab.js` | settings UI |
-| `src/ui/modals.js` | modal dialogs |
-| `src/i18n.js` | translations and locale helpers |
-| `src/constants.js` | default settings |
-| `src/font-metadata.js` | OpenType / TrueType name-table reader |
+| `src/main.ts` | entry point — exports the plugin class |
+| `src/plugin.ts` | the plugin class: font scanning, conversion, device identity, CSS generation |
+| `src/types.ts` | the data model: settings, fonts, presets, devices, MathJax metrics |
+| `src/ui/settings-tab.ts` | settings tab shell — lifecycle, shared helpers, section order |
+| `src/ui/settings/device-preset.ts` | device and preset management section |
+| `src/ui/settings/directory-application.ts` | directory configuration and font application section |
+| `src/ui/settings/font-status.ts` | font file status section |
+| `src/ui/settings/fallback.ts` | fallback and maintenance section |
+| `src/ui/settings/styles.ts` | settings stylesheet |
+| `src/ui/modals.ts` | modal dialogs |
+| `src/i18n.ts` | translations and locale helpers |
+| `src/constants.ts` | default settings |
+| `src/font-metadata.ts` | OpenType / TrueType name-table reader |
 
-`obsidian` is kept external, so the build needs no dependencies.
+The sources are TypeScript; Bun strips the types when bundling, so nothing is emitted for them at runtime. `obsidian` is kept external.
 
 **Releasing:** add a `CHANGELOG.md` section for the version, set it in `package.json`, run
 `bun run sync-version`, then push a tag. CI builds `main.js` from `src/` and publishes the

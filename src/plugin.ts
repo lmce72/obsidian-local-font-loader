@@ -3,12 +3,35 @@
  */
 import { Plugin, Notice, MarkdownRenderer, Platform } from 'obsidian';
 
-import { t } from './i18n.js';
-import { parseFontMetadata } from './font-metadata.js';
-import { DEFAULT_SETTINGS } from './constants.js';
-import FontManagerSettingTab from './ui/settings-tab.js';
+import { t } from './i18n';
+import { parseFontMetadata } from './font-metadata';
+import { DEFAULT_SETTINGS } from './constants';
+import type { PluginSettings, FontInfo, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, MathFontMetricSnapshot } from './types';
+import FontManagerSettingTab from './ui/settings-tab';
 
 export default class LocalFontLoaderPlugin extends Plugin {
+
+    /**
+     * Persisted settings — everything in data.json except the device-local identity.
+     *
+     * Declared with `declare` because Obsidian's Plugin base already declares `settings?: unknown`.
+     */
+    declare settings: PluginSettings;
+
+    /**
+     * This device's stable id.
+     *
+     * Deliberately not part of `settings`: that object syncs, and a synced identity would make
+     * every device believe it is the same one. It lives in device-local storage instead.
+     */
+    currentDeviceId!: string;
+
+    /** MathJax's original glyph metrics, kept so adoption can be undone. */
+    _mathFontSnapshot: MathFontMetricSnapshot | null = null;
+
+    _isScanning = false;
+    _isSaving = false;
+    _dataReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Log level control
     _logEnabled = false; // logging disabled by default
@@ -530,7 +553,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                   const defaultPreset = data.presets.find(p => p.id === 'default-preset');
                                   if (!defaultPreset) return true;
                                   // Check that the fonts object is valid (at least one non-empty field)
-                                  const fonts = defaultPreset.fonts || {};
+                                  const fonts = (defaultPreset.fonts || {}) as Record<string, string | undefined>;
                                   const hasValidFonts = Object.values(fonts).some(v => v && v.trim() !== '');
                                   return !hasValidFonts;
                               })();
@@ -591,7 +614,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Get the preset assigned to the current device
      * @returns {Object} The preset object
      */
-    _getDevicePreset() {
+    _getDevicePreset(): FontPreset | undefined {
         const deviceId = this.currentDeviceId;
 
         // Find the preset containing the current device
@@ -616,12 +639,12 @@ export default class LocalFontLoaderPlugin extends Plugin {
       * Returns the current device preset's font configuration context (unifies the Latin determination source across convert/apply methods).
      * @returns {{fontsConfig:Object, latinFontEnabled:boolean, latinFontScope:Object}}
      */
-    _getDeviceFontContext() {
+    _getDeviceFontContext(): { fontsConfig: PresetFonts; latinFontEnabled: boolean; latinFontScope: LatinFontScope } {
         const devicePreset = this._getDevicePreset();
         return {
-            fontsConfig: devicePreset?.fonts || {},
+            fontsConfig: devicePreset?.fonts || ({} as PresetFonts),
             latinFontEnabled: devicePreset?.latinFontEnabled || false,
-            latinFontScope: devicePreset?.latinFontScope || {},
+            latinFontScope: devicePreset?.latinFontScope || ({} as LatinFontScope),
         };
     }
 
@@ -666,7 +689,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} presetId - The preset ID
      */
     async deletePreset(presetId) {
-        const t = (key) => this.getTranslation(key);
+        // NOTE: this used to shadow `t` with `this.getTranslation(key)`, a method that does not
+        // exist on the plugin — deleting the default preset threw instead of showing its notice.
+        // The module-level `t` from i18n is what every other method here uses.
 
         // Do not allow deleting the default preset
         if (presetId === 'default-preset') {
@@ -1027,7 +1052,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      *
      * @returns {{platform: string, os: string, model: string, hostname: string}}
      */
-    _detectDeviceInfo() {
+    _detectDeviceInfo(): DeviceMeta {
         const ua = navigator.userAgent;
         const platform = Platform.isMobile ? 'mobile' : 'desktop';
         // Desktop-only; empty on mobile
@@ -1280,14 +1305,19 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!defaultPreset || defaultPreset.targetDevices.length > 0) {
                 // If the default preset is missing or not global, create a global default preset
                 console.warn('[LocalFontLoader] Default preset missing or corrupted, recreating...');
-                const newDefaultPreset = {
+                // Carry over whatever the nearest existing preset had. These three fields live on a
+                // preset, not on settings — reading them from `settings` always yielded undefined,
+                // so recreating the default preset silently reset them.
+                const carryOver = this.settings.presets?.[0];
+
+                const newDefaultPreset: FontPreset = {
                     id: 'default-preset',
                     name: 'Default',
                     targetDevices: [],
-                    fonts: this.settings.presets?.[0]?.fonts || DEFAULT_SETTINGS.presets[0].fonts,
-                    latinFontEnabled: this.settings.latinFontEnabled || false,
-                    latinFontScope: this.settings.latinFontScope || {},
-                    headingApplyToFileTitle: this.settings.headingApplyToFileTitle || false
+                    fonts: carryOver?.fonts || DEFAULT_SETTINGS.presets[0].fonts,
+                    latinFontEnabled: carryOver?.latinFontEnabled ?? false,
+                    latinFontScope: carryOver?.latinFontScope ?? { letters: true, numbers: true, punctuation: true, symbols: true },
+                    headingApplyToFileTitle: carryOver?.headingApplyToFileTitle ?? false
                 };
                 this.settings.presets.unshift(newDefaultPreset);
                 await this.saveSettings();
@@ -1409,7 +1439,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                     // If metadata exists, load by metadata
                     if (metadata && metadata.variants) {
-                        for (const [variantType, filename] of Object.entries(metadata.variants)) {
+                        for (const [variantType, filename] of Object.entries(metadata.variants as Record<string, string>)) {
                             const fontPath = `${fontDir}/${filename}`;
 
                             try {
@@ -1643,7 +1673,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 const entry = chars[code];
                 if (!Array.isArray(entry) || entry.length < 3) return;
 
-                const extra = entry[3] || {};
+                const extra = (entry[3] || {}) as { c?: string; ic?: number; sk?: number };
                 const codePoint = Number(code);
                 // The plugin's own content override draws the Unicode math-italic character for
                 // the italic alphabet, so those are measured at their own codepoint; everything
@@ -1966,7 +1996,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
 
             // Use the font config from the device's preset (new)
-            const fontsConfig = devicePreset.fonts || {};
+            const fontsConfig: PresetFonts = devicePreset.fonts || ({} as PresetFonts);
             const latinFontEnabled = devicePreset.latinFontEnabled || false;
             const latinFontScope = devicePreset.latinFontScope || {};
             const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle || false;

@@ -34,7 +34,7 @@ if (manifest.version !== version) {
 }
 
 // entry banner — the version a developer sees when opening the build input
-const bannerPath = 'src/main.js';
+const bannerPath = 'src/main.ts';
 const banner = read(bannerPath);
 const nextBanner = banner.replace(/@version\s+\d+\.\d+\.\d+/, `@version ${version}`);
 if (nextBanner !== banner) {

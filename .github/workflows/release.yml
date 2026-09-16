@@ -26,6 +26,13 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # A release that does not type-check should not be published.
+      - name: Type-check
+        run: bun run typecheck
+
       - name: Build plugin
         run: bun run build
 

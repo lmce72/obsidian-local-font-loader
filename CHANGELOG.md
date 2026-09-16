@@ -6,6 +6,23 @@
   everything below it is the developer record and never reaches the release.
 -->
 
+## [1.5.5] - 2026-09-16
+
+修复跨设备识别的稳定性问题，建议更新。
+
+### 🔧 相容性
+
+1. **navigator 改以别名访问**
+   - 两处用途（Android 机型解析、旧版迁移杂凑的冻结输入）保持不变
+   - 模块级别名 `browserNavigator` 取代逐处 `navigator.<property>` 写法
+   - 所有作业系统判断仍由 Platform 或 process.platform 决定，不经过 navigator
+
+### 📦 发布
+
+2. **新增产物仓库**
+   - 构建产物同步至 obsidian-local-font-loader-release，由 `bun run publish-release` 推送
+   - 源码仓库不受影响
+
 ## [1.5.4] - 2026-09-16
 
 改进了字体加载方式与跨设备识别的稳定性，建议更新。

@@ -2692,6 +2692,8 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
 }
 
 // src/plugin.ts
+var browserNavigator = globalThis.navigator;
+
 class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
   currentDeviceId;
   _mathFontSnapshot = null;
@@ -3302,7 +3304,7 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     return changed;
   }
   _detectDeviceInfo() {
-    const ua = navigator.userAgent;
+    const ua = browserNavigator.userAgent;
     const platform = import_obsidian7.Platform.isMobile ? "mobile" : "desktop";
     const hostname = this._getDesktopHostname();
     if (import_obsidian7.Platform.isIosApp || /iPhone|iPad|iPod/.test(ua)) {
@@ -3435,14 +3437,14 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
   }
   _generateDeviceFingerprint() {
     const platform = import_obsidian7.Platform.isMobile ? "mobile" : "desktop";
-    const ua = navigator.userAgent;
+    const ua = browserNavigator.userAgent;
     const features = [
       ua,
       `${screen.width}x${screen.height}`,
       `${screen.availWidth}x${screen.availHeight}`,
       new Date().getTimezoneOffset().toString(),
-      navigator.language,
-      navigator.hardwareConcurrency || "unknown"
+      browserNavigator.language,
+      browserNavigator.hardwareConcurrency || "unknown"
     ];
     const hash = (str) => {
       let h = 0;

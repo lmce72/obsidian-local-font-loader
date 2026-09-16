@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.5.2] - 2026-09-16
+
+### 🔧 工程化
+
+1. **轉為 Bun 構建專案**
+   - `main.js` 由手寫單檔改為構建產物，原始碼遷入 `src/`
+   - 提供 `bun run build` / `dev` / `typecheck` / `sync-version`
+   - 版本以 `package.json` 為唯一來源，同步寫入 `manifest.json` 與入口橫幅
+   - CI 於發布前安裝依賴、型別檢查、再從 `src/` 構建，確保產物與 tag 對應的原始碼一致
+
+2. **全量遷移至 TypeScript**
+   - 新增 `src/types.ts` 集中宣告持久化資料形狀：字型、家族、預設、裝置、數學度量
+   - 新增 `src/obsidian-extras.d.ts` 集中宣告 Obsidian 未公開但執行時存在的成員
+   - 型別檢查由 549 個錯誤收斂至 0
+
+3. **拆分臃腫的設定頁**
+   - `display()` 原為單一 1416 行方法，現拆為四個章節模組
+     （裝置與預設管理／目錄設定與字型應用／字型檔案狀態／備用操作）與一個樣式模組
+   - 設定頁主檔由 2110 行降至 754 行
+   - 樣式表改為按 id 守衛只注入一次，不再隨每次重渲染重建
+
+### 🐛 Bug 修復
+
+4. **修復刪除預設時拋錯**
+   - `deletePreset` 以 `this.getTranslation(key)` 覆蓋了 i18n 的 `t`，但外掛並無此方法
+   - 刪除預設時會拋 `TypeError`，而非顯示提示
+
+5. **修復重建預設時靜默丟失設定**
+   - `_ensureDevicePreset` 從 `settings` 讀取 `latinFontEnabled`、`latinFontScope`、
+     `headingApplyToFileTitle`，但這三個欄位屬於 preset，讀到的永遠是 undefined
+
+6. **修復快取目錄被當作字型家族掃描**
+   - 掃描時以硬編碼名稱 `B64Font` 排除快取目錄
+   - 快取目錄改名後（預設即位於來源目錄內）會被當成一個字型家族
+   - 現改為依 `b64OutputDir` 的設定名稱判斷
+
+7. **修復來源目錄不存在時掃描失敗**
+   - 改為按需建立目錄，而非讓 `list()` 拋錯
+
+### ✨ 變更
+
+8. **預設字型目錄改用獨立資料夾**
+   - `fontSourceDir`：`Components/Library/Fonts` → `Local-Fonts`
+   - `b64OutputDir`：`Components/Library/Fonts/B64Font` → `Local-Fonts/UsableCssFont`
+   - 外掛是給使用者用的，預設值不應寫入屬於 vault 其它部分的目錄
+   - 既有 `data.json` 不受影響：預設值僅在鍵缺失時生效
+
+9. **清除 i18n 中的重複鍵**
+   - 6 處重複鍵，其中 `usingGlobalPreset` 兩處文案不同，先出現的一條從未生效
+
 ## [1.5.1] - 2026-09-16
 
 ### 🐛 Bug 修復

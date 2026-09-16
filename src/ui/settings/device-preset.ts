@@ -5,7 +5,7 @@
  * each part can be read, reviewed and changed on its own.
  */
 
-import { Notice, Platform, Setting, setIcon, MarkdownRenderer } from 'obsidian';
+import { Notice, Platform, Setting, setIcon } from 'obsidian';
 
 import { t } from '../../i18n';
 import { TextInputModal, showConfirmDialog } from '../modals';

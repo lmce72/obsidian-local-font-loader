@@ -5,7 +5,7 @@
  * each part can be read, reviewed and changed on its own.
  */
 
-import { Notice, Setting, setIcon, MarkdownRenderer } from 'obsidian';
+import { Notice, setIcon, MarkdownRenderer } from 'obsidian';
 
 import { t } from '../../i18n';
 import { FontImportModal } from '../modals';

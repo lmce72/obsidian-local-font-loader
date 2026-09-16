@@ -2,7 +2,7 @@
  * Modal components — they replace the browser-native prompt/confirm, which would
  * steal window focus from Obsidian.
  */
-import { Modal, ConfirmationModal, Notice, Setting, setIcon } from 'obsidian';
+import { Modal, ConfirmationModal, setIcon } from 'obsidian';
 
 import { t } from '../i18n';
 
@@ -96,7 +96,7 @@ export class TextInputModal extends Modal {
         });
 
         // Auto-focus and select the text (for quick edits)
-        setTimeout(() => {
+        window.setTimeout(() => {
             inputEl.focus();
             inputEl.select();
         }, 10);

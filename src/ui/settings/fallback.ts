@@ -5,7 +5,7 @@
  * each part can be read, reviewed and changed on its own.
  */
 
-import { Notice, Setting, setIcon, MarkdownRenderer } from 'obsidian';
+import { Notice, Setting } from 'obsidian';
 
 import { t } from '../../i18n';
 import { showConfirmDialog } from '../modals';

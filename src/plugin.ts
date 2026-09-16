@@ -1,12 +1,12 @@
 /**
  * The plugin class: font scanning, conversion, device identity and CSS generation.
  */
-import { Plugin, Notice, MarkdownRenderer, Platform } from 'obsidian';
+import { Component, Plugin, Notice, MarkdownRenderer, Platform } from 'obsidian';
 
 import { t } from './i18n';
 import { parseFontMetadata } from './font-metadata';
 import { DEFAULT_SETTINGS } from './constants';
-import type { PluginSettings, FontInfo, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, MathFontMetricSnapshot } from './types';
+import type { PluginSettings, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, MathFontMetricSnapshot } from './types';
 import FontManagerSettingTab from './ui/settings-tab';
 
 export default class LocalFontLoaderPlugin extends Plugin {
@@ -31,7 +31,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     _isScanning = false;
     _isSaving = false;
-    _dataReloadTimer: ReturnType<typeof setTimeout> | null = null;
+    _dataReloadTimer: number | null = null;
 
     // Log level control
     _logEnabled = false; // logging disabled by default
@@ -64,9 +64,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
     _saveSettingsTimer = null;
     _debouncedSaveSettings() {
         if (this._saveSettingsTimer) {
-            clearTimeout(this._saveSettingsTimer);
+            window.clearTimeout(this._saveSettingsTimer);
         }
-        this._saveSettingsTimer = setTimeout(() => {
+        this._saveSettingsTimer = window.setTimeout(() => {
             this.saveData(this.settings);
             this._saveSettingsTimer = null;
         }, 300); // 300ms debounce delay
@@ -446,9 +446,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     this._log('[Local Font Loader] data.json modified, checking for content changes...');
                     // Delay the reload to avoid frequent triggers
                     if (this._dataReloadTimer) {
-                        clearTimeout(this._dataReloadTimer);
+                        window.clearTimeout(this._dataReloadTimer);
                     }
-                    this._dataReloadTimer = setTimeout(async () => {
+                    this._dataReloadTimer = window.setTimeout(async () => {
                         try {
                             // A save of our own is in flight: skip reloading to avoid rolling back newer in-memory settings with a stale disk snapshot
                             if (this._isSaving) {
@@ -524,13 +524,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // Clean up the debounce timer
         if (this._saveSettingsTimer) {
-            clearTimeout(this._saveSettingsTimer);
+            window.clearTimeout(this._saveSettingsTimer);
             this._saveSettingsTimer = null;
         }
 
         // Clean up the data reload debounce timer
         if (this._dataReloadTimer) {
-            clearTimeout(this._dataReloadTimer);
+            window.clearTimeout(this._dataReloadTimer);
             this._dataReloadTimer = null;
         }
 
@@ -1349,8 +1349,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 // Ensure the directory exists
                 try {
                     await this.app.vault.adapter.mkdir(targetDir);
-                } catch (err) {
-                    // Directory may already exist
+                } catch {
+                    // 目录已存在等预期情况，忽略
                 }
 
                 await this.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
@@ -1381,8 +1381,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // Create the source directory on first run instead of failing to list it.
             try {
                 await this.app.vault.adapter.mkdir(this.settings.fontSourceDir);
-            } catch (err) {
-                // Already present — the only expected failure here.
+            } catch {
+                // 目录已存在等预期情况，忽略
             }
 
             // Get all subfolders in font directory
@@ -1798,7 +1798,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const scratch = document.createElement('div');
             scratch.style.display = 'none';
             document.body.appendChild(scratch);
-            await MarkdownRenderer.render(this.app, '$x$', scratch, '', this);
+            // A throwaway Component: the plugin outlives every render and must not be used
+            // as one, or each render would leak into the plugin's own lifecycle.
+            const typesetComponent = new Component();
+            typesetComponent.load();
+            try {
+                await MarkdownRenderer.render(this.app, '$x$', scratch, '', typesetComponent);
+            } finally {
+                typesetComponent.unload();
+            }
             scratch.remove();
 
             return !!document.getElementById('MJX-CHTML-styles');
@@ -2393,7 +2401,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 // from them. Drawing the glyph is not enough on its own: without matching metrics
                 // the layout is computed for a different font, which is what breaks radicals and
                 // scripts. Both steps are one-off, so rendering afterwards costs nothing extra.
-                setTimeout(() => {
+                window.setTimeout(() => {
                     this._adoptMathFontMetrics(fontsConfig.math)
                         .then(adopted => {
                             if (!adopted) return;

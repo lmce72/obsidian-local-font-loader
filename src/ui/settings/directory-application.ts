@@ -260,7 +260,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                         // Refresh the UI to show the variant warning
                         // Use requestAnimationFrame so DOM ops run in the next frame, avoiding double renders
-                        requestAnimationFrame(() => {
+                        window.requestAnimationFrame(() => {
                             tab.display();
                         });
                     });
@@ -287,7 +287,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                         const warningMd = `> [!warning] ${t('incompleteVariantTitle')}
 > ${t('incompleteVariantBody', { fontFamily: fontForVariantCheck, variantCount: variants.length, variantList })}`;
 
-                        MarkdownRenderer.render(tab.app, warningMd, warningCallout, '', tab.plugin);
+                        tab._renderMarkdown(warningCallout, warningMd);
                     }
                     // Non-Latin fonts: no warning needed
                 }
@@ -299,7 +299,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                     const infoMd = `> [!info] ${t('monospaceRequirement')}
 > ${t('monospaceRequirementBody')}`;
 
-                    MarkdownRenderer.render(tab.app, infoMd, infoCallout, '', tab.plugin);
+                    tab._renderMarkdown(infoCallout, infoMd);
                 }
 
                 // Math Font: must be specialized math font
@@ -310,7 +310,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                         const warningMd = `> [!warning] ${t('mathFontNotMathTitle')}
 > ${t('mathFontNotMathBody', { fontFamily: selectedFont, missing: (mathVerdict.missing || []).join(', ') })}`;
 
-                        MarkdownRenderer.render(tab.app, warningMd, infoCallout, '', tab.plugin);
+                        tab._renderMarkdown(infoCallout, warningMd);
                     } else if (mathVerdict && mathVerdict.status === 'mismatch') {
                         // List the offending metrics, so the warning says which measurements failed
                         // rather than just asserting incompatibility.
@@ -323,12 +323,12 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 >
 > ${detail}`;
 
-                        MarkdownRenderer.render(tab.app, warningMd, infoCallout, '', tab.plugin);
+                        tab._renderMarkdown(infoCallout, warningMd);
                     } else {
                         const infoMd = `> [!info] ${t('mathFontRequirement')}
 > ${t('mathFontRequirementBody')}`;
 
-                        MarkdownRenderer.render(tab.app, infoMd, infoCallout, '', tab.plugin);
+                        tab._renderMarkdown(infoCallout, infoMd);
                     }
                 }
             }

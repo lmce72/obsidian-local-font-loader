@@ -1,13 +1,11 @@
 /**
  * Settings UI for font management, presets and device assignment.
  */
-import { PluginSettingTab, Setting, Modal, Notice, MarkdownRenderer, Platform, TextComponent, setIcon } from 'obsidian';
+import { Component, PluginSettingTab, Setting, Notice, MarkdownRenderer, TextComponent, setIcon } from 'obsidian';
 
 import { t, isLatinScriptLocale } from '../i18n';
-import { TextInputModal, FontImportModal, showConfirmDialog } from './modals';
+import { showConfirmDialog } from './modals';
 import type LocalFontLoaderPlugin from '../plugin';
-import type { PresetFonts } from '../types';
-import { injectPresetStyles } from './settings/styles';
 import { renderDeviceAndPresetSection } from './settings/device-preset';
 import { renderDirectoryAndApplicationSection } from './settings/directory-application';
 import { renderFontStatusSection } from './settings/font-status';
@@ -17,11 +15,21 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** The plugin this tab configures. `import type` keeps this free of a runtime cycle. */
     plugin: LocalFontLoaderPlugin;
 
+    /**
+     * Components backing MarkdownRenderer calls.
+     *
+     * MarkdownRenderer needs a Component to own what it creates, and the plugin itself is the
+     * wrong owner: its lifecycle spans the whole session, so everything rendered here would
+     * stay alive after the settings tab is gone. These are created per render and unloaded
+     * with the rest of the tab state.
+     */
+    _markdownComponents: Component[] = [];
+
     /** Listeners registered through _addEventListener, unbound by _cleanupEventListeners. */
     _eventListeners: Array<{ element: HTMLElement; event: string; handler: EventListener; options?: AddEventListenerOptions }> = [];
 
     /** Debounce handle for display(), which is requested repeatedly while typing. */
-    _displayDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    _displayDebounceTimer: number | null = null;
     _displayDebounceDelay = 300;
 
     /** Whether the tab is on screen — guards re-rendering while it is hidden. */
@@ -70,6 +78,22 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             element.removeEventListener(event, handler, options);
         });
         this._eventListeners = [];
+
+        this._markdownComponents.forEach(component => component.unload());
+        this._markdownComponents = [];
+    }
+
+    /**
+     * Renders Markdown into an element under a component scoped to this render.
+     *
+     * @param el - Where to render
+     * @param markdown - The Markdown source
+     */
+    _renderMarkdown(el: HTMLElement, markdown: string): void {
+        const component = new Component();
+        component.load();
+        this._markdownComponents.push(component);
+        MarkdownRenderer.render(this.app, markdown, el, '', component);
     }
 
     /**
@@ -78,9 +102,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
      */
     _debouncedDisplay() {
         if (this._displayDebounceTimer) {
-            clearTimeout(this._displayDebounceTimer);
+            window.clearTimeout(this._displayDebounceTimer);
         }
-        this._displayDebounceTimer = setTimeout(() => {
+        this._displayDebounceTimer = window.setTimeout(() => {
             this.display();
             this._displayDebounceTimer = null;
         }, this._displayDebounceDelay);
@@ -143,7 +167,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: t('pluginName') });
+        new Setting(containerEl).setName(t('pluginName')).setHeading();
 
         // ========================================
         // Override System Settings Info
@@ -168,8 +192,6 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         warningContent.createEl('p', { text: t('performanceWarningContent') });
 
         // ========================================
-        injectPresetStyles();
-
         // Each section owns its own module; display() only decides the order.
         renderDeviceAndPresetSection(this, containerEl);
         renderDirectoryAndApplicationSection(this, containerEl);
@@ -179,8 +201,8 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         // Restore the scroll position (after all UI is built)
         if (scrollParent && savedScrollTop > 0) {
             // Use double requestAnimationFrame to ensure the DOM is fully rendered
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
                     scrollParent.scrollTop = savedScrollTop;
                 });
             });
@@ -201,13 +223,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         }
 
         // Use Obsidian's native rendering engine
-        MarkdownRenderer.render(
-            this.app,
-            exampleMarkdown,
-            exampleCalloutEl,
-            '',
-            this.plugin
-        );
+        this._renderMarkdown(exampleCalloutEl, exampleMarkdown);
 
         // Toggle switch
         new Setting(containerEl)
@@ -282,7 +298,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
                         // Refresh the UI to show the warning
                         // Use requestAnimationFrame so DOM ops run in the next frame, avoiding double renders
-                        requestAnimationFrame(() => {
+                        window.requestAnimationFrame(() => {
                             this.display();
                         });
                     });
@@ -312,13 +328,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                     const warningMarkdown = `> [!warning] ${t('missingVariantTitle')}
 > ${t('missingVariantBody', { latinFont, missingList })}`;
 
-                    MarkdownRenderer.render(
-                        this.app,
-                        warningMarkdown,
-                        warningCalloutEl,
-                        '',
-                        this.plugin
-                    );
+                    this._renderMarkdown(warningCalloutEl, warningMarkdown);
                 }
             }
 
@@ -634,8 +644,8 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             if (font.b64Path) {
                 try {
                     await this.plugin.app.vault.adapter.remove(font.b64Path);
-                } catch (err) {
-                    // Cache may not exist
+                } catch {
+                    // 目录已存在等预期情况，忽略
                 }
             }
 
@@ -708,8 +718,8 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                     if (font.hasB64 && font.b64Path) {
                         try {
                             await this.app.vault.adapter.remove(font.b64Path);
-                        } catch (error) {
-                            // Ignore cache deletion errors
+                        } catch {
+                            // 目录已存在等预期情况，忽略
                         }
                     }
 
@@ -743,7 +753,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         this._isVisible = false;
         // Clear the debounced-render timer so display() is not re-triggered while hidden
         if (this._displayDebounceTimer) {
-            clearTimeout(this._displayDebounceTimer);
+            window.clearTimeout(this._displayDebounceTimer);
             this._displayDebounceTimer = null;
         }
         this._cleanupEventListeners();

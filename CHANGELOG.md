@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.1] - 2026-09-16
+
+### 🐛 Bug 修復
+
+1. **修復數學字體度量未真正套用**
+   - `@font-face` 宣告了不等於已載入：瀏覽器要等到有元素實際用它繪製時才會去取得字體檔
+   - 度量檢測發生在這個載入之前，會被靜默跳過，於是在部分環境下整個度量修正形同未執行
+   - 現在先強制載入字體面再進行測量，並於載入後複核，確保量到的不是回退字體
+
+2. **標籤頁頭部套用 UI 字體**
+   - 納入 `.view-header-title-container`、`.view-header-title-parent`、
+     `.view-header-breadcrumb`、`.view-header-breadcrumb-separator`、`.view-header-title`
+   - 該區塊顯示目前筆記的資料夾路徑與標題，屬於介面外殼而非文件內容
+
 ## [1.5.0] - 2026-09-15
 
 ### ✨ 新增

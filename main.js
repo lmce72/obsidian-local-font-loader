@@ -11,7 +11,7 @@
  * - Command Palette integration
  *
  * @author CoreVortex
- * @version 1.5.0
+ * @version 1.5.1
  * @license MIT
  */
 
@@ -1606,6 +1606,15 @@ class LocalFontLoaderPlugin extends Plugin {
             '.tree-item-inner',
             '.sidebar',
             '.sidebar-content',
+            // Tab header: the breadcrumb path and the editable note title
+            // The header carries the file path and the inline title of the open note, and is
+            // chrome rather than document content, so it belongs to the UI font. Each level is
+            // listed because Obsidian styles them individually.
+            '.view-header-title-container',
+            '.view-header-title-parent',
+            '.view-header-breadcrumb',
+            '.view-header-breadcrumb-separator',
+            '.view-header-title',
             // In-note chrome
             // The note title and the properties panel are chrome, not document content: the
             // title is also where Obsidian puts file-level controls, and the properties panel
@@ -2973,16 +2982,28 @@ class LocalFontLoaderPlugin extends Plugin {
      * @param {string} familyName - The configured math font family
      * @returns {boolean} True when metrics were adopted
      */
-    _adoptMathFontMetrics(familyName) {
+    async _adoptMathFontMetrics(familyName) {
         const mathJax = window.MathJax;
         if (!familyName || !mathJax || !mathJax.config || !mathJax.config.chtml) {
             return false;
         }
         const fontData = mathJax.config.chtml.font;
-        if (!fontData || !fontData.variant) {
+        if (!fontData || !fontData.variant || !document.fonts) {
             return false;
         }
-        if (!document.fonts || !document.fonts.check(`16px "${familyName}"`)) {
+
+        // A declared @font-face is not fetched until something actually draws with it, and until
+        // then fonts.check() reports false. Measured before the load, every glyph would fall back
+        // to some other face and the table would be filled with the wrong metrics — so the load
+        // is forced first, and the check afterwards confirms it really landed.
+        try {
+            await document.fonts.load(`16px "${familyName}"`);
+        } catch (error) {
+            console.error(`[Local Font Loader] Could not load math font "${familyName}":`, error);
+        }
+
+        if (!document.fonts.check(`16px "${familyName}"`)) {
+            this._log(`[Local Font Loader] Math font "${familyName}" is not loaded; metrics not adopted`);
             return false;
         }
 
@@ -3730,16 +3751,15 @@ class LocalFontLoaderPlugin extends Plugin {
                 // from them. Drawing the glyph is not enough on its own: without matching metrics
                 // the layout is computed for a different font, which is what breaks radicals and
                 // scripts. Both steps are one-off, so rendering afterwards costs nothing extra.
-                // 采纳字体自身的度量，再让 MathJax 依此重建几何。只换绘制字体是不够的 ——
-                // 度量不匹配时排版仍按另一套字体计算，根号与上下标因此错位。两步均为一次性开销。
                 setTimeout(() => {
-                    try {
-                        if (this._adoptMathFontMetrics(fontsConfig.math)) {
-                            this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
-                        }
-                    } catch (error) {
-                        console.error('[Local Font Loader] Failed to adopt math font metrics:', error);
-                    }
+                    this._adoptMathFontMetrics(fontsConfig.math)
+                        .then(adopted => {
+                            if (!adopted) return;
+                            return this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
+                        })
+                        .catch(error => {
+                            console.error('[Local Font Loader] Failed to adopt math font metrics:', error);
+                        });
                 }, 300);
             }
 

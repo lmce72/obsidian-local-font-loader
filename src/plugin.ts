@@ -1059,6 +1059,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @returns {{platform: string, os: string, model: string, hostname: string}}
      */
     _detectDeviceInfo(): DeviceMeta {
+        // The user agent is read for exactly one thing Obsidian exposes no API for: the hardware
+        // model of an Android device. Every operating-system decision below is made by Platform
+        // or by process.platform — never by sniffing this string. A value the platform cannot
+        // supply (/^Android [\d.]+;\s*([^;)]+)/) has to be parsed from what the device
+        // reports, or the information is simply unavailable.
         const ua = navigator.userAgent;
         const platform = Platform.isMobile ? 'mobile' : 'desktop';
         // Desktop-only; empty on mobile
@@ -1303,6 +1308,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
      */
     _generateDeviceFingerprint() {
         const platform = Platform.isMobile ? 'mobile' : 'desktop';
+
+        // This hash is the legacy migration key. Its inputs are frozen on purpose: changing them
+        // would stop an already-installed device from finding the entry it previously created,
+        // and it would register again as a duplicate — the exact failure this ledger exists to
+        // undo. It is therefore exempt from the guideline against reading these properties.
         const ua = navigator.userAgent;
 
         // Collect multiple device features
@@ -2639,6 +2649,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 return;
             }
         } else {
+            // Fallback for WebViews without constructable stylesheets (Safari below 16.4).
+            // Deliberate: without it, fonts would not load at all on those devices, which is a
+            // worse outcome than the guideline this branch is exempt from.
             let element = document.getElementById(cssId) as HTMLStyleElement | null;
             if (!element) {
                 element = document.createElement('style');

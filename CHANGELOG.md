@@ -6,6 +6,28 @@
   everything below it is the developer record and never reaches the release.
 -->
 
+## [1.5.4] - 2026-09-16
+
+改进了字体加载方式与跨设备识别的稳定性，建议更新。
+
+### 🔧 相容性
+
+1. **產生的樣式表改用可構造樣式表**
+   - `applyCss` 改以 `document.adoptedStyleSheets` 套用執行時產生的字形 CSS
+   - 不再建立 `<style>` 元素；未實作該 API 的 WebView 仍走元素回退路徑
+   - 按 id 記錄已套用的樣式表，避免重複套用與洩漏
+
+### 📝 審核說明
+
+2. **三處刻意保留的例外，已就地註明理由**
+   - `_detectDeviceInfo`：讀取 User-Agent 僅用於解析 **Android 機型**，
+     Obsidian 未提供此 API，UA 是唯一來源；所有作業系統判斷皆由 `Platform`
+     或 `process.platform` 決定，不經 UA
+   - `_generateDeviceFingerprint`：此雜湊為**舊版遷移鍵**，輸入值刻意凍結。
+     更動會使已安裝裝置找不到自己先前建立的條目，重新註冊成重複裝置
+   - `applyCss`：`adoptedStyleSheets` 需 Safari 16.4+，回退路徑供舊 WebView 使用，
+     否則那些裝置上字型將完全無法載入
+
 ## [1.5.3] - 2026-09-16
 
 提升与 Obsidian 的兼容性（弹出窗口、社区插件审核要求），并修复若干问题，建议更新。

@@ -2695,6 +2695,8 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
 class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
   currentDeviceId;
   _mathFontSnapshot = null;
+  _adoptedSheets = new Map;
+  _appliedCss = new Map;
   _isScanning = false;
   _isSaving = false;
   _dataReloadTimer = null;
@@ -4368,27 +4370,52 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     return { css, fontFamily, variantType, fontWeight, fontStyle };
   }
   applyCss(css, cssId) {
-    const existingStyle = document.getElementById(cssId);
-    if (existingStyle && existingStyle.textContent === css) {
+    if (this._appliedCss.get(cssId) === css) {
       return;
     }
-    if (existingStyle) {
-      existingStyle.remove();
+    if (!css) {
+      this._removeGeneratedStyles(cssId);
+      return;
     }
-    if (css) {
-      const style = document.createElement("style");
-      style.id = cssId;
-      style.textContent = css;
-      document.head.appendChild(style);
+    if (typeof CSSStyleSheet === "function" && "replaceSync" in CSSStyleSheet.prototype && "adoptedStyleSheets" in document) {
+      let sheet = this._adoptedSheets.get(cssId);
+      if (!sheet) {
+        sheet = new CSSStyleSheet;
+        this._adoptedSheets.set(cssId, sheet);
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+      }
+      try {
+        sheet.replaceSync(css);
+      } catch (error) {
+        console.error(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
+        return;
+      }
+    } else {
+      let element = document.getElementById(cssId);
+      if (!element) {
+        element = document.createElement("style");
+        element.id = cssId;
+        document.head.appendChild(element);
+      }
+      element.textContent = css;
     }
+    this._appliedCss.set(cssId, css);
+  }
+  _removeGeneratedStyles(cssId) {
+    const sheet = this._adoptedSheets.get(cssId);
+    if (sheet) {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== sheet);
+      this._adoptedSheets.delete(cssId);
+    }
+    const element = document.getElementById(cssId);
+    if (element) {
+      element.remove();
+    }
+    this._appliedCss.delete(cssId);
   }
   removeFontStyles() {
-    const faceStyle = document.getElementById("local-font-loader-faces");
-    const varsStyle = document.getElementById("local-font-loader-vars");
-    if (faceStyle)
-      faceStyle.remove();
-    if (varsStyle)
-      varsStyle.remove();
+    this._removeGeneratedStyles("local-font-loader-faces");
+    this._removeGeneratedStyles("local-font-loader-vars");
     this._restoreMathFontMetrics();
   }
   async clearCache() {

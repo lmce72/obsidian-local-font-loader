@@ -29,6 +29,12 @@ export default class LocalFontLoaderPlugin extends Plugin {
     /** MathJax's original glyph metrics, kept so adoption can be undone. */
     _mathFontSnapshot: MathFontMetricSnapshot | null = null;
 
+    /** Stylesheets applied through applyCss, keyed by id so re-applying replaces them. */
+    _adoptedSheets = new Map<string, CSSStyleSheet>();
+
+    /** The CSS text last applied per id, to skip no-op updates. */
+    _appliedCss = new Map<string, string>();
+
     _isScanning = false;
     _isSaving = false;
     _dataReloadTimer: number | null = null;
@@ -2596,31 +2602,78 @@ export default class LocalFontLoaderPlugin extends Plugin {
         return { css, fontFamily, variantType, fontWeight, fontStyle };
     }
 
-    applyCss(css, cssId) {
-        const existingStyle = document.getElementById(cssId);
-
-        // Skip the update if the content is identical
-        if (existingStyle && existingStyle.textContent === css) {
+    /**
+     * Applies a generated stylesheet.
+     *
+     * The CSS here is built at runtime from the user's own font files (their `@font-face` rules
+     * and the variables derived from their presets), so it cannot live in a static `styles.css`
+     * — which is what the plugin guidelines otherwise ask for. A constructable stylesheet is
+     * used instead of appending a `<style>` element, and the element path is kept only as a
+     * fallback for WebViews that do not implement it.
+     *
+     * @param css - The CSS text; an empty value removes the stylesheet
+     * @param cssId - A stable id, so repeated applies replace rather than accumulate
+     */
+    applyCss(css: string, cssId: string): void {
+        if (this._appliedCss.get(cssId) === css) {
             return;
         }
 
-        if (existingStyle) {
-            existingStyle.remove();
+        if (!css) {
+            this._removeGeneratedStyles(cssId);
+            return;
         }
 
-        if (css) {
-            const style = document.createElement('style');
-            style.id = cssId;
-            style.textContent = css;  // use textContent instead of innerHTML
-            document.head.appendChild(style);
+        if (typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype
+            && 'adoptedStyleSheets' in document) {
+            let sheet = this._adoptedSheets.get(cssId);
+            if (!sheet) {
+                sheet = new CSSStyleSheet();
+                this._adoptedSheets.set(cssId, sheet);
+                document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            }
+            try {
+                sheet.replaceSync(css);
+            } catch (error) {
+                console.error(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
+                return;
+            }
+        } else {
+            let element = document.getElementById(cssId) as HTMLStyleElement | null;
+            if (!element) {
+                element = document.createElement('style');
+                element.id = cssId;
+                document.head.appendChild(element);
+            }
+            element.textContent = css;
         }
+
+        this._appliedCss.set(cssId, css);
+    }
+
+    /**
+     * Removes one generated stylesheet, whichever way it was applied.
+     *
+     * @param cssId - The id the stylesheet was applied under
+     */
+    _removeGeneratedStyles(cssId: string): void {
+        const sheet = this._adoptedSheets.get(cssId);
+        if (sheet) {
+            document.adoptedStyleSheets = document.adoptedStyleSheets.filter(s => s !== sheet);
+            this._adoptedSheets.delete(cssId);
+        }
+
+        const element = document.getElementById(cssId);
+        if (element) {
+            element.remove();
+        }
+
+        this._appliedCss.delete(cssId);
     }
 
     removeFontStyles() {
-        const faceStyle = document.getElementById('local-font-loader-faces');
-        const varsStyle = document.getElementById('local-font-loader-vars');
-        if (faceStyle) faceStyle.remove();
-        if (varsStyle) varsStyle.remove();
+        this._removeGeneratedStyles('local-font-loader-faces');
+        this._removeGeneratedStyles('local-font-loader-vars');
 
         // Hand MathJax its own metrics back. They live on a global object shared with every other
         // renderer, so leaving them adopted after the plugin stops managing the font would keep

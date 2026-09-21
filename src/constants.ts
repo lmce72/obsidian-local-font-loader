@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     deviceFingerprints: {},   // Legacy fingerprint → deviceId (migration ledger only)
     deviceNameMap: {},        // { deviceId: displayName }
     deviceMeta: {},           // { deviceId: { platform, os, model, hostname } }
+    deviceAliases: {},        // { collapsed deviceId: surviving deviceId } — see the repair pass
 
     // Global settings
     latinFontForUI: false,    // Apply Latin font to UI elements (global)

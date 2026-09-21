@@ -122,22 +122,14 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
             presetInfoContent.createEl('p', {
                 text: `${t('presetId')}: ${activePreset.id}`,
-                attr: { style: 'margin: 0; font-family: var(--font-monospace); color: var(--text-muted);' }
+                cls: 'lfl-preset-id'
             });
 
             // If it is the global preset, show a notice
             if (activePreset.id === 'default-preset' && activePreset.targetDevices.length === 0) {
-                const warningContainer = presetInfoContent.createEl('p', {
-                    attr: {
-                        style: 'margin: 8px 0 0 0; color: var(--text-warning); display: flex; align-items: center; gap: 6px;'
-                    }
-                });
-                const warningIcon = warningContainer.createSpan({ cls: 'warning-icon' });
+                const warningContainer = presetInfoContent.createEl('p', { cls: 'lfl-global-warning' });
+                const warningIcon = warningContainer.createSpan({ cls: 'lfl-warning-icon' });
                 setIcon(warningIcon, 'alert-triangle');
-                warningIcon.setCssStyles({
-                    display: 'inline-flex',
-                    flexShrink: '0',
-                });
                 warningContainer.createSpan({ text: t('usingGlobalPreset') });
             }
         }
@@ -191,10 +183,6 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             if (selectedFont && !fontExists) {
                 const warningIcon = settingItem.nameEl.createSpan({ cls: 'font-missing-icon' });
                 setIcon(warningIcon, 'x');
-                warningIcon.setCssStyles({
-                    color: 'var(--text-error)',
-                    marginLeft: '8px',
-                });
                 warningIcon.setAttribute('aria-label', t('fontNotFound'));
             }
 
@@ -207,10 +195,6 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             if (mathVerdict && (mathVerdict.status === 'mismatch' || mathVerdict.status === 'notMathFont')) {
                 const mathWarningIcon = settingItem.nameEl.createSpan({ cls: 'font-incompatible-icon' });
                 setIcon(mathWarningIcon, 'alert-triangle');
-                mathWarningIcon.setCssStyles({
-                    color: 'var(--text-warning)',
-                    marginLeft: '8px',
-                });
                 mathWarningIcon.setAttribute('aria-label', t(
                     mathVerdict.status === 'notMathFont' ? 'mathFontNotMathTitle' : 'mathFontMismatchTitle'
                 ));
@@ -288,7 +272,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                     if (isLatin) {
                         // Latin font: show full warning with non-Latin hint inside callout
-                        const warningCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+                        const warningCallout = containerEl.createDiv({ cls: 'lfl-callout' });
 
                         const warningMd = `> [!warning] ${t('incompleteVariantTitle')}
 > ${t('incompleteVariantBody', { fontFamily: fontForVariantCheck, variantCount: variants.length, variantList })}`;
@@ -300,7 +284,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                 // Monospace Font: must be monospace
                 if (fontType.key === 'monospace') {
-                    const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+                    const infoCallout = containerEl.createDiv({ cls: 'lfl-callout' });
 
                     const infoMd = `> [!info] ${t('monospaceRequirement')}
 > ${t('monospaceRequirementBody')}`;
@@ -310,7 +294,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                 // Math Font: must be specialized math font
                 if (fontType.key === 'math') {
-                    const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+                    const infoCallout = containerEl.createDiv({ cls: 'lfl-callout' });
 
                     if (mathVerdict && mathVerdict.status === 'notMathFont') {
                         const warningMd = `> [!warning] ${t('mathFontNotMathTitle')}

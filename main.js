@@ -128,6 +128,9 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     importing: "Importing...",
     importError: "⚠️ Import failed",
     importFailedError: "⚠️ Import failed: {error}",
+    importDropTitle: "Drag font files here",
+    importDropSubtitle: "Or click to choose files",
+    importDropHint: "Supports .ttf, .otf, .woff, .woff2",
     punctuationDesc: ".,!?;: and other common punctuation",
     symbolsDesc: "@#$%&* and other special characters",
     fontsApplied: "✓ Fonts applied",
@@ -192,6 +195,7 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
 
 {0}`,
     cleanupDevicesDone: "Cleaned up {0} device(s)",
+    deviceListRepaired: "Merged {0} duplicated device entr(y/ies) in the device list",
     currentDeviceName: "Current Device Name",
     deviceId: "Device ID",
     deviceNamePlaceholder: "e.g., Desktop-Mac, Mobile-Android",
@@ -329,6 +333,9 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     importing: "导入中...",
     importError: "⚠️ 导入失败",
     importFailedError: "⚠️ 导入失败: {error}",
+    importDropTitle: "拖拽字体文件到此处",
+    importDropSubtitle: "或点击选择文件",
+    importDropHint: "支持 .ttf, .otf, .woff, .woff2 格式",
     punctuationDesc: ".,!?;: 等常用标点",
     symbolsDesc: "@#$%&* 等特殊字符",
     fontsApplied: "✓ 字体已应用",
@@ -393,6 +400,7 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
 
 {0}`,
     cleanupDevicesDone: "已清理 {0} 台设备",
+    deviceListRepaired: "设备列表已自我修复：合并 {0} 组重复设备",
     currentDeviceName: "当前设备名称",
     deviceId: "设备 ID",
     deviceNamePlaceholder: "例如：桌面-Mac、移动-安卓",
@@ -854,6 +862,9 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     importing: "匯入中...",
     importError: "⚠️ 匯入失敗",
     importFailedError: "⚠️ 匯入失敗: {error}",
+    importDropTitle: "拖拽字型檔案到此處",
+    importDropSubtitle: "或點擊選擇檔案",
+    importDropHint: "支援 .ttf, .otf, .woff, .woff2 格式",
     punctuationDesc: ".,!?;: 等常用標點",
     symbolsDesc: "@#$%&* 等特殊字元",
     fontsApplied: "✓ 字型已套用",
@@ -919,6 +930,7 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
 
 {0}`,
     cleanupDevicesDone: "已清理 {0} 台裝置",
+    deviceListRepaired: "裝置列表已自我修復：合併 {0} 組重複裝置",
     currentDeviceName: "目前裝置名稱",
     deviceId: "裝置 ID",
     deviceNamePlaceholder: "例如：桌面-Mac、行動-安卓",
@@ -1098,6 +1110,7 @@ var DEFAULT_SETTINGS = {
   deviceFingerprints: {},
   deviceNameMap: {},
   deviceMeta: {},
+  deviceAliases: {},
   latinFontForUI: false,
   presets: [
     {
@@ -1124,6 +1137,207 @@ var DEFAULT_SETTINGS = {
   ]
 };
 
+// src/device-repair.ts
+var DEVICE_STALE_MS = 14 * 24 * 60 * 60 * 1000;
+var SUCCESSION_MIN_GAP_MS = 24 * 60 * 60 * 1000;
+var SUCCESSION_MAX_GAP_MS = 30 * 24 * 60 * 60 * 1000;
+function readLifetime(meta) {
+  const parse = (value) => {
+    if (!value) {
+      return null;
+    }
+    const time = Date.parse(value);
+    return Number.isNaN(time) ? null : time;
+  };
+  return {
+    first: parse(meta && meta.firstSeen),
+    last: parse(meta && meta.lastSeen)
+  };
+}
+function describeDeviceGroupHistory(ids, meta, now) {
+  const spans = ids.map((id) => readLifetime(meta[id]));
+  for (let i = 0;i < spans.length; i++) {
+    for (let j = i + 1;j < spans.length; j++) {
+      const a = spans[i];
+      const b = spans[j];
+      if (a.first === null || a.last === null || b.first === null || b.last === null) {
+        continue;
+      }
+      if (a.first <= b.last && b.first <= a.last) {
+        return "coexisted";
+      }
+    }
+  }
+  if (spans.some((span) => span.first === null || span.last === null)) {
+    return "unknown";
+  }
+  const ordered = spans.slice().sort((a, b) => a.first - b.first);
+  const newest = ordered[ordered.length - 1];
+  if (!Number.isFinite(now) || now - newest.last > DEVICE_STALE_MS) {
+    return "unknown";
+  }
+  for (let i = 0;i < ordered.length - 1; i++) {
+    const gap = ordered[i + 1].first - ordered[i].last;
+    if (gap < SUCCESSION_MIN_GAP_MS || gap > SUCCESSION_MAX_GAP_MS) {
+      return "unknown";
+    }
+  }
+  return "succession";
+}
+function resolveDeviceAlias(deviceId, aliases) {
+  if (!aliases) {
+    return deviceId;
+  }
+  let current = deviceId;
+  const seen = new Set([deviceId]);
+  while (aliases[current] && !seen.has(aliases[current])) {
+    current = aliases[current];
+    seen.add(current);
+  }
+  return current;
+}
+function isGeneratedDeviceName(name, meta) {
+  if (!name) {
+    return false;
+  }
+  if (/^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|iPadOS|Android|Unknown)$/.test(name)) {
+    return true;
+  }
+  if (meta && (name === meta.hostname || name === meta.model)) {
+    return true;
+  }
+  return false;
+}
+function deviceIdentityKey(meta) {
+  if (!meta || meta.platform !== "mobile" && meta.platform !== "desktop") {
+    return null;
+  }
+  const hostname = String(meta.hostname || "").trim().toLowerCase();
+  if (hostname) {
+    return `${meta.platform}|${meta.os}|host:${hostname}`;
+  }
+  const model = String(meta.model || "").trim().toLowerCase();
+  if (!model || meta.os === "ios" || meta.os === "ipados") {
+    return null;
+  }
+  return `${meta.platform}|${meta.os}|model:${model}`;
+}
+function findDuplicateDeviceGroups(meta, aliases = {}) {
+  const groups = new Map;
+  Object.keys(meta || {}).forEach((id) => {
+    if (aliases[id]) {
+      return;
+    }
+    const key = deviceIdentityKey(meta[id]);
+    if (!key) {
+      return;
+    }
+    const ids = groups.get(key);
+    if (ids) {
+      ids.push(id);
+    } else {
+      groups.set(key, [id]);
+    }
+  });
+  const duplicates = [];
+  groups.forEach((ids, key) => {
+    if (ids.length > 1) {
+      duplicates.push({ key, ids: ids.slice().sort() });
+    }
+  });
+  return duplicates;
+}
+function pickCanonicalId(ids, nameMap, meta) {
+  const seenAt = (id) => {
+    const stamp = meta[id] && meta[id].lastSeen;
+    const time = stamp ? Date.parse(stamp) : Number.NaN;
+    return Number.isNaN(time) ? -1 : time;
+  };
+  const live = ids.filter((id) => seenAt(id) >= 0);
+  if (live.length > 0) {
+    const mostRecent = live.reduce((best, id) => seenAt(id) > seenAt(best) ? id : best);
+    if (live.length === 1 || live.some((id) => seenAt(id) !== seenAt(mostRecent))) {
+      return mostRecent;
+    }
+  }
+  const userNamed = ids.find((id) => nameMap[id] && !isGeneratedDeviceName(nameMap[id], meta[id]));
+  return userNamed || ids[0];
+}
+function pickName(canonicalId, ids, nameMap) {
+  if (nameMap[canonicalId]) {
+    return nameMap[canonicalId];
+  }
+  for (const id of ids) {
+    if (nameMap[id]) {
+      return nameMap[id];
+    }
+  }
+  return;
+}
+function pickMeta(canonicalId, ids, meta) {
+  const source = meta[canonicalId] || ids.map((id) => meta[id]).find(Boolean);
+  if (!source) {
+    return;
+  }
+  const earliest = ids.map((id) => meta[id] && meta[id].firstSeen).filter(Boolean).sort()[0];
+  const latest = ids.map((id) => meta[id] && meta[id].lastSeen).filter(Boolean).sort().pop();
+  return {
+    ...source,
+    ...earliest ? { firstSeen: earliest } : {},
+    ...latest ? { lastSeen: latest } : {}
+  };
+}
+function planDeviceRepair(input) {
+  const nameMap = input.nameMap || {};
+  const meta = input.meta || {};
+  const previous = input.aliases || {};
+  const aliases = {};
+  Object.keys(previous).forEach((id) => {
+    const target = resolveDeviceAlias(id, previous);
+    if (target !== id) {
+      aliases[id] = target;
+    }
+  });
+  const allGroups = findDuplicateDeviceGroups(meta, aliases);
+  const mergeable = allGroups.filter((group) => !group.key.includes("|model:"));
+  const ambiguous = allGroups.filter((group) => group.key.includes("|model:")).map((group) => ({ ...group, history: describeDeviceGroupHistory(group.ids, meta, input.now) }));
+  const merges = mergeable.map((group) => {
+    const canonicalId = pickCanonicalId(group.ids, nameMap, meta);
+    const removedIds = group.ids.filter((id) => id !== canonicalId);
+    removedIds.forEach((id) => {
+      aliases[id] = canonicalId;
+    });
+    return {
+      canonicalId,
+      removedIds,
+      name: pickName(canonicalId, group.ids, nameMap),
+      meta: pickMeta(canonicalId, group.ids, meta)
+    };
+  });
+  Object.keys(aliases).forEach((id) => {
+    const target = resolveDeviceAlias(id, aliases);
+    if (target === id) {
+      delete aliases[id];
+    } else {
+      aliases[id] = target;
+    }
+  });
+  return { merges, ambiguous, aliases, changed: merges.length > 0 };
+}
+function remapDeviceIds(deviceIds, aliases) {
+  const seen = new Set;
+  const result = [];
+  (deviceIds || []).forEach((id) => {
+    const mapped = resolveDeviceAlias(id, aliases);
+    if (seen.has(mapped)) {
+      return;
+    }
+    seen.add(mapped);
+    result.push(mapped);
+  });
+  return result;
+}
+
 // src/ui/settings-tab.ts
 var import_obsidian6 = require("obsidian");
 
@@ -1148,27 +1362,12 @@ class TextInputModal extends import_obsidian.Modal {
       type: "text",
       value: this.defaultValue,
       placeholder: this.placeholder,
+      cls: "lfl-text-input",
       attr: {
         "aria-label": this.titleText
       }
     });
-    inputEl.setCssStyles({
-      width: "100%",
-      marginBottom: "16px",
-      padding: "8px",
-      fontSize: "14px",
-      border: "1px solid var(--background-modifier-border)",
-      borderRadius: "4px",
-      backgroundColor: "var(--background-primary)",
-      color: "var(--text-normal)"
-    });
-    const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
-    buttonContainer.setCssStyles({
-      display: "flex",
-      justifyContent: "flex-end",
-      gap: "8px",
-      marginTop: "16px"
-    });
+    const buttonContainer = contentEl.createDiv({ cls: "modal-button-container lfl-modal-buttons" });
     const cancelBtn = buttonContainer.createEl("button", { text: t("cancel") });
     cancelBtn.addEventListener("click", () => this.close());
     const submitBtn = buttonContainer.createEl("button", {
@@ -1181,9 +1380,7 @@ class TextInputModal extends import_obsidian.Modal {
         this.onSubmit(value);
         this.close();
       } else {
-        inputEl.setCssStyles({
-          borderColor: "var(--text-error)"
-        });
+        inputEl.addClass("is-invalid");
         inputEl.focus();
       }
     });
@@ -1197,9 +1394,7 @@ class TextInputModal extends import_obsidian.Modal {
       }
     });
     inputEl.addEventListener("input", () => {
-      inputEl.setCssStyles({
-        borderColor: "var(--background-modifier-border)"
-      });
+      inputEl.removeClass("is-invalid");
     });
     window.setTimeout(() => {
       inputEl.focus();
@@ -1223,76 +1418,17 @@ class FontImportModal extends import_obsidian.Modal {
   onOpen() {
     const { contentEl, titleEl } = this;
     titleEl.setText(t("importFont"));
-    const dropZone = contentEl.createDiv({
-      cls: "font-import-dropzone",
-      attr: {
-        style: `
-                    border: 2px dashed var(--interactive-accent);
-                    border-radius: 8px;
-                    padding: 60px 40px;
-                    text-align: center;
-                    background: var(--background-secondary);
-                    cursor: pointer;
-                    transition: background 0.2s ease;
-                `
-      }
-    });
-    const iconContainer = dropZone.createDiv({
-      cls: "font-import-icon",
-      attr: {
-        style: `
-                    margin-bottom: 16px;
-                    color: var(--interactive-accent);
-                `
-      }
-    });
+    const dropZone = contentEl.createDiv({ cls: "lfl-import-dropzone" });
+    const iconContainer = dropZone.createDiv({ cls: "lfl-import-icon" });
     import_obsidian.setIcon(iconContainer, "folder");
-    const iconSvg = iconContainer.querySelector("svg");
-    if (iconSvg) {
-      iconSvg.setAttribute("width", "48");
-      iconSvg.setAttribute("height", "48");
-      iconSvg.setCssStyles({
-        display: "block",
-        margin: "0 auto"
-      });
-    }
-    const title = dropZone.createDiv({
-      attr: {
-        style: `
-                    font-size: 16px;
-                    font-weight: 500;
-                    margin-bottom: 8px;
-                    color: var(--text-normal);
-                `
-      },
-      text: "拖拽字体文件到此处"
-    });
-    const subtitle = dropZone.createDiv({
-      attr: {
-        style: `
-                    font-size: 14px;
-                    color: var(--text-muted);
-                    margin-bottom: 16px;
-                `
-      },
-      text: "或点击选择文件"
-    });
-    const hint = dropZone.createDiv({
-      attr: {
-        style: `
-                    font-size: 12px;
-                    color: var(--text-faint);
-                `
-      },
-      text: "支持 .ttf, .otf, .woff, .woff2 格式"
-    });
+    dropZone.createDiv({ cls: "lfl-import-title", text: t("importDropTitle") });
+    dropZone.createDiv({ cls: "lfl-import-subtitle", text: t("importDropSubtitle") });
+    dropZone.createDiv({ cls: "lfl-import-hint", text: t("importDropHint") });
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = true;
     input.accept = ".ttf,.otf,.woff,.woff2";
-    input.setCssStyles({
-      display: "none"
-    });
+    input.addClass("lfl-hidden-input");
     contentEl.appendChild(input);
     dropZone.onclick = () => {
       input.click();
@@ -1306,20 +1442,14 @@ class FontImportModal extends import_obsidian.Modal {
     };
     dropZone.ondragover = (e) => {
       e.preventDefault();
-      dropZone.setCssStyles({
-        background: "var(--background-modifier-hover)"
-      });
+      dropZone.addClass("is-dragover");
     };
     dropZone.ondragleave = () => {
-      dropZone.setCssStyles({
-        background: "var(--background-secondary)"
-      });
+      dropZone.removeClass("is-dragover");
     };
     dropZone.ondrop = async (e) => {
       e.preventDefault();
-      dropZone.setCssStyles({
-        background: "var(--background-secondary)"
-      });
+      dropZone.removeClass("is-dragover");
       const files = e.dataTransfer.files;
       if (!files || files.length === 0)
         return;
@@ -1337,7 +1467,7 @@ function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) 
   modal.setTitle(title);
   modal.contentEl.createEl("p", {
     text: message,
-    attr: { style: "margin-bottom: 16px;" }
+    cls: "lfl-confirm-message"
   });
   modal.addButton((btn) => {
     btn.setButtonText(t("confirm"));
@@ -1490,9 +1620,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         const deviceItem = devicesContainer.createDiv({
           cls: "device-item"
         });
-        const deviceInfoContainer = deviceItem.createDiv({
-          attr: { style: "display: flex; align-items: center; gap: 8px; flex: 1;" }
-        });
+        const deviceInfoContainer = deviceItem.createDiv({ cls: "lfl-device-info" });
         const osIcon = deviceInfoContainer.createSpan({
           cls: "device-os-icon"
         });
@@ -1506,9 +1634,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         };
         const detectedOs = tab.plugin._getDeviceOs(deviceId);
         osIcon.addClass(osIconClasses[detectedOs] || "os-default");
-        const textContainer = deviceInfoContainer.createDiv({
-          attr: { style: "display: flex; flex-direction: column; gap: 2px; min-width: 0;" }
-        });
+        const textContainer = deviceInfoContainer.createDiv({ cls: "lfl-device-text" });
         textContainer.createSpan({
           text: isCurrent ? `${deviceName} (${t("currentDevice")})` : deviceName,
           cls: "device-name"
@@ -1538,11 +1664,8 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         }
         const btnContainer = deviceItem.createDiv({ cls: "device-actions" });
         const editBtn2 = btnContainer.createEl("button", {
-          cls: "clickable-icon",
-          attr: {
-            "aria-label": t("editDeviceName"),
-            style: "color: var(--text-on-accent);"
-          }
+          cls: "clickable-icon device-edit-btn",
+          attr: { "aria-label": t("editDeviceName") }
         });
         import_obsidian2.setIcon(editBtn2, "edit");
         tab._addEventListener(editBtn2, "click", async (e) => {
@@ -1580,9 +1703,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
           tab._addEventListener(moveBtn, "click", async (e) => {
             e.stopPropagation();
             const selectEl = document.createElement("select");
-            selectEl.setCssStyles({
-              cssText: "position: absolute; opacity: 0; pointer-events: none;"
-            });
+            selectEl.addClass("lfl-hidden-select");
             tab.plugin.settings.presets.forEach((p) => {
               const option = selectEl.appendChild(document.createElement("option"));
               option.value = p.id;
@@ -1720,20 +1841,12 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     const presetInfoContent = presetInfoEl.createDiv({ cls: "callout-content" });
     presetInfoContent.createEl("p", {
       text: `${t("presetId")}: ${activePreset.id}`,
-      attr: { style: "margin: 0; font-family: var(--font-monospace); color: var(--text-muted);" }
+      cls: "lfl-preset-id"
     });
     if (activePreset.id === "default-preset" && activePreset.targetDevices.length === 0) {
-      const warningContainer = presetInfoContent.createEl("p", {
-        attr: {
-          style: "margin: 8px 0 0 0; color: var(--text-warning); display: flex; align-items: center; gap: 6px;"
-        }
-      });
-      const warningIcon = warningContainer.createSpan({ cls: "warning-icon" });
+      const warningContainer = presetInfoContent.createEl("p", { cls: "lfl-global-warning" });
+      const warningIcon = warningContainer.createSpan({ cls: "lfl-warning-icon" });
       import_obsidian3.setIcon(warningIcon, "alert-triangle");
-      warningIcon.setCssStyles({
-        display: "inline-flex",
-        flexShrink: "0"
-      });
       warningContainer.createSpan({ text: t("usingGlobalPreset") });
     }
   }
@@ -1776,20 +1889,12 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     if (selectedFont && !fontExists) {
       const warningIcon = settingItem.nameEl.createSpan({ cls: "font-missing-icon" });
       import_obsidian3.setIcon(warningIcon, "x");
-      warningIcon.setCssStyles({
-        color: "var(--text-error)",
-        marginLeft: "8px"
-      });
       warningIcon.setAttribute("aria-label", t("fontNotFound"));
     }
     const mathVerdict = fontType.key === "math" && selectedFont && fontExists ? tab.plugin._evaluateMathFont(selectedFont) : null;
     if (mathVerdict && (mathVerdict.status === "mismatch" || mathVerdict.status === "notMathFont")) {
       const mathWarningIcon = settingItem.nameEl.createSpan({ cls: "font-incompatible-icon" });
       import_obsidian3.setIcon(mathWarningIcon, "alert-triangle");
-      mathWarningIcon.setCssStyles({
-        color: "var(--text-warning)",
-        marginLeft: "8px"
-      });
       mathWarningIcon.setAttribute("aria-label", t(mathVerdict.status === "notMathFont" ? "mathFontNotMathTitle" : "mathFontMismatchTitle"));
     }
     settingItem.addDropdown((dropdown) => {
@@ -1834,20 +1939,20 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
         const variantList = variants.map((f) => f.variantType || "unknown").join(", ");
         const isLatin = tab._isLatinFont(fontForVariantCheck);
         if (isLatin) {
-          const warningCallout = containerEl.createDiv({ attr: { style: "margin: 8px 0 16px 0;" } });
+          const warningCallout = containerEl.createDiv({ cls: "lfl-callout" });
           const warningMd = `> [!warning] ${t("incompleteVariantTitle")}
 > ${t("incompleteVariantBody", { fontFamily: fontForVariantCheck, variantCount: variants.length, variantList })}`;
           tab._renderMarkdown(warningCallout, warningMd);
         }
       }
       if (fontType.key === "monospace") {
-        const infoCallout = containerEl.createDiv({ attr: { style: "margin: 8px 0 16px 0;" } });
+        const infoCallout = containerEl.createDiv({ cls: "lfl-callout" });
         const infoMd = `> [!info] ${t("monospaceRequirement")}
 > ${t("monospaceRequirementBody")}`;
         tab._renderMarkdown(infoCallout, infoMd);
       }
       if (fontType.key === "math") {
-        const infoCallout = containerEl.createDiv({ attr: { style: "margin: 8px 0 16px 0;" } });
+        const infoCallout = containerEl.createDiv({ cls: "lfl-callout" });
         if (mathVerdict && mathVerdict.status === "notMathFont") {
           const warningMd = `> [!warning] ${t("mathFontNotMathTitle")}
 > ${t("mathFontNotMathBody", { fontFamily: selectedFont, missing: (mathVerdict.missing || []).join(", ") })}`;
@@ -1881,19 +1986,26 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
 
 // src/ui/settings/font-status.ts
 var import_obsidian4 = require("obsidian");
+
+// src/ui/font-family-view.ts
+var TOGGLE_SELECTOR = ".font-family-toggle";
+var VARIANTS_SELECTOR = ".font-variants";
+function setFontFamilyExpanded(familyEl, expanded) {
+  familyEl.querySelector(TOGGLE_SELECTOR)?.toggleClass("is-open", expanded);
+  familyEl.querySelector(VARIANTS_SELECTOR)?.toggleClass("is-open", expanded);
+}
+function isFontFamilyExpanded(familyEl) {
+  return familyEl.querySelector(VARIANTS_SELECTOR)?.hasClass("is-open") ?? false;
+}
+
+// src/ui/settings/font-status.ts
 function renderFontStatusSection(tab, containerEl) {
   containerEl.createEl("h3", { text: t("headerFontFileConfig") });
   if (!tab._fontFilter) {
     tab._fontFilter = "all";
   }
-  const buttonContainerEl = containerEl.createDiv({
-    attr: {
-      style: "margin-bottom: 12px; padding: 12px; background: var(--background-secondary); border-radius: 8px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;"
-    }
-  });
-  const filterGroup = buttonContainerEl.createDiv({
-    attr: { style: "display: flex; gap: 8px; align-items: center; flex-wrap: wrap;" }
-  });
+  const buttonContainerEl = containerEl.createDiv({ cls: "lfl-toolbar" });
+  const filterGroup = buttonContainerEl.createDiv({ cls: "lfl-toolbar-group" });
   const filterButtons = [
     { filter: "all", icon: "list", label: t("filterAll") || "全部" },
     { filter: "converted", icon: "check", label: t("legendConverted") },
@@ -1905,171 +2017,75 @@ function renderFontStatusSection(tab, containerEl) {
   filterButtons.forEach((btnConfig) => {
     const isActive = tab._fontFilter === btnConfig.filter;
     const btn = filterGroup.createEl("button", {
-      attr: {
-        style: `
-                        display: flex;
-                        align-items: center;
-                        gap: 4px;
-                        padding: 4px 10px;
-                        border-radius: 4px;
-                        border: 1px solid var(--background-modifier-border);
-                        background: ${isActive ? "var(--interactive-accent)" : "var(--background-primary)"};
-                        color: ${isActive ? "var(--text-on-accent)" : "var(--text-normal)"};
-                        cursor: pointer;
-                        font-size: 0.85em;
-                        transition: all 0.2s ease;
-                    `,
-        "aria-label": btnConfig.label
-      }
+      cls: isActive ? "lfl-chip is-active" : "lfl-chip",
+      attr: { "aria-label": btnConfig.label }
     });
-    const iconEl = btn.createSpan({ attr: { style: "display: inline-flex; align-items: center;" } });
+    const iconEl = btn.createSpan({ cls: "lfl-chip-icon" });
     import_obsidian4.setIcon(iconEl, btnConfig.icon);
     btn.createSpan({ text: btnConfig.label });
     filterButtonElements.push({ btn, filter: btnConfig.filter });
   });
-  buttonContainerEl.createDiv({
-    attr: { style: "width: 1px; height: 24px; background: var(--background-modifier-border);" }
-  });
-  const expandCollapseGroup = buttonContainerEl.createDiv({
-    attr: { style: "display: flex; gap: 8px; align-items: center;" }
-  });
+  buttonContainerEl.createDiv({ cls: "lfl-toolbar-divider" });
+  const expandCollapseGroup = buttonContainerEl.createDiv({ cls: "lfl-toolbar-group" });
   const expandAllBtn = expandCollapseGroup.createEl("button", {
-    attr: {
-      style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    padding: 4px 10px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background: var(--background-primary);
-                    color: var(--text-normal);
-                    cursor: pointer;
-                    font-size: 0.85em;
-                    transition: all 0.2s ease;
-                `,
-      "aria-label": t("expandAll")
-    }
+    cls: "lfl-chip",
+    attr: { "aria-label": t("expandAll") }
   });
-  const expandIcon = expandAllBtn.createSpan({ attr: { style: "display: inline-flex; align-items: center;" } });
+  const expandIcon = expandAllBtn.createSpan({ cls: "lfl-chip-icon" });
   import_obsidian4.setIcon(expandIcon, "chevrons-down");
   expandAllBtn.createSpan({ text: t("expandAll") });
   tab._addEventListener(expandAllBtn, "click", () => {
     const allFamilies = fontListEl.querySelectorAll(".font-family-item");
     allFamilies.forEach((familyItem) => {
-      const toggle = familyItem.querySelector(".font-family-toggle");
-      const variants = familyItem.querySelector(".font-variants");
-      if (toggle && variants && variants.style.display === "none") {
-        toggle.setCssStyles({
-          transform: "rotate(90deg)"
-        });
-        variants.setCssStyles({
-          display: "block"
-        });
-      }
+      setFontFamilyExpanded(familyItem, true);
     });
   });
   const collapseAllBtn = expandCollapseGroup.createEl("button", {
-    attr: {
-      style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    padding: 4px 10px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background: var(--background-primary);
-                    color: var(--text-normal);
-                    cursor: pointer;
-                    font-size: 0.85em;
-                    transition: all 0.2s ease;
-                `,
-      "aria-label": t("collapseAll")
-    }
+    cls: "lfl-chip",
+    attr: { "aria-label": t("collapseAll") }
   });
-  const collapseIcon = collapseAllBtn.createSpan({ attr: { style: "display: inline-flex; align-items: center;" } });
+  const collapseIcon = collapseAllBtn.createSpan({ cls: "lfl-chip-icon" });
   import_obsidian4.setIcon(collapseIcon, "chevrons-up");
   collapseAllBtn.createSpan({ text: t("collapseAll") });
   tab._addEventListener(collapseAllBtn, "click", () => {
     const allFamilies = fontListEl.querySelectorAll(".font-family-item");
     allFamilies.forEach((familyItem) => {
-      const toggle = familyItem.querySelector(".font-family-toggle");
-      const variants = familyItem.querySelector(".font-variants");
-      if (toggle && variants && variants.style.display !== "none") {
-        toggle.setCssStyles({
-          transform: "rotate(0deg)"
-        });
-        variants.setCssStyles({
-          display: "none"
-        });
-      }
+      setFontFamilyExpanded(familyItem, false);
     });
   });
-  const legendEl = containerEl.createDiv({
-    attr: {
-      style: "margin-bottom: 16px; padding: 12px; background: var(--background-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 16px; font-size: 0.9em;"
-    }
-  });
-  const legendsContainer = legendEl.createDiv({
-    attr: { style: "display: flex; gap: 16px; flex-wrap: wrap; align-items: center;" }
-  });
+  const legendEl = containerEl.createDiv({ cls: "lfl-legend" });
+  const legendsContainer = legendEl.createDiv({ cls: "lfl-legend-items" });
   legendsContainer.createDiv({
     text: t("fontFileStatus"),
-    attr: { style: "font-weight: 600; color: var(--text-normal);" }
+    cls: "lfl-legend-title"
   });
-  legendsContainer.createDiv({
-    attr: { style: "width: 1px; height: 20px; background: var(--background-modifier-border);" }
-  });
+  legendsContainer.createDiv({ cls: "lfl-legend-divider" });
   const legends = [
-    { icon: "check", color: "var(--color-green)", text: t("legendConverted") },
-    { icon: "circle", color: "var(--text-muted)", text: t("legendNotConverted") },
-    { icon: "check", color: "var(--interactive-accent)", text: t("legendCachedOnly") },
-    { icon: "help-circle", color: "var(--text-error)", text: t("legendNotExist") }
+    { icon: "check", state: "converted", text: t("legendConverted") },
+    { icon: "circle", state: "pending", text: t("legendNotConverted") },
+    { icon: "check", state: "cached", text: t("legendCachedOnly") },
+    { icon: "help-circle", state: "missing", text: t("legendNotExist") }
   ];
   legends.forEach((legend) => {
-    const item = legendsContainer.createDiv({
-      attr: { style: "display: flex; align-items: center; gap: 6px;" }
-    });
-    const iconEl = item.createSpan({ attr: { style: `color: ${legend.color};` } });
+    const item = legendsContainer.createDiv({ cls: "lfl-legend-item" });
+    const iconEl = item.createSpan({ cls: `lfl-legend-icon is-${legend.state}` });
     import_obsidian4.setIcon(iconEl, legend.icon);
     item.createSpan({ text: legend.text });
   });
   const rescanBtn = legendEl.createEl("button", {
-    attr: {
-      style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 6px 12px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background: var(--background-primary);
-                    color: var(--text-normal);
-                    cursor: pointer;
-                    font-size: 0.9em;
-                    transition: all 0.2s ease;
-                    white-space: nowrap;
-                `,
-      "aria-label": t("rescanFonts") || "重新扫描"
-    }
+    cls: "lfl-chip lfl-chip--rescan",
+    attr: { "aria-label": t("rescanFonts") || "重新扫描" }
   });
-  const rescanIcon = rescanBtn.createSpan({ attr: { style: "display: inline-flex; align-items: center;" } });
+  const rescanIcon = rescanBtn.createSpan({ cls: "lfl-chip-icon" });
   import_obsidian4.setIcon(rescanIcon, "rotate-cw");
   rescanBtn.createSpan({ text: t("rescanFonts") || "重新扫描" });
   tab._addEventListener(rescanBtn, "click", async () => {
     rescanBtn.disabled = true;
-    rescanBtn.setCssStyles({
-      opacity: "0.5"
-    });
     await tab.plugin.scanFonts();
     new import_obsidian4.Notice(t("fontsRescanned") || "✓ 字体已重新扫描");
     tab.display();
   });
-  const fontListEl = containerEl.createDiv({
-    attr: {
-      style: "margin: 10px 0; padding: 10px; background: var(--background-secondary); border-radius: 8px; max-height: 400px; overflow-y: auto;"
-    }
-  });
+  const fontListEl = containerEl.createDiv({ cls: "lfl-font-list" });
   filterButtonElements.forEach(({ btn, filter }) => {
     tab._addEventListener(btn, "click", () => {
       tab._fontFilter = filter;
@@ -2077,39 +2093,28 @@ function renderFontStatusSection(tab, containerEl) {
       if (tab.plugin.settings.availableFonts.length === 0) {
         fontListEl.createEl("div", {
           text: t("notFoundFontFamily"),
-          attr: { style: "color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;" }
+          cls: "lfl-empty-note"
         });
       } else {
         tab.renderFontFamilies(fontListEl, tab._fontFilter);
       }
       filterButtonElements.forEach(({ btn: button, filter: f }) => {
-        const isActive = tab._fontFilter === f;
-        button.setCssStyles({
-          background: isActive ? "var(--interactive-accent)" : "var(--background-primary)",
-          color: isActive ? "var(--text-on-accent)" : "var(--text-normal)"
-        });
+        button.toggleClass("is-active", tab._fontFilter === f);
       });
     });
   });
   if (tab.plugin.settings.availableFonts.length === 0) {
     fontListEl.createEl("div", {
       text: t("notFoundFontFamily"),
-      attr: { style: "color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;" }
+      cls: "lfl-empty-note"
     });
   } else {
     tab.renderFontFamilies(fontListEl, tab._fontFilter);
   }
-  const fontOperationsEl = containerEl.createDiv({
-    attr: {
-      style: "display: flex; gap: 12px; margin: 16px 0;"
-    }
-  });
+  const fontOperationsEl = containerEl.createDiv({ cls: "lfl-font-actions" });
   const importBtn = fontOperationsEl.createEl("button", {
     text: t("importFont"),
-    attr: {
-      style: "flex: 1; padding: 12px; cursor: pointer;",
-      class: "mod-cta"
-    }
+    cls: "mod-cta"
   });
   tab._addEventListener(importBtn, "click", () => {
     const modal = new FontImportModal(tab.plugin.app, tab.plugin, async (files) => {
@@ -2131,10 +2136,7 @@ function renderFontStatusSection(tab, containerEl) {
     modal.open();
   });
   const convertBtn = fontOperationsEl.createEl("button", {
-    text: t("convertAllFonts"),
-    attr: {
-      style: "flex: 1; padding: 12px; cursor: pointer;"
-    }
+    text: t("convertAllFonts")
   });
   tab._addEventListener(convertBtn, "click", async () => {
     convertBtn.disabled = true;
@@ -2318,7 +2320,7 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
     }
   }
   addLatinFontOptions(containerEl, activePreset) {
-    const exampleCalloutEl = containerEl.createDiv({ attr: { style: "margin: 16px 0;" } });
+    const exampleCalloutEl = containerEl.createDiv({ cls: "lfl-callout lfl-callout--lead" });
     let exampleMarkdown = `> [!example] ${t("latinFontInfo")}
 > ${t("latinFontInfoDesc")}`;
     if (isLatinScriptLocale()) {
@@ -2388,9 +2390,7 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
         if (!hasBoldItalic)
           missing.push("Bold Italic");
         if (missing.length > 0) {
-          const warningCalloutEl = containerEl.createDiv({
-            attr: { style: "margin: 8px 0 16px 0;" }
-          });
+          const warningCalloutEl = containerEl.createDiv({ cls: "lfl-callout" });
           const missingList = missing.join(", ");
           const warningMarkdown = `> [!warning] ${t("missingVariantTitle")}
 > ${t("missingVariantBody", { latinFont, missingList })}`;
@@ -2465,82 +2465,50 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
       }
       containerEl.createEl("div", {
         text: emptyMessage,
-        attr: { style: "color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;" }
+        cls: "lfl-empty-note"
       });
       return;
     }
     for (const [familyName, fonts] of filteredFamilies) {
-      const familyEl = containerEl.createDiv({
-        cls: "font-family-item",
-        attr: {
-          style: "margin-bottom: 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden;"
-        }
-      });
-      const headerEl = familyEl.createDiv({
-        attr: {
-          style: "padding: 12px; background: var(--background-primary); cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;"
-        }
-      });
-      const leftEl = headerEl.createDiv({
-        attr: { style: "display: flex; align-items: center; gap: 12px; flex: 1;" }
-      });
+      const familyEl = containerEl.createDiv({ cls: "font-family-item" });
+      const headerEl = familyEl.createDiv({ cls: "font-family-header" });
+      const leftEl = headerEl.createDiv({ cls: "font-family-title" });
       const expandIcon = leftEl.createSpan({
         cls: "font-family-toggle",
-        attr: {
-          style: "display: inline-flex; align-items: center; transition: transform 0.2s ease;",
-          "aria-label": t("expandCollapse")
-        }
+        attr: { "aria-label": t("expandCollapse") }
       });
       import_obsidian6.setIcon(expandIcon, "chevron-right");
       leftEl.createSpan({
         text: familyName,
-        attr: { style: "font-weight: 600; font-family: var(--font-monospace);" }
+        cls: "font-family-name"
       });
-      const variantsEl = familyEl.createDiv({
-        cls: "font-variants",
-        attr: {
-          style: "display: none; padding: 8px; background: var(--background-secondary);"
-        }
-      });
-      let expanded = false;
+      const variantsEl = familyEl.createDiv({ cls: "font-variants" });
       this._addEventListener(headerEl, "click", () => {
-        expanded = !expanded;
-        variantsEl.setCssStyles({
-          display: expanded ? "block" : "none"
-        });
-        expandIcon.setCssStyles({
-          transform: expanded ? "rotate(90deg)" : "rotate(0deg)"
-        });
+        setFontFamilyExpanded(familyEl, !isFontFamilyExpanded(familyEl));
       });
       fonts.forEach((font) => {
-        const variantEl = variantsEl.createDiv({
-          attr: {
-            style: "padding: 8px; margin: 4px 0; background: var(--background-primary); border-radius: 4px; display: flex; align-items: center; justify-content: space-between;"
-          }
-        });
-        const infoEl = variantEl.createDiv({
-          attr: { style: "display: flex; align-items: center; gap: 12px; flex: 1;" }
-        });
-        let iconColor, iconName;
+        const variantEl = variantsEl.createDiv({ cls: "font-variant-item" });
+        const infoEl = variantEl.createDiv({ cls: "font-variant-info" });
+        let status, iconName;
         if (!this.plugin._getFontExists(font)) {
           if (font.hasB64) {
-            iconColor = "var(--interactive-accent)";
+            status = "cached";
             iconName = "check";
           } else {
-            iconColor = "var(--text-error)";
+            status = "missing";
             iconName = "help-circle";
           }
         } else {
           if (font.hasB64) {
-            iconColor = "var(--color-green)";
+            status = "converted";
             iconName = "check";
           } else {
-            iconColor = "var(--text-muted)";
+            status = "pending";
             iconName = "circle";
           }
         }
         const statusIconEl = infoEl.createSpan({
-          attr: { style: `color: ${iconColor};` }
+          cls: `font-variant-status is-${status}`
         });
         import_obsidian6.setIcon(statusIconEl, iconName);
         const variantLabels = {
@@ -2552,14 +2520,12 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
         const variantLabel = variantLabels[font.variantType] || "Unknown";
         infoEl.createSpan({
           text: variantLabel,
-          attr: { style: "font-family: var(--font-monospace); font-size: 0.9em;" }
+          cls: "font-variant-label"
         });
-        const actionsEl = variantEl.createDiv({
-          attr: { style: "display: flex; gap: 4px;" }
-        });
+        const actionsEl = variantEl.createDiv({ cls: "font-variant-actions" });
         const convertBtn = actionsEl.createEl("button", {
+          cls: "font-icon-btn",
           attr: {
-            style: "padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;",
             title: t("reconvertFont"),
             "aria-label": t("reconvertFont")
           }
@@ -2570,8 +2536,8 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
           this.display();
         });
         const deleteBtn = actionsEl.createEl("button", {
+          cls: "font-icon-btn",
           attr: {
-            style: "padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;",
             title: t("deleteThisFont"),
             "aria-label": t("deleteThisFont")
           }
@@ -2693,6 +2659,8 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
 
 // src/plugin.ts
 var browserNavigator = globalThis.navigator;
+var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen"];
+var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
   currentDeviceId;
@@ -2887,27 +2855,40 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
       if (!this.settings.deviceMeta) {
         this.settings.deviceMeta = {};
       }
+      if (!this.settings.deviceAliases) {
+        this.settings.deviceAliases = {};
+      }
+      await this.repairDeviceList();
+      const activeDeviceId = this.currentDeviceId;
       const deviceInfo = this._detectDeviceInfo();
-      const previousMeta = this.settings.deviceMeta[deviceId];
-      const metaChanged = !previousMeta || previousMeta.platform !== deviceInfo.platform || previousMeta.os !== deviceInfo.os || previousMeta.model !== deviceInfo.model || previousMeta.hostname !== deviceInfo.hostname || Object.keys(previousMeta).length !== Object.keys(deviceInfo).length;
-      const isKnownDevice = Boolean(this.settings.deviceNameMap[deviceId]);
-      const storedName = this.settings.deviceNameMap[deviceId];
+      const previousMeta = this.settings.deviceMeta[activeDeviceId];
+      const legacyShape = previousMeta ? Object.keys(previousMeta).some((key) => !RECORDED_META_KEYS.includes(key)) : false;
+      const metaChanged = !previousMeta || previousMeta.platform !== deviceInfo.platform || previousMeta.os !== deviceInfo.os || previousMeta.model !== deviceInfo.model || previousMeta.hostname !== deviceInfo.hostname || legacyShape;
+      const seenAt = new Date().toISOString();
+      const lastSeenTime = previousMeta && previousMeta.lastSeen ? Date.parse(previousMeta.lastSeen) : Number.NaN;
+      const seenStale = Number.isNaN(lastSeenTime) || Date.now() - lastSeenTime > SEEN_REFRESH_MS;
+      const lifetime = {
+        firstSeen: previousMeta && previousMeta.firstSeen || seenAt,
+        lastSeen: seenStale ? seenAt : previousMeta.lastSeen
+      };
+      const isKnownDevice = Boolean(this.settings.deviceNameMap[activeDeviceId]);
+      const storedName = this.settings.deviceNameMap[activeDeviceId];
       const generatedNameOutdated = isKnownDevice && this._isGeneratedDeviceName(storedName, previousMeta) && storedName !== this._getDefaultDeviceName(deviceInfo);
       if (!isKnownDevice) {
-        this.settings.deviceMeta[deviceId] = { ...deviceInfo };
-        this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
+        this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
+        this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
         await this.saveSettings();
-        this._log(`[Local Font Loader] New device registered: ${deviceId} (${this.settings.deviceNameMap[deviceId]})`);
-      } else if (metaChanged || generatedNameOutdated) {
-        this.settings.deviceMeta[deviceId] = { ...deviceInfo };
+        this._log(`[Local Font Loader] New device registered: ${activeDeviceId} (${this.settings.deviceNameMap[activeDeviceId]})`);
+      } else if (metaChanged || generatedNameOutdated || seenStale) {
+        this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
         if (generatedNameOutdated) {
-          this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
-          this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[deviceId]}`);
+          this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
+          this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[activeDeviceId]}`);
         }
         await this.saveSettings();
-        this._log(`[Local Font Loader] Device metadata refreshed: ${deviceId}`);
+        this._log(`[Local Font Loader] Device metadata refreshed: ${activeDeviceId}`);
       } else {
-        this._log(`[Local Font Loader] Device recognized: ${deviceId}`);
+        this._log(`[Local Font Loader] Device recognized: ${activeDeviceId}`);
       }
       await this._ensureDevicePreset();
       this._log("[Local Font Loader] Device preset ensured");
@@ -2976,6 +2957,11 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
             }
             await this.loadSettings();
             this._log("[Local Font Loader] Settings reloaded from data.json");
+            try {
+              await this.repairDeviceList();
+            } catch (error) {
+              this._logError("[Local Font Loader] Device-list repair failed:", error);
+            }
             if (this.settings.autoLoadOnStartup) {
               this._log("[Local Font Loader] Re-applying fonts after settings reload...");
               try {
@@ -3066,6 +3052,9 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     }
     if (data && !data.deviceNameMap) {
       data.deviceNameMap = {};
+    }
+    if (data && !data.deviceAliases) {
+      data.deviceAliases = {};
     }
     this.settings = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), data);
   }
@@ -3215,6 +3204,57 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     this._log(`[Local Font Loader] Pruned ${prunable.length} unbound device(s), ${orphanCount} orphaned metadata entr(ies)`);
     return prunable.length + orphanCount;
   }
+  async repairDeviceList() {
+    const plan = planDeviceRepair({
+      nameMap: this.settings.deviceNameMap || {},
+      meta: this.settings.deviceMeta || {},
+      aliases: this.settings.deviceAliases || {},
+      now: Date.now()
+    });
+    plan.ambiguous.forEach((group) => {
+      const names = group.ids.map((id) => this._getDeviceName(id)).join(", ");
+      this._log(`[Local Font Loader] Same-model entries left alone (history: ${group.history}): ${names}`);
+    });
+    if (!plan.changed) {
+      return 0;
+    }
+    const removedIds = new Set;
+    plan.merges.forEach((merge) => {
+      if (merge.name) {
+        this.settings.deviceNameMap[merge.canonicalId] = merge.name;
+      }
+      if (merge.meta) {
+        this.settings.deviceMeta[merge.canonicalId] = { ...merge.meta };
+      }
+      merge.removedIds.forEach((id) => removedIds.add(id));
+    });
+    removedIds.forEach((id) => {
+      delete this.settings.deviceNameMap[id];
+      delete this.settings.deviceMeta[id];
+    });
+    this.settings.presets.forEach((preset) => {
+      preset.targetDevices = remapDeviceIds(preset.targetDevices, plan.aliases);
+    });
+    Object.keys(this.settings.deviceFingerprints || {}).forEach((fingerprint) => {
+      const claimed = this.settings.deviceFingerprints[fingerprint];
+      const mapped = resolveDeviceAlias(claimed, plan.aliases);
+      if (mapped !== claimed) {
+        this.settings.deviceFingerprints[fingerprint] = mapped;
+      }
+    });
+    this.settings.deviceAliases = plan.aliases;
+    const adopted = resolveDeviceAlias(this.currentDeviceId, plan.aliases);
+    if (adopted !== this.currentDeviceId) {
+      this._log(`[Local Font Loader] Device id adopted from repair: ${this.currentDeviceId} -> ${adopted}`);
+      this.currentDeviceId = adopted;
+      await this._persistLocalDeviceId(adopted);
+    }
+    await this.saveSettings();
+    const merged = plan.merges.length;
+    this._log(`[Local Font Loader] Device list repaired: ${merged} duplicate group(s) merged`);
+    new import_obsidian7.Notice(t("deviceListRepaired").replace("{0}", String(merged)), 4000);
+    return merged;
+  }
   _getDeviceName(deviceId) {
     if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
       return this.settings.deviceNameMap[deviceId];
@@ -3254,6 +3294,12 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
       console.error("[Local Font Loader] Failed to read device-local id:", error);
     }
     if (storedId && typeof storedId === "string") {
+      const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
+      if (adoptedId !== storedId) {
+        await this._persistLocalDeviceId(adoptedId);
+        this._log(`[Local Font Loader] Device id adopted from a device-list repair: ${storedId} -> ${adoptedId}`);
+        return adoptedId;
+      }
       if (this._sealLegacyEntries(storedId)) {
         await this.saveSettings();
         this._log(`[Local Font Loader] Legacy ledger sealed for held id: ${storedId}`);
@@ -3261,6 +3307,11 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
       return storedId;
     }
     const deviceId = await this._claimLegacyDeviceId() || this._generateUUID();
+    await this._persistLocalDeviceId(deviceId);
+    return deviceId;
+  }
+  async _persistLocalDeviceId(deviceId) {
+    const STORAGE_KEY = "local-font-loader-device-id";
     try {
       this.app.saveLocalStorage(STORAGE_KEY, deviceId);
       const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
@@ -3272,7 +3323,6 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     } catch (error) {
       console.error("[Local Font Loader] Failed to persist device-local id:", error);
     }
-    return deviceId;
   }
   async _claimLegacyDeviceId() {
     const ledger = this.settings.deviceFingerprints;
@@ -3391,16 +3441,7 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     }
   }
   _isGeneratedDeviceName(name, meta) {
-    if (!name) {
-      return false;
-    }
-    if (/^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|iPadOS|Android|Unknown)$/.test(name)) {
-      return true;
-    }
-    if (meta && (name === meta.hostname || name === meta.model)) {
-      return true;
-    }
-    return false;
+    return isGeneratedDeviceName(name, meta);
   }
   _getDefaultDeviceName(deviceInfo) {
     const info = deviceInfo || this._detectDeviceInfo();
@@ -3794,9 +3835,7 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
         existing.remove();
       }
       const scratch = document.createElement("div");
-      scratch.setCssStyles({
-        display: "none"
-      });
+      scratch.addClass("lfl-render-scratch");
       document.body.appendChild(scratch);
       const typesetComponent = new import_obsidian7.Component;
       typesetComponent.load();

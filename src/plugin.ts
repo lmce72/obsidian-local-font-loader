@@ -6,6 +6,12 @@ import { Component, Plugin, Notice, MarkdownRenderer, Platform } from 'obsidian'
 import { t } from './i18n';
 import { parseFontMetadata } from './font-metadata';
 import { DEFAULT_SETTINGS } from './constants';
+import {
+    planDeviceRepair,
+    remapDeviceIds,
+    resolveDeviceAlias,
+    isGeneratedDeviceName,
+} from './device-repair';
 import type { PluginSettings, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, MathFontMetricSnapshot } from './types';
 import FontManagerSettingTab from './ui/settings-tab';
 
@@ -19,6 +25,18 @@ import FontManagerSettingTab from './ui/settings-tab';
  * navigator.<property>, which cannot tell the two apart.
  */
 const browserNavigator: Navigator = globalThis.navigator;
+
+/**
+ * The keys a device entry is allowed to carry.
+ *
+ * Anything else on a stored entry is a leftover from an older version — `osVersion` is one — and
+ * marks it for a rewrite. `firstSeen` and `lastSeen` are history rather than detection: they are
+ * listed here so the refresh does not mistake them for such a leftover and erase them.
+ */
+const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 'lastSeen'];
+
+/** How long a device entry's "last seen" timestamp may go unrefreshed. */
+const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 export default class LocalFontLoaderPlugin extends Plugin {
 
@@ -351,46 +369,72 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!this.settings.deviceMeta) {
                 this.settings.deviceMeta = {};
             }
+            if (!this.settings.deviceAliases) {
+                this.settings.deviceAliases = {};
+            }
+
+            // Collapse entries a sync merge left duplicated, before this device registers itself:
+            // the pass may remap this device onto a survivor, and the registration below then
+            // writes its metadata to the id it actually ends up holding.
+            await this.repairDeviceList();
+
+            // Read the id back rather than reusing the local: a repair may have remapped this
+            // device onto the id that survived, and every write below has to land on that one.
+            const activeDeviceId = this.currentDeviceId;
 
             const deviceInfo = this._detectDeviceInfo();
-            const previousMeta = this.settings.deviceMeta[deviceId];
+            const previousMeta = this.settings.deviceMeta[activeDeviceId];
             // A shape mismatch counts as a change too, so metadata written by an older version
             // (an entry still carrying a dropped key, for instance) is rewritten instead of
             // lingering forever — those keys are no longer compared, so nothing else would
-            // ever notice them.
+            // ever notice them. The recorded lifetime is excluded: it is not detected, it is
+            // history, and rewriting it would erase the evidence a repair reads.
+            const legacyShape = previousMeta
+                ? Object.keys(previousMeta).some(key => !RECORDED_META_KEYS.includes(key))
+                : false;
             const metaChanged = !previousMeta
                 || previousMeta.platform !== deviceInfo.platform
                 || previousMeta.os !== deviceInfo.os
                 || previousMeta.model !== deviceInfo.model
                 || previousMeta.hostname !== deviceInfo.hostname
-                || Object.keys(previousMeta).length !== Object.keys(deviceInfo).length;
+                || legacyShape;
 
-            const isKnownDevice = Boolean(this.settings.deviceNameMap[deviceId]);
+            // When this device was last here. Refreshed at most every few hours: the evidence a
+            // repair needs is measured in days, and every write is a synced write.
+            const seenAt = new Date().toISOString();
+            const lastSeenTime = previousMeta && previousMeta.lastSeen ? Date.parse(previousMeta.lastSeen) : Number.NaN;
+            const seenStale = Number.isNaN(lastSeenTime) || (Date.now() - lastSeenTime) > SEEN_REFRESH_MS;
+            const lifetime = {
+                firstSeen: (previousMeta && previousMeta.firstSeen) || seenAt,
+                lastSeen: seenStale ? seenAt : (previousMeta as DeviceMeta).lastSeen,
+            };
+
+            const isKnownDevice = Boolean(this.settings.deviceNameMap[activeDeviceId]);
 
             // A name this plugin generated is refreshed on upgrade (e.g. "Desktop-Linux" becomes
             // the hostname); a name the user typed is never touched.
-            const storedName = this.settings.deviceNameMap[deviceId];
+            const storedName = this.settings.deviceNameMap[activeDeviceId];
             const generatedNameOutdated = isKnownDevice
                 && this._isGeneratedDeviceName(storedName, previousMeta)
                 && storedName !== this._getDefaultDeviceName(deviceInfo);
 
             if (!isKnownDevice) {
-                this.settings.deviceMeta[deviceId] = { ...deviceInfo };
-                this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
+                this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
+                this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
                 await this.saveSettings();
-                this._log(`[Local Font Loader] New device registered: ${deviceId} (${this.settings.deviceNameMap[deviceId]})`);
-            } else if (metaChanged || generatedNameOutdated) {
-                this.settings.deviceMeta[deviceId] = { ...deviceInfo };
+                this._log(`[Local Font Loader] New device registered: ${activeDeviceId} (${this.settings.deviceNameMap[activeDeviceId]})`);
+            } else if (metaChanged || generatedNameOutdated || seenStale) {
+                this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
 
                 if (generatedNameOutdated) {
-                    this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
-                    this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[deviceId]}`);
+                    this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
+                    this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[activeDeviceId]}`);
                 }
 
                 await this.saveSettings();
-                this._log(`[Local Font Loader] Device metadata refreshed: ${deviceId}`);
+                this._log(`[Local Font Loader] Device metadata refreshed: ${activeDeviceId}`);
             } else {
-                this._log(`[Local Font Loader] Device recognized: ${deviceId}`);
+                this._log(`[Local Font Loader] Device recognized: ${activeDeviceId}`);
             }
 
         // Ensure the current device has a preset
@@ -482,6 +526,16 @@ export default class LocalFontLoaderPlugin extends Plugin {
                             // External change (e.g. multi-device sync): reload settings and refresh the UI
                             await this.loadSettings();
                             this._log('[Local Font Loader] Settings reloaded from data.json');
+
+                            // A merge conflict unions the two sides' device maps, so the duplicate
+                            // this leaves behind is collapsed here, right where it appears. The
+                            // write this may perform is ignored by the guard above on the next
+                            // pass: the file it saves matches the settings it saved from.
+                            try {
+                                await this.repairDeviceList();
+                            } catch (error) {
+                                this._logError('[Local Font Loader] Device-list repair failed:', error);
+                            }
 
                             // Re-apply the font configuration (when auto-load is enabled)
                             if (this.settings.autoLoadOnStartup) {
@@ -608,6 +662,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
         if (data && !data.deviceNameMap) {
             data.deviceNameMap = {};
+        }
+        if (data && !data.deviceAliases) {
+            data.deviceAliases = {};
         }
 
         // Deep-clone the default base so settings.presets never shares nested references with the module constant when data is null
@@ -882,6 +939,96 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
+     * Collapses device entries that describe the same physical device.
+     *
+     * `data.json` is synced, so a conflict unions both sides' device maps. A device's identity is
+     * minted into device-local storage, which a vault copy, a cleared cache or a reinstall does
+     * not carry over — so one physical device can be registered under several ids, and each merge
+     * keeps them all. This pass finds those sets, keeps one id per device, and moves everything
+     * that referenced the others onto the survivor: preset bindings, the display name, the
+     * metadata, and the legacy fingerprint ledger.
+     *
+     * The plan itself is computed by `device-repair.ts`, which is pure data in and data out, so
+     * the decision can be checked without a running app.
+     *
+     * @returns {Promise<number>} How many duplicate groups were merged
+     */
+    async repairDeviceList() {
+        const plan = planDeviceRepair({
+            nameMap: this.settings.deviceNameMap || {},
+            meta: this.settings.deviceMeta || {},
+            aliases: this.settings.deviceAliases || {},
+            now: Date.now(),
+        });
+
+        // Same-model groups are reported rather than ignored, so a duplicate the pass declined to
+        // touch is visible in the log instead of looking like one it failed to find. The history
+        // says whether they were ever seen at the same time, which is the whole of what the
+        // timestamps can establish.
+        plan.ambiguous.forEach(group => {
+            const names = group.ids.map(id => this._getDeviceName(id)).join(', ');
+            this._log(`[Local Font Loader] Same-model entries left alone (history: ${group.history}): ${names}`);
+        });
+
+        if (!plan.changed) {
+            return 0;
+        }
+
+        const removedIds = new Set<string>();
+        plan.merges.forEach(merge => {
+            if (merge.name) {
+                this.settings.deviceNameMap[merge.canonicalId] = merge.name;
+            }
+            if (merge.meta) {
+                this.settings.deviceMeta[merge.canonicalId] = { ...merge.meta };
+            }
+            merge.removedIds.forEach(id => removedIds.add(id));
+        });
+
+        removedIds.forEach(id => {
+            delete this.settings.deviceNameMap[id];
+            delete this.settings.deviceMeta[id];
+        });
+
+        // Presets follow their device. A binding left pointing at a removed id would silently stop
+        // applying, and the device would look unassigned in the settings panel.
+        this.settings.presets.forEach(preset => {
+            preset.targetDevices = remapDeviceIds(preset.targetDevices, plan.aliases);
+        });
+
+        // The migration ledger follows too. A device that has not been opened since the upgrade
+        // still claims its id through its fingerprint, and letting it claim a collapsed id would
+        // re-create the duplicate this pass just removed.
+        Object.keys(this.settings.deviceFingerprints || {}).forEach(fingerprint => {
+            const claimed = this.settings.deviceFingerprints[fingerprint];
+            const mapped = resolveDeviceAlias(claimed, plan.aliases);
+            if (mapped !== claimed) {
+                this.settings.deviceFingerprints[fingerprint] = mapped;
+            }
+        });
+
+        this.settings.deviceAliases = plan.aliases;
+
+        // If this device is one of the collapsed ids, it adopts the survivor and re-persists its
+        // identity. Without this its local id would point at an entry that no longer exists, and
+        // the next launch would register it again — putting the duplicate straight back.
+        const adopted = resolveDeviceAlias(this.currentDeviceId, plan.aliases);
+        if (adopted !== this.currentDeviceId) {
+            this._log(`[Local Font Loader] Device id adopted from repair: ${this.currentDeviceId} -> ${adopted}`);
+            this.currentDeviceId = adopted;
+            await this._persistLocalDeviceId(adopted);
+        }
+
+        await this.saveSettings();
+
+        const merged = plan.merges.length;
+        this._log(`[Local Font Loader] Device list repaired: ${merged} duplicate group(s) merged`);
+        new Notice(t('deviceListRepaired').replace('{0}', String(merged)), 4000);
+
+        return merged;
+    }
+
+    /**
      * Get the display name of a device (for UI rendering)
      * @param {string} deviceId - The device ID
      * @returns {string} - The device name
@@ -952,14 +1099,17 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * It is kept in Obsidian's device-local storage, which lives in the app profile rather than
      * the vault — so it is neither synced between devices nor carried over by a vault copy.
      * Once written it is authoritative for the life of the installation: this method returns
-     * the stored value unchanged and never re-derives it.
+     * the stored value unchanged and never re-derives it, with one exception — a device-list
+     * repair that collapsed this id into a survivor (see `repairDeviceList`) has the device adopt
+     * the survivor instead, because the stored id no longer names an entry in the synced maps.
      *
      * @returns {Promise<string>} The device id
      */
     async _getOrCreateLocalDeviceId() {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
-        // 1. An already stored id is final — never recomputed, never replaced.
+        // 1. An already stored id is final — never recomputed, never replaced, unless a repair
+        //    performed on another device has since collapsed it into a survivor.
         let storedId = null;
         try {
             storedId = this.app.loadLocalStorage(STORAGE_KEY);
@@ -968,6 +1118,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
 
         if (storedId && typeof storedId === 'string') {
+            const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
+            if (adoptedId !== storedId) {
+                await this._persistLocalDeviceId(adoptedId);
+                this._log(`[Local Font Loader] Device id adopted from a device-list repair: ${storedId} -> ${adoptedId}`);
+                return adoptedId;
+            }
+
             // Sealing also covers devices that were already given an id by an earlier version:
             // their ledger entries would otherwise stay claimable by an identical device.
             if (this._sealLegacyEntries(storedId)) {
@@ -983,6 +1140,23 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // 3. Persist it, then read it back — a silent write failure would hand this device a new
         //    identity on every launch, which is precisely the duplication this system prevents.
+        await this._persistLocalDeviceId(deviceId);
+
+        return deviceId;
+    }
+
+    /**
+     * Writes a device id into device-local storage and verifies it stuck.
+     *
+     * A silent write failure would hand this device a new identity on every launch, which is
+     * precisely the duplication the identity system exists to prevent, so the value is read back
+     * rather than trusted.
+     *
+     * @param {string} deviceId - The id to store
+     */
+    async _persistLocalDeviceId(deviceId) {
+        const STORAGE_KEY = 'local-font-loader-device-id';
+
         try {
             this.app.saveLocalStorage(STORAGE_KEY, deviceId);
             const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
@@ -994,8 +1168,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
         } catch (error) {
             console.error('[Local Font Loader] Failed to persist device-local id:', error);
         }
-
-        return deviceId;
     }
 
     /**
@@ -1216,22 +1388,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @returns {boolean} True when the name matches a generated default
      */
     _isGeneratedDeviceName(name, meta) {
-        if (!name) {
-            return false;
-        }
-
-        // Legacy "Desktop-Linux" / "Mobile-Android" forms
-        if (/^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|iPadOS|Android|Unknown)$/.test(name)) {
-            return true;
-        }
-
-        // A name that merely echoes the device's own hostname or model was also produced by the
-        // default-naming rule, so it must keep following that rule if the rule changes.
-        if (meta && (name === meta.hostname || name === meta.model)) {
-            return true;
-        }
-
-        return false;
+        return isGeneratedDeviceName(name, meta);
     }
 
     /**
@@ -1861,9 +2018,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             // Forces MathJax to lay out a formula, which is what regenerates the stylesheet.
             const scratch = document.createElement('div');
-            scratch.setCssStyles({
-                display: 'none',
-            });
+            scratch.addClass('lfl-render-scratch');
             document.body.appendChild(scratch);
             // A throwaway Component: the plugin outlives every render and must not be used
             // as one, or each render would leak into the plugin's own lifecycle.

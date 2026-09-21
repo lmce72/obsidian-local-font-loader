@@ -10,6 +10,7 @@ import { renderDeviceAndPresetSection } from './settings/device-preset';
 import { renderDirectoryAndApplicationSection } from './settings/directory-application';
 import { renderFontStatusSection } from './settings/font-status';
 import { renderFallbackSection } from './settings/fallback';
+import { setFontFamilyExpanded, isFontFamilyExpanded } from './font-family-view';
 
 export default class FontManagerSettingTab extends PluginSettingTab {
     /** The plugin this tab configures. `import type` keeps this free of a runtime cycle. */
@@ -212,7 +213,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     // Add Latin font separation options
     addLatinFontOptions(containerEl, activePreset) {
         // Callout: Example - show different descriptions based on the user language
-        const exampleCalloutEl = containerEl.createDiv({ attr: { style: 'margin: 16px 0;' } });
+        const exampleCalloutEl = containerEl.createDiv({ cls: 'lfl-callout lfl-callout--lead' });
 
         // Base description
         let exampleMarkdown = `> [!example] ${t('latinFontInfo')}\n> ${t('latinFontInfoDesc')}`;
@@ -320,9 +321,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                 if (!hasBoldItalic) missing.push('Bold Italic');
 
                 if (missing.length > 0) {
-                    const warningCalloutEl = containerEl.createDiv({
-                        attr: { style: 'margin: 8px 0 16px 0;' }
-                    });
+                    const warningCalloutEl = containerEl.createDiv({ cls: 'lfl-callout' });
 
                     const missingList = missing.join(', ');
                     const warningMarkdown = `> [!warning] ${t('missingVariantTitle')}
@@ -436,114 +435,80 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             }
             containerEl.createEl('div', {
                 text: emptyMessage,
-                attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;' }
+                cls: 'lfl-empty-note'
             });
             return;
         }
 
         // Render each family
         for (const [familyName, fonts] of filteredFamilies) {
-            const familyEl = containerEl.createDiv({
-                cls: 'font-family-item',
-                attr: {
-                    style: 'margin-bottom: 8px; border: 1px solid var(--background-modifier-border); border-radius: 6px; overflow: hidden;'
-                }
-            });
+            const familyEl = containerEl.createDiv({ cls: 'font-family-item' });
 
             // Family title (clickable to expand/collapse)
-            const headerEl = familyEl.createDiv({
-                attr: {
-                    style: 'padding: 12px; background: var(--background-primary); cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;'
-                }
-            });
+            const headerEl = familyEl.createDiv({ cls: 'font-family-header' });
 
-            const leftEl = headerEl.createDiv({
-                attr: { style: 'display: flex; align-items: center; gap: 12px; flex: 1;' }
-            });
+            const leftEl = headerEl.createDiv({ cls: 'font-family-title' });
 
             // Expand/collapse icon
             const expandIcon = leftEl.createSpan({
                 cls: 'font-family-toggle',
-                attr: {
-                    style: 'display: inline-flex; align-items: center; transition: transform 0.2s ease;',
-                    'aria-label': t('expandCollapse')
-                }
+                attr: { 'aria-label': t('expandCollapse') }
             });
             setIcon(expandIcon, 'chevron-right');
 
             // Family name
             leftEl.createSpan({
                 text: familyName,
-                attr: { style: 'font-weight: 600; font-family: var(--font-monospace);' }
+                cls: 'font-family-name'
             });
 
             // Font list (collapsed by default)
-            const variantsEl = familyEl.createDiv({
-                cls: 'font-variants',
-                attr: {
-                    style: 'display: none; padding: 8px; background: var(--background-secondary);'
-                }
-            });
+            const variantsEl = familyEl.createDiv({ cls: 'font-variants' });
 
-            let expanded = false;
             this._addEventListener(headerEl, 'click', () => {
-                expanded = !expanded;
-                variantsEl.setCssStyles({
-                    display: expanded ? 'block' : 'none',
-                });
-                // Rotate icon
-                expandIcon.setCssStyles({
-                    transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                });
+                // Read the state off the row instead of keeping a copy here, so the row's class
+                // stays the single source of truth for what is on screen.
+                setFontFamilyExpanded(familyEl, !isFontFamilyExpanded(familyEl));
             });
 
             // Render the variant list
             fonts.forEach(font => {
-                const variantEl = variantsEl.createDiv({
-                    attr: {
-                        style: 'padding: 8px; margin: 4px 0; background: var(--background-primary); border-radius: 4px; display: flex; align-items: center; justify-content: space-between;'
-                    }
-                });
+                const variantEl = variantsEl.createDiv({ cls: 'font-variant-item' });
 
-                const infoEl = variantEl.createDiv({
-                    attr: { style: 'display: flex; align-items: center; gap: 12px; flex: 1;' }
-                });
+                const infoEl = variantEl.createDiv({ cls: 'font-variant-info' });
 
                 // Status icon
-                // Four states:
-                // 1. Source missing + cache exists -> blue check (cache only)
-                // 2. Source missing + cache missing -> red question mark (fully missing)
-                // 3. Source exists + converted -> green check (converted)
-                // 4. Source exists + not converted -> gray circle (pending conversion)
+                // Four states, named so the stylesheet colours them — the same names the legend
+                // above the list uses, so the two can never disagree:
+                // 1. Source missing + cache exists -> check, "cached"
+                // 2. Source missing + cache missing -> question mark, "missing"
+                // 3. Source exists + converted -> check, "converted"
+                // 4. Source exists + not converted -> circle, "pending"
 
-                let iconColor, iconName;
+                let status, iconName;
 
                 if (!this.plugin._getFontExists(font)) {
                     // Source file missing
                     if (font.hasB64) {
-                        // But the cache exists -> blue check
-                        iconColor = 'var(--interactive-accent)';
+                        status = 'cached';
                         iconName = 'check';
                     } else {
-                        // Cache also missing -> red question mark
-                        iconColor = 'var(--text-error)';
+                        status = 'missing';
                         iconName = 'help-circle';
                     }
                 } else {
                     // Source file exists
                     if (font.hasB64) {
-                        // Converted -> green check
-                        iconColor = 'var(--color-green)';
+                        status = 'converted';
                         iconName = 'check';
                     } else {
-                        // Not converted -> gray circle
-                        iconColor = 'var(--text-muted)';
+                        status = 'pending';
                         iconName = 'circle';
                     }
                 }
 
                 const statusIconEl = infoEl.createSpan({
-                    attr: { style: `color: ${iconColor};` }
+                    cls: `font-variant-status is-${status}`
                 });
                 setIcon(statusIconEl, iconName);
 
@@ -560,18 +525,16 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                 // Variant name
                 infoEl.createSpan({
                     text: variantLabel,
-                    attr: { style: 'font-family: var(--font-monospace); font-size: 0.9em;' }
+                    cls: 'font-variant-label'
                 });
 
                 // Action buttons
-                const actionsEl = variantEl.createDiv({
-                    attr: { style: 'display: flex; gap: 4px;' }
-                });
+                const actionsEl = variantEl.createDiv({ cls: 'font-variant-actions' });
 
                 // Reconvert button
                 const convertBtn = actionsEl.createEl('button', {
+                    cls: 'font-icon-btn',
                     attr: {
-                        style: 'padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;',
                         title: t('reconvertFont'),
                         'aria-label': t('reconvertFont')
                     }
@@ -584,8 +547,8 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
                 // Delete button
                 const deleteBtn = actionsEl.createEl('button', {
+                    cls: 'font-icon-btn',
                     attr: {
-                        style: 'padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center;',
                         title: t('deleteThisFont'),
                         'aria-label': t('deleteThisFont')
                     }

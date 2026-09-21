@@ -216,9 +216,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     });
 
                     // OS icon + device name container
-                    const deviceInfoContainer = deviceItem.createDiv({
-                        attr: { style: 'display: flex; align-items: center; gap: 8px; flex: 1;' }
-                    });
+                    const deviceInfoContainer = deviceItem.createDiv({ cls: 'lfl-device-info' });
 
                     // OS icon (using CSS class)
                     const osIcon = deviceInfoContainer.createSpan({
@@ -240,9 +238,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     osIcon.addClass(osIconClasses[detectedOs] || 'os-default');
 
                     // Device name + descriptive sub-line
-                    const textContainer = deviceInfoContainer.createDiv({
-                        attr: { style: 'display: flex; flex-direction: column; gap: 2px; min-width: 0;' }
-                    });
+                    const textContainer = deviceInfoContainer.createDiv({ cls: 'lfl-device-text' });
 
                     textContainer.createSpan({
                         text: isCurrent ? `${deviceName} (${t('currentDevice')})` : deviceName,
@@ -293,11 +289,8 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
 
                     // Edit button (shown for all devices) - uses a white icon
                     const editBtn = btnContainer.createEl('button', {
-                        cls: 'clickable-icon',
-                        attr: {
-                            'aria-label': t('editDeviceName'),
-                            style: 'color: var(--text-on-accent);' // white icon
-                        }
+                        cls: 'clickable-icon device-edit-btn',
+                        attr: { 'aria-label': t('editDeviceName') }
                     });
                     setIcon(editBtn, 'edit');
                     tab._addEventListener(editBtn, 'click', async (e) => {
@@ -354,9 +347,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                             e.stopPropagation();
 
                             const selectEl = document.createElement('select');
-                            selectEl.setCssStyles({
-                                cssText: 'position: absolute; opacity: 0; pointer-events: none;',
-                            });
+                            selectEl.addClass('lfl-hidden-select');
 
                             tab.plugin.settings.presets.forEach(p => {
                                 const option = selectEl.appendChild(document.createElement('option'));

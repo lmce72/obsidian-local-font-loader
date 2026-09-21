@@ -102,6 +102,17 @@ export interface DeviceMeta {
     model: string;
     /** Machine name, desktops only. Lets a renamed device still be identifiable. */
     hostname: string;
+    /**
+     * ISO timestamp of the first launch this id was seen at. Written by the device itself.
+     *
+     * The pair of timestamps is the only evidence that can separate "one device that lost its
+     * identity" from "two devices of the same model": a device that stopped being seen *before*
+     * another id appeared is its predecessor, whereas two entries seen at the same time are two
+     * real devices. See `isSuccessionChain` in `device-repair.ts`.
+     */
+    firstSeen?: string;
+    /** ISO timestamp of the most recent launch seen; refreshed by the device, not on every launch. */
+    lastSeen?: string;
     /** Written by older versions; no longer read, dropped when the entry is rewritten. */
     osVersion?: string;
 }
@@ -122,6 +133,12 @@ export interface PluginSettings {
     deviceFingerprints: Record<string, string>;
     deviceNameMap: Record<string, string>;
     deviceMeta: Record<string, DeviceMeta>;
+    /**
+     * Collapsed device id → the id that replaced it, written by the device-list repair when a sync
+     * merge leaves the same physical device registered twice. A device whose own id was collapsed
+     * adopts its survivor from here, instead of re-registering the id that was just removed.
+     */
+    deviceAliases: Record<string, string>;
     latinFontForUI: boolean;
     presets: FontPreset[];
 }

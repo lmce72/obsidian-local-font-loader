@@ -9,6 +9,7 @@ import { Notice, setIcon, MarkdownRenderer } from 'obsidian';
 
 import { t } from '../../i18n';
 import { FontImportModal } from '../modals';
+import { setFontFamilyExpanded } from '../font-family-view';
 import type FontManagerSettingTab from '../settings-tab';
 
 /**
@@ -29,16 +30,10 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         }
 
         // Button group container (filter + expand/collapse)
-        const buttonContainerEl = containerEl.createDiv({
-            attr: {
-                style: 'margin-bottom: 12px; padding: 12px; background: var(--background-secondary); border-radius: 8px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;'
-            }
-        });
+        const buttonContainerEl = containerEl.createDiv({ cls: 'lfl-toolbar' });
 
         // Filter button group
-        const filterGroup = buttonContainerEl.createDiv({
-            attr: { style: 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap;' }
-        });
+        const filterGroup = buttonContainerEl.createDiv({ cls: 'lfl-toolbar-group' });
 
         // Filter button config
         const filterButtons = [
@@ -53,25 +48,11 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         filterButtons.forEach(btnConfig => {
             const isActive = tab._fontFilter === btnConfig.filter;
             const btn = filterGroup.createEl('button', {
-                attr: {
-                    style: `
-                        display: flex;
-                        align-items: center;
-                        gap: 4px;
-                        padding: 4px 10px;
-                        border-radius: 4px;
-                        border: 1px solid var(--background-modifier-border);
-                        background: ${isActive ? 'var(--interactive-accent)' : 'var(--background-primary)'};
-                        color: ${isActive ? 'var(--text-on-accent)' : 'var(--text-normal)'};
-                        cursor: pointer;
-                        font-size: 0.85em;
-                        transition: all 0.2s ease;
-                    `,
-                    'aria-label': btnConfig.label
-                }
+                cls: isActive ? 'lfl-chip is-active' : 'lfl-chip',
+                attr: { 'aria-label': btnConfig.label }
             });
 
-            const iconEl = btn.createSpan({ attr: { style: 'display: inline-flex; align-items: center;' } });
+            const iconEl = btn.createSpan({ cls: 'lfl-chip-icon' });
             setIcon(iconEl, btnConfig.icon);
             btn.createSpan({ text: btnConfig.label });
 
@@ -79,162 +60,86 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         });
 
         // Add a separator
-        buttonContainerEl.createDiv({
-            attr: { style: 'width: 1px; height: 24px; background: var(--background-modifier-border);' }
-        });
+        buttonContainerEl.createDiv({ cls: 'lfl-toolbar-divider' });
 
         // Expand/collapse button group
-        const expandCollapseGroup = buttonContainerEl.createDiv({
-            attr: { style: 'display: flex; gap: 8px; align-items: center;' }
-        });
+        const expandCollapseGroup = buttonContainerEl.createDiv({ cls: 'lfl-toolbar-group' });
 
         // Expand all button
         const expandAllBtn = expandCollapseGroup.createEl('button', {
-            attr: {
-                style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    padding: 4px 10px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background: var(--background-primary);
-                    color: var(--text-normal);
-                    cursor: pointer;
-                    font-size: 0.85em;
-                    transition: all 0.2s ease;
-                `,
-                'aria-label': t('expandAll')
-            }
+            cls: 'lfl-chip',
+            attr: { 'aria-label': t('expandAll') }
         });
-        const expandIcon = expandAllBtn.createSpan({ attr: { style: 'display: inline-flex; align-items: center;' } });
+        const expandIcon = expandAllBtn.createSpan({ cls: 'lfl-chip-icon' });
         setIcon(expandIcon, 'chevrons-down');
         expandAllBtn.createSpan({ text: t('expandAll') });
 
         tab._addEventListener(expandAllBtn, 'click', () => {
             const allFamilies = fontListEl.querySelectorAll('.font-family-item');
             allFamilies.forEach(familyItem => {
-                const toggle = familyItem.querySelector<HTMLElement>('.font-family-toggle');
-                const variants = familyItem.querySelector<HTMLElement>('.font-variants');
-                if (toggle && variants && variants.style.display === 'none') {
-                    toggle.setCssStyles({
-                        transform: 'rotate(90deg)',
-                    });
-                    variants.setCssStyles({
-                        display: 'block',
-                    });
-                }
+                setFontFamilyExpanded(familyItem as HTMLElement, true);
             });
         });
 
         // Collapse all button
         const collapseAllBtn = expandCollapseGroup.createEl('button', {
-            attr: {
-                style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    padding: 4px 10px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background: var(--background-primary);
-                    color: var(--text-normal);
-                    cursor: pointer;
-                    font-size: 0.85em;
-                    transition: all 0.2s ease;
-                `,
-                'aria-label': t('collapseAll')
-            }
+            cls: 'lfl-chip',
+            attr: { 'aria-label': t('collapseAll') }
         });
-        const collapseIcon = collapseAllBtn.createSpan({ attr: { style: 'display: inline-flex; align-items: center;' } });
+        const collapseIcon = collapseAllBtn.createSpan({ cls: 'lfl-chip-icon' });
         setIcon(collapseIcon, 'chevrons-up');
         collapseAllBtn.createSpan({ text: t('collapseAll') });
 
         tab._addEventListener(collapseAllBtn, 'click', () => {
             const allFamilies = fontListEl.querySelectorAll('.font-family-item');
             allFamilies.forEach(familyItem => {
-                const toggle = familyItem.querySelector<HTMLElement>('.font-family-toggle');
-                const variants = familyItem.querySelector<HTMLElement>('.font-variants');
-                if (toggle && variants && variants.style.display !== 'none') {
-                    toggle.setCssStyles({
-                        transform: 'rotate(0deg)',
-                    });
-                    variants.setCssStyles({
-                        display: 'none',
-                    });
-                }
+                setFontFamilyExpanded(familyItem as HTMLElement, false);
             });
         });
 
         // Legend container (independent of the button group)
-        const legendEl = containerEl.createDiv({
-            attr: {
-                style: 'margin-bottom: 16px; padding: 12px; background: var(--background-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 16px; font-size: 0.9em;'
-            }
-        });
+        const legendEl = containerEl.createDiv({ cls: 'lfl-legend' });
 
         // Legend (left side)
-        const legendsContainer = legendEl.createDiv({
-            attr: { style: 'display: flex; gap: 16px; flex-wrap: wrap; align-items: center;' }
-        });
+        const legendsContainer = legendEl.createDiv({ cls: 'lfl-legend-items' });
 
         // "Font File Status" label
         legendsContainer.createDiv({
             text: t('fontFileStatus'),
-            attr: { style: 'font-weight: 600; color: var(--text-normal);' }
+            cls: 'lfl-legend-title'
         });
 
         // Vertical separator
-        legendsContainer.createDiv({
-            attr: { style: 'width: 1px; height: 20px; background: var(--background-modifier-border);' }
-        });
+        legendsContainer.createDiv({ cls: 'lfl-legend-divider' });
 
+        // The state names double as the modifier on the icon class, so a legend entry and the
+        // variant row it describes can never drift apart in colour.
         const legends = [
-            { icon: 'check', color: 'var(--color-green)', text: t('legendConverted') },
-            { icon: 'circle', color: 'var(--text-muted)', text: t('legendNotConverted') },
-            { icon: 'check', color: 'var(--interactive-accent)', text: t('legendCachedOnly') },
-            { icon: 'help-circle', color: 'var(--text-error)', text: t('legendNotExist') }
+            { icon: 'check', state: 'converted', text: t('legendConverted') },
+            { icon: 'circle', state: 'pending', text: t('legendNotConverted') },
+            { icon: 'check', state: 'cached', text: t('legendCachedOnly') },
+            { icon: 'help-circle', state: 'missing', text: t('legendNotExist') }
         ];
 
         legends.forEach(legend => {
-            const item = legendsContainer.createDiv({
-                attr: { style: 'display: flex; align-items: center; gap: 6px;' }
-            });
-            const iconEl = item.createSpan({ attr: { style: `color: ${legend.color};` } });
+            const item = legendsContainer.createDiv({ cls: 'lfl-legend-item' });
+            const iconEl = item.createSpan({ cls: `lfl-legend-icon is-${legend.state}` });
             setIcon(iconEl, legend.icon);
             item.createSpan({ text: legend.text });
         });
 
         // Refresh scan button (right side)
         const rescanBtn = legendEl.createEl('button', {
-            attr: {
-                style: `
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 6px 12px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background: var(--background-primary);
-                    color: var(--text-normal);
-                    cursor: pointer;
-                    font-size: 0.9em;
-                    transition: all 0.2s ease;
-                    white-space: nowrap;
-                `,
-                'aria-label': t('rescanFonts') || '重新扫描'
-            }
+            cls: 'lfl-chip lfl-chip--rescan',
+            attr: { 'aria-label': t('rescanFonts') || '重新扫描' }
         });
 
-        const rescanIcon = rescanBtn.createSpan({ attr: { style: 'display: inline-flex; align-items: center;' } });
+        const rescanIcon = rescanBtn.createSpan({ cls: 'lfl-chip-icon' });
         setIcon(rescanIcon, 'rotate-cw');
         rescanBtn.createSpan({ text: t('rescanFonts') || '重新扫描' });
 
         tab._addEventListener(rescanBtn, 'click', async () => {
             rescanBtn.disabled = true;
-            rescanBtn.setCssStyles({
-                opacity: '0.5',
-            });
             await tab.plugin.scanFonts();
             new Notice(t('fontsRescanned') || '✓ 字体已重新扫描');
 
@@ -245,11 +150,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         });
 
         // Font list (must be defined first for the button event listeners)
-        const fontListEl = containerEl.createDiv({
-            attr: {
-                style: 'margin: 10px 0; padding: 10px; background: var(--background-secondary); border-radius: 8px; max-height: 400px; overflow-y: auto;'
-            }
-        });
+        const fontListEl = containerEl.createDiv({ cls: 'lfl-font-list' });
 
         // Now add the event listeners for the filter buttons
         filterButtonElements.forEach(({ btn, filter }) => {
@@ -261,7 +162,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
                 if (tab.plugin.settings.availableFonts.length === 0) {
                     fontListEl.createEl('div', {
                         text: t('notFoundFontFamily'),
-                        attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;' }
+                        cls: 'lfl-empty-note'
                     });
                 } else {
                     tab.renderFontFamilies(fontListEl, tab._fontFilter);
@@ -269,11 +170,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
 
                 // Update all buttons' active states
                 filterButtonElements.forEach(({ btn: button, filter: f }) => {
-                    const isActive = tab._fontFilter === f;
-                    button.setCssStyles({
-                        background: isActive ? 'var(--interactive-accent)' : 'var(--background-primary)',
-                        color: isActive ? 'var(--text-on-accent)' : 'var(--text-normal)',
-                    });
+                    button.toggleClass('is-active', tab._fontFilter === f);
                 });
             });
         });
@@ -282,7 +179,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         if (tab.plugin.settings.availableFonts.length === 0) {
             fontListEl.createEl('div', {
                 text: t('notFoundFontFamily'),
-                attr: { style: 'color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 20px;' }
+                cls: 'lfl-empty-note'
             });
         } else {
             // Display by family (collapsible), passing the filter parameter
@@ -290,19 +187,12 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         }
 
         // Font file operation buttons
-        const fontOperationsEl = containerEl.createDiv({
-            attr: {
-                style: 'display: flex; gap: 12px; margin: 16px 0;'
-            }
-        });
+        const fontOperationsEl = containerEl.createDiv({ cls: 'lfl-font-actions' });
 
         // Import fonts
         const importBtn = fontOperationsEl.createEl('button', {
             text: t('importFont'),
-            attr: {
-                style: 'flex: 1; padding: 12px; cursor: pointer;',
-                class: 'mod-cta'
-            }
+            cls: 'mod-cta'
         });
 
         // Use a Modal popup to avoid the file chooser user-activation issue
@@ -333,10 +223,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
 
         // Convert all fonts
         const convertBtn = fontOperationsEl.createEl('button', {
-            text: t('convertAllFonts'),
-            attr: {
-                style: 'flex: 1; padding: 12px; cursor: pointer;'
-            }
+            text: t('convertAllFonts')
         });
         tab._addEventListener(convertBtn, 'click', async () => {
             convertBtn.disabled = true;

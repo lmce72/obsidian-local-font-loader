@@ -17,6 +17,23 @@ declare module 'obsidian' {
             open(): void;
             openTabById(id: string): void;
         };
+
+        /**
+         * The Custom CSS service, which owns themes and snippets.
+         *
+         * Undocumented but stable. It is the only way to have Obsidian load a generated
+         * stylesheet on its own, which is what the legacy CSS path in the plugin needs: it hands
+         * the generated CSS over as a snippet rather than attaching a `<style>` element itself.
+         * Optional because that is the honest typing for an undocumented member — callers guard.
+         */
+        customCss?: {
+            /** The snippet names currently enabled — the same set `setCssEnabledStatus` writes. */
+            enabledSnippets: Set<string>;
+            /** The vault-relative path a snippet of this name lives at. */
+            getSnippetPath(name: string): string;
+            /** Turns a snippet on or off and reloads snippets. */
+            setCssEnabledStatus(name: string, enabled: boolean): void;
+        };
     }
 
     interface View {

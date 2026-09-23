@@ -38,6 +38,14 @@ const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 
 /** How long a device entry's "last seen" timestamp may go unrefreshed. */
 const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * The snippet the legacy CSS path writes its generated stylesheets into.
+ *
+ * Named after the plugin so it can be recognized later — including on a device that never
+ * wrote it, where it arrived by sync.
+ */
+const LEGACY_SNIPPET = 'local-font-loader';
+
 export default class LocalFontLoaderPlugin extends Plugin {
 
     /**
@@ -63,6 +71,21 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     /** The CSS text last applied per id, to skip no-op updates. */
     _appliedCss = new Map<string, string>();
+
+    /** The same CSS, kept per id while the snippet carries it instead of a stylesheet. */
+    _snippetCss = new Map<string, string>();
+
+    /** True once the snippet is on — either written here, or found already enabled. */
+    _snippetEnabled = false;
+
+    /** True once this session has written the snippet file, as opposed to finding one there. */
+    _snippetWritten = false;
+
+    /** Serializes snippet writes, so the file never holds a half-updated mix of two applies. */
+    _snippetSync: Promise<void> = Promise.resolve();
+
+    /** Whether the modern path has already looked for a snippet left over by the legacy one. */
+    _legacySnippetChecked = false;
 
     _isScanning = false;
     _isSaving = false;
@@ -2783,9 +2806,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
      *
      * The CSS here is built at runtime from the user's own font files (their `@font-face` rules
      * and the variables derived from their presets), so it cannot live in a static `styles.css`
-     * — which is what the plugin guidelines otherwise ask for. A constructable stylesheet is
-     * used instead of appending a `<style>` element, and the element path is kept only as a
-     * fallback for WebViews that do not implement it.
+     * — which is what the plugin guidelines otherwise ask for. Two carriers are used instead,
+     * and neither makes this plugin attach a `<style>` element:
+     *
+     *  - A constructable stylesheet adopted by the document — the mechanism Obsidian's own
+     *    bundle prefers, and the one every supported platform has had since Safari 16.4 /
+     *    Chromium 73.
+     *  - On a WebView older than that (iOS 15.6–16.3), a CSS snippet written to the snippets
+     *    folder and enabled through `app.customCss`, so Obsidian loads the CSS itself. Without
+     *    this branch those devices would get no fonts at all.
      *
      * @param css - The CSS text; an empty value removes the stylesheet
      * @param cssId - A stable id, so repeated applies replace rather than accumulate
@@ -2800,8 +2829,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        if (typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype
-            && 'adoptedStyleSheets' in document) {
+        if (this._supportsConstructableStylesheets()) {
+            // Taking the CSS over here means any snippet of ours still carrying it has to go.
+            this._dropLegacySnippet();
+
             let sheet = this._adoptedSheets.get(cssId);
             if (!sheet) {
                 sheet = new CSSStyleSheet();
@@ -2811,23 +2842,22 @@ export default class LocalFontLoaderPlugin extends Plugin {
             try {
                 sheet.replaceSync(css);
             } catch (error) {
-                console.error(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
+                this._logError(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
                 return;
             }
         } else {
-            // Fallback for WebViews without constructable stylesheets (Safari below 16.4).
-            // Deliberate: without it, fonts would not load at all on those devices, which is a
-            // worse outcome than the guideline this branch is exempt from.
-            let element = document.getElementById(cssId) as HTMLStyleElement | null;
-            if (!element) {
-                element = document.createElement('style');
-                element.id = cssId;
-                document.head.appendChild(element);
-            }
-            element.textContent = css;
+            this._snippetCss.set(cssId, css);
+            this._queueSnippetSync();
         }
 
         this._appliedCss.set(cssId, css);
+    }
+
+    /** Whether this document can carry a stylesheet that was built at runtime. */
+    _supportsConstructableStylesheets(): boolean {
+        return typeof CSSStyleSheet === 'function'
+            && 'replaceSync' in CSSStyleSheet.prototype
+            && 'adoptedStyleSheets' in document;
     }
 
     /**
@@ -2842,12 +2872,101 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this._adoptedSheets.delete(cssId);
         }
 
+        // Earlier versions attached a `<style>` element per id. Only the removal of one survives:
+        // reloading the plugin can leave the old element behind for the rest of the session.
         const element = document.getElementById(cssId);
         if (element) {
             element.remove();
         }
 
+        if (this._snippetCss.delete(cssId)) {
+            this._queueSnippetSync();
+        }
+
         this._appliedCss.delete(cssId);
+    }
+
+    /**
+     * Queues a snippet rewrite, chained onto the one before it.
+     *
+     * Both applies of a font change (the `@font-face` rules, then the variables) land in the
+     * snippet, so they settle into a single write rather than racing over the same file.
+     */
+    _queueSnippetSync(): void {
+        this._snippetSync = this._snippetSync
+            .then(() => this._syncSnippet())
+            .catch(error => this._logError('[Local Font Loader] Could not write the CSS snippet:', error));
+    }
+
+    /**
+     * Brings the snippet in line with the CSS currently generated.
+     *
+     * The plugin never touches the element Obsidian builds from the snippet: it writes the file
+     * and enables it, and Obsidian loads it like any other snippet.
+     */
+    async _syncSnippet(): Promise<void> {
+        const customCss = this.app.customCss;
+        if (!customCss) {
+            this._logError('[Local Font Loader] No CSS snippets on this platform: the fonts cannot be applied.');
+            return;
+        }
+
+        const path = customCss.getSnippetPath(LEGACY_SNIPPET);
+        const css = Array.from(this._snippetCss.values()).join('\n');
+
+        if (!css) {
+            // Nothing left to carry — take the snippet back out of the user's list.
+            if (!this._snippetEnabled) {
+                return;
+            }
+            this._snippetEnabled = false;
+            customCss.setCssEnabledStatus(LEGACY_SNIPPET, false);
+
+            // A file this session did not write belongs to someone else — a snippet that arrived
+            // by sync, or one the user made under this name. Disabling it is reversible and
+            // enough; deleting a file the plugin did not author is not.
+            if (!this._snippetWritten) {
+                return;
+            }
+            this._snippetWritten = false;
+
+            // Checked first: removing a file that is already gone would only throw, and a snippet
+            // that is not there is the state being asked for rather than a failure.
+            if (await this.app.vault.adapter.exists(path)) {
+                await this.app.vault.adapter.remove(path);
+            }
+            return;
+        }
+
+        await this.app.vault.adapter.write(path, css);
+        this._snippetWritten = true;
+        if (!this._snippetEnabled) {
+            this._snippetEnabled = true;
+            customCss.setCssEnabledStatus(LEGACY_SNIPPET, true);
+        }
+        this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${LEGACY_SNIPPET}" snippet.`);
+    }
+
+    /**
+     * Takes back a snippet left behind by the legacy path — written by this device while it still
+     * needed one, or synced in from a device that did.
+     *
+     * Runs once per session, on the first apply the modern path handles. An enabled snippet would
+     * otherwise keep applying another device's fonts, and sit in the user's snippet list for good.
+     */
+    _dropLegacySnippet(): void {
+        if (this._legacySnippetChecked) {
+            return;
+        }
+        this._legacySnippetChecked = true;
+
+        if (!this.app.customCss?.enabledSnippets?.has(LEGACY_SNIPPET)) {
+            return;
+        }
+
+        // No CSS of ours to write, so the queued sync disables and deletes it.
+        this._snippetEnabled = true;
+        this._queueSnippetSync();
     }
 
     removeFontStyles() {

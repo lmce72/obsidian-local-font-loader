@@ -6,6 +6,24 @@
   everything below it is the developer record and never reaches the release.
 -->
 
+## [1.5.6] - 2026-09-23
+
+修复社区插件审核指出的问题：插件不再自行建立 `<style>` 元素。旧款 iOS 上的字体改由 Obsidian 自己载入，功能不受影响。
+
+### 🔧 相容性
+
+1. **生成的样式表不再经由 `<style>` 元素**
+   - 支援可构造样式表的平台（Safari 16.4 / Chromium 73 起，含桌面与现行移动端）仍走 `document.adoptedStyleSheets`，行为与 1.5.4 起相同
+   - 仅 iOS 15.6–16.3 等缺少该 API 的 WebView 改走 CSS 片段：插件把生成的 CSS 写入片段文件夹并经 `app.customCss` 启用，由 Obsidian 载入 —— 即审核建议的 `styles.css` 机制
+   - 片段写入按序串接，两次套用（`@font-face` 与变量）合并为一次写入，不会写入半新半旧的内容
+   - 改用可构造样式表的平台上会回收先前遗留的片段（含经同步传来的其他设备片段）；非本插件写入的文件只停用、不删除
+
+### 📝 审核说明
+
+2. **报错行已消除**
+   - 报错位置 `src/plugin.ts:2668`（1.5.5）是 `applyCss` 中为旧 WebView 保留的 `<style>` 回退分支；该分支已删除，全仓库无任何建立或挂载 `<style>` 的代码
+   - 回退改以 CSS 片段实现，因此 iOS 15.6–16.3 的字型支援未被牺牲
+
 ## [1.5.5] - 2026-09-16
 
 修复跨设备识别的稳定性问题，建议更新。

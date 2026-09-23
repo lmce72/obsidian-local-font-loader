@@ -2661,12 +2661,18 @@ class FontManagerSettingTab extends import_obsidian6.PluginSettingTab {
 var browserNavigator = globalThis.navigator;
 var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen"];
 var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
+var LEGACY_SNIPPET = "local-font-loader";
 
 class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
   currentDeviceId;
   _mathFontSnapshot = null;
   _adoptedSheets = new Map;
   _appliedCss = new Map;
+  _snippetCss = new Map;
+  _snippetEnabled = false;
+  _snippetWritten = false;
+  _snippetSync = Promise.resolve();
+  _legacySnippetChecked = false;
   _isScanning = false;
   _isSaving = false;
   _dataReloadTimer = null;
@@ -4418,7 +4424,8 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
       this._removeGeneratedStyles(cssId);
       return;
     }
-    if (typeof CSSStyleSheet === "function" && "replaceSync" in CSSStyleSheet.prototype && "adoptedStyleSheets" in document) {
+    if (this._supportsConstructableStylesheets()) {
+      this._dropLegacySnippet();
       let sheet = this._adoptedSheets.get(cssId);
       if (!sheet) {
         sheet = new CSSStyleSheet;
@@ -4428,19 +4435,17 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
       try {
         sheet.replaceSync(css);
       } catch (error) {
-        console.error(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
+        this._logError(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
         return;
       }
     } else {
-      let element = document.getElementById(cssId);
-      if (!element) {
-        element = document.createElement("style");
-        element.id = cssId;
-        document.head.appendChild(element);
-      }
-      element.textContent = css;
+      this._snippetCss.set(cssId, css);
+      this._queueSnippetSync();
     }
     this._appliedCss.set(cssId, css);
+  }
+  _supportsConstructableStylesheets() {
+    return typeof CSSStyleSheet === "function" && "replaceSync" in CSSStyleSheet.prototype && "adoptedStyleSheets" in document;
   }
   _removeGeneratedStyles(cssId) {
     const sheet = this._adoptedSheets.get(cssId);
@@ -4452,7 +4457,56 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
     if (element) {
       element.remove();
     }
+    if (this._snippetCss.delete(cssId)) {
+      this._queueSnippetSync();
+    }
     this._appliedCss.delete(cssId);
+  }
+  _queueSnippetSync() {
+    this._snippetSync = this._snippetSync.then(() => this._syncSnippet()).catch((error) => this._logError("[Local Font Loader] Could not write the CSS snippet:", error));
+  }
+  async _syncSnippet() {
+    const customCss = this.app.customCss;
+    if (!customCss) {
+      this._logError("[Local Font Loader] No CSS snippets on this platform: the fonts cannot be applied.");
+      return;
+    }
+    const path = customCss.getSnippetPath(LEGACY_SNIPPET);
+    const css = Array.from(this._snippetCss.values()).join(`
+`);
+    if (!css) {
+      if (!this._snippetEnabled) {
+        return;
+      }
+      this._snippetEnabled = false;
+      customCss.setCssEnabledStatus(LEGACY_SNIPPET, false);
+      if (!this._snippetWritten) {
+        return;
+      }
+      this._snippetWritten = false;
+      if (await this.app.vault.adapter.exists(path)) {
+        await this.app.vault.adapter.remove(path);
+      }
+      return;
+    }
+    await this.app.vault.adapter.write(path, css);
+    this._snippetWritten = true;
+    if (!this._snippetEnabled) {
+      this._snippetEnabled = true;
+      customCss.setCssEnabledStatus(LEGACY_SNIPPET, true);
+    }
+    this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${LEGACY_SNIPPET}" snippet.`);
+  }
+  _dropLegacySnippet() {
+    if (this._legacySnippetChecked) {
+      return;
+    }
+    this._legacySnippetChecked = true;
+    if (!this.app.customCss?.enabledSnippets?.has(LEGACY_SNIPPET)) {
+      return;
+    }
+    this._snippetEnabled = true;
+    this._queueSnippetSync();
   }
   removeFontStyles() {
     this._removeGeneratedStyles("local-font-loader-faces");

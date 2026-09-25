@@ -36,31 +36,16 @@ export class TextInputModal extends Modal {
             type: 'text',
             value: this.defaultValue,
             placeholder: this.placeholder,
+            cls: 'lfl-text-input',
             attr: {
                 'aria-label': this.titleText
             }
         });
 
-        // Style setup (using Obsidian CSS variables)
-        inputEl.setCssStyles({
-            width: '100%',
-            marginBottom: '16px',
-            padding: '8px',
-            fontSize: '14px',
-            border: '1px solid var(--background-modifier-border)',
-            borderRadius: '4px',
-            backgroundColor: 'var(--background-primary)',
-            color: 'var(--text-normal)',
-        });
-
         // Create the button container
-        const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
-        buttonContainer.setCssStyles({
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '8px',
-            marginTop: '16px',
-        });
+        // `modal-button-container` is Obsidian's own class, kept so the button row inherits the
+        // app's styling; the plugin class only pins the layout the modal had before.
+        const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container lfl-modal-buttons' });
 
         // Cancel button
         const cancelBtn = buttonContainer.createEl('button', { text: t('cancel') });
@@ -78,9 +63,7 @@ export class TextInputModal extends Modal {
                 this.close();
             } else {
                 // Highlight the input border when empty
-                inputEl.setCssStyles({
-                    borderColor: 'var(--text-error)',
-                });
+                inputEl.addClass('is-invalid');
                 inputEl.focus();
             }
         });
@@ -98,9 +81,7 @@ export class TextInputModal extends Modal {
 
         // Remove the error style on input
         inputEl.addEventListener('input', () => {
-            inputEl.setCssStyles({
-                borderColor: 'var(--background-modifier-border)',
-            });
+            inputEl.removeClass('is-invalid');
         });
 
         // Auto-focus and select the text (for quick edits)
@@ -135,83 +116,21 @@ export class FontImportModal extends Modal {
         titleEl.setText(t('importFont'));
 
         // Drop zone
-        const dropZone = contentEl.createDiv({
-            cls: 'font-import-dropzone',
-            attr: {
-                style: `
-                    border: 2px dashed var(--interactive-accent);
-                    border-radius: 8px;
-                    padding: 60px 40px;
-                    text-align: center;
-                    background: var(--background-secondary);
-                    cursor: pointer;
-                    transition: background 0.2s ease;
-                `
-            }
-        });
+        const dropZone = contentEl.createDiv({ cls: 'lfl-import-dropzone' });
 
-        const iconContainer = dropZone.createDiv({
-            cls: 'font-import-icon',
-            attr: {
-                style: `
-                    margin-bottom: 16px;
-                    color: var(--interactive-accent);
-                `
-            }
-        });
+        const iconContainer = dropZone.createDiv({ cls: 'lfl-import-icon' });
         setIcon(iconContainer, 'folder');
-        // Set the icon size
-        const iconSvg = iconContainer.querySelector('svg');
-        if (iconSvg) {
-            iconSvg.setAttribute('width', '48');
-            iconSvg.setAttribute('height', '48');
-            iconSvg.setCssStyles({
-                display: 'block',
-                margin: '0 auto',
-            });
-        }
 
-        const title = dropZone.createDiv({
-            attr: {
-                style: `
-                    font-size: 16px;
-                    font-weight: 500;
-                    margin-bottom: 8px;
-                    color: var(--text-normal);
-                `
-            },
-            text: '拖拽字体文件到此处'
-        });
-
-        const subtitle = dropZone.createDiv({
-            attr: {
-                style: `
-                    font-size: 14px;
-                    color: var(--text-muted);
-                    margin-bottom: 16px;
-                `
-            },
-            text: '或点击选择文件'
-        });
-
-        const hint = dropZone.createDiv({
-            attr: {
-                style: `
-                    font-size: 12px;
-                    color: var(--text-faint);
-                `
-            },
-            text: '支持 .ttf, .otf, .woff, .woff2 格式'
-        });
+        dropZone.createDiv({ cls: 'lfl-import-title', text: t('importDropTitle') });
+        dropZone.createDiv({ cls: 'lfl-import-subtitle', text: t('importDropSubtitle') });
+        dropZone.createDiv({ cls: 'lfl-import-hint', text: t('importDropHint') });
 
         // Create a hidden input (inside the Modal)
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
         input.accept = '.ttf,.otf,.woff,.woff2';
-        input.setCssStyles({
-            display: 'none',
-        });
+        input.addClass('lfl-hidden-input');
         contentEl.appendChild(input);
 
         // Click the zone to trigger file selection
@@ -231,22 +150,16 @@ export class FontImportModal extends Modal {
         // Drag-and-drop handlers
         dropZone.ondragover = (e) => {
             e.preventDefault();
-            dropZone.setCssStyles({
-                background: 'var(--background-modifier-hover)',
-            });
+            dropZone.addClass('is-dragover');
         };
 
         dropZone.ondragleave = () => {
-            dropZone.setCssStyles({
-                background: 'var(--background-secondary)',
-            });
+            dropZone.removeClass('is-dragover');
         };
 
         dropZone.ondrop = async (e) => {
             e.preventDefault();
-            dropZone.setCssStyles({
-                background: 'var(--background-secondary)',
-            });
+            dropZone.removeClass('is-dragover');
 
             const files = e.dataTransfer.files;
             if (!files || files.length === 0) return;
@@ -277,7 +190,7 @@ export function showConfirmDialog(app, title, message, onConfirm, isDangerous = 
     // Create the message content
     modal.contentEl.createEl('p', {
         text: message,
-        attr: { style: 'margin-bottom: 16px;' }
+        cls: 'lfl-confirm-message'
     });
 
     // Add the confirm button

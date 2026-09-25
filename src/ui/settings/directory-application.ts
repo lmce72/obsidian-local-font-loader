@@ -10,6 +10,7 @@ import { Notice, Setting, setIcon, MarkdownRenderer } from 'obsidian';
 import { t } from '../../i18n';
 import type { PresetFonts } from '../../types';
 import type FontManagerSettingTab from '../settings-tab';
+import { addFolderPathInput } from './folder-input';
 
 /**
  * Renders this section into the given container.
@@ -23,37 +24,32 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
         // ========================================
         containerEl.createEl('h3', { text: t('headerDirectoryConfig') });
 
-        new Setting(containerEl)
+        const sourceDirSetting = new Setting(containerEl)
             .setName(t('fontSourceDir'))
-            .setDesc(t('fontSourceDirDesc'))
-            .addText(text => text
-                .setPlaceholder('Local-Fonts')
-                .setValue(tab.plugin.settings.fontSourceDir)
-                .onChange(async (value) => {
-                    tab.plugin.settings.fontSourceDir = value;
-                    await tab.plugin.saveSettings();
-                })
-            )
-            .addButton(btn => btn
-                .setButtonText(t('scanFonts'))
-                .onClick(async () => {
-                    await tab.plugin.scanFonts();
-                    new Notice('✓ Font list updated');
-                    tab.display();
-                })
-            );
+            .setDesc(t('fontSourceDirDesc'));
 
-        new Setting(containerEl)
+        addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, async (value) => {
+            tab.plugin.settings.fontSourceDir = value;
+            await tab.plugin.saveSettings();
+        }, 'Local-Fonts');
+
+        sourceDirSetting.addButton(btn => btn
+            .setButtonText(t('scanFonts'))
+            .onClick(async () => {
+                await tab.plugin.scanFonts();
+                new Notice('✓ Font list updated');
+                tab.display();
+            })
+        );
+
+        const cacheDirSetting = new Setting(containerEl)
             .setName(t('cacheDir'))
-            .setDesc(t('cacheDirDesc'))
-            .addText(text => text
-                .setPlaceholder('Local-Fonts/UsableCssFont')
-                .setValue(tab.plugin.settings.b64OutputDir)
-                .onChange(async (value) => {
-                    tab.plugin.settings.b64OutputDir = value;
-                    await tab.plugin.saveSettings();
-                })
-            );
+            .setDesc(t('cacheDirDesc'));
+
+        addFolderPathInput(cacheDirSetting, tab.app, tab.plugin.settings.b64OutputDir, async (value) => {
+            tab.plugin.settings.b64OutputDir = value;
+            await tab.plugin.saveSettings();
+        }, 'Local-Fonts/UsableCssFont');
 
         // Startup settings
         new Setting(containerEl)
@@ -122,22 +118,14 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
             presetInfoContent.createEl('p', {
                 text: `${t('presetId')}: ${activePreset.id}`,
-                attr: { style: 'margin: 0; font-family: var(--font-monospace); color: var(--text-muted);' }
+                cls: 'lfl-preset-id'
             });
 
             // If it is the global preset, show a notice
             if (activePreset.id === 'default-preset' && activePreset.targetDevices.length === 0) {
-                const warningContainer = presetInfoContent.createEl('p', {
-                    attr: {
-                        style: 'margin: 8px 0 0 0; color: var(--text-warning); display: flex; align-items: center; gap: 6px;'
-                    }
-                });
-                const warningIcon = warningContainer.createSpan({ cls: 'warning-icon' });
+                const warningContainer = presetInfoContent.createEl('p', { cls: 'lfl-global-warning' });
+                const warningIcon = warningContainer.createSpan({ cls: 'lfl-warning-icon' });
                 setIcon(warningIcon, 'alert-triangle');
-                warningIcon.setCssStyles({
-                    display: 'inline-flex',
-                    flexShrink: '0',
-                });
                 warningContainer.createSpan({ text: t('usingGlobalPreset') });
             }
         }
@@ -172,7 +160,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
         // Get activePreset outside the loop so all onChange callbacks reference the same object
         const activePresetForFonts = tab.plugin.settings.presets.find(p => p.id === tab._activePresetId);
         if (!activePresetForFonts) {
-            console.error('[LocalFontLoader] Active preset not found:', tab._activePresetId);
+            tab.plugin._logError('[Local Font Loader] Active preset not found:', tab._activePresetId);
             return;
         }
         const activePresetFonts: PresetFonts = activePresetForFonts.fonts || ({} as PresetFonts);
@@ -191,10 +179,6 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             if (selectedFont && !fontExists) {
                 const warningIcon = settingItem.nameEl.createSpan({ cls: 'font-missing-icon' });
                 setIcon(warningIcon, 'x');
-                warningIcon.setCssStyles({
-                    color: 'var(--text-error)',
-                    marginLeft: '8px',
-                });
                 warningIcon.setAttribute('aria-label', t('fontNotFound'));
             }
 
@@ -207,10 +191,6 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             if (mathVerdict && (mathVerdict.status === 'mismatch' || mathVerdict.status === 'notMathFont')) {
                 const mathWarningIcon = settingItem.nameEl.createSpan({ cls: 'font-incompatible-icon' });
                 setIcon(mathWarningIcon, 'alert-triangle');
-                mathWarningIcon.setCssStyles({
-                    color: 'var(--text-warning)',
-                    marginLeft: '8px',
-                });
                 mathWarningIcon.setAttribute('aria-label', t(
                     mathVerdict.status === 'notMathFont' ? 'mathFontNotMathTitle' : 'mathFontMismatchTitle'
                 ));
@@ -288,7 +268,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                     if (isLatin) {
                         // Latin font: show full warning with non-Latin hint inside callout
-                        const warningCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+                        const warningCallout = containerEl.createDiv({ cls: 'lfl-callout' });
 
                         const warningMd = `> [!warning] ${t('incompleteVariantTitle')}
 > ${t('incompleteVariantBody', { fontFamily: fontForVariantCheck, variantCount: variants.length, variantList })}`;
@@ -300,7 +280,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                 // Monospace Font: must be monospace
                 if (fontType.key === 'monospace') {
-                    const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+                    const infoCallout = containerEl.createDiv({ cls: 'lfl-callout' });
 
                     const infoMd = `> [!info] ${t('monospaceRequirement')}
 > ${t('monospaceRequirementBody')}`;
@@ -310,7 +290,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
 
                 // Math Font: must be specialized math font
                 if (fontType.key === 'math') {
-                    const infoCallout = containerEl.createDiv({ attr: { style: 'margin: 8px 0 16px 0;' } });
+                    const infoCallout = containerEl.createDiv({ cls: 'lfl-callout' });
 
                     if (mathVerdict && mathVerdict.status === 'notMathFont') {
                         const warningMd = `> [!warning] ${t('mathFontNotMathTitle')}

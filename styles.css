@@ -216,10 +216,22 @@
     color: var(--interactive-accent);
 }
 
+/* Warning glyph after a font name: the font is selected but not installed */
 .font-missing-icon {
     display: inline-flex;
     align-items: center;
     vertical-align: middle;
+    margin-left: 8px;
+    color: var(--text-error);
+}
+
+/* Warning glyph after a font name: installed, but MathJax cannot lay it out */
+.font-incompatible-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-left: 8px;
+    color: var(--text-warning);
 }
 
 /* Mobile adaptation */
@@ -273,4 +285,381 @@
 /* Default icon (generic device) */
 .device-os-icon.os-default {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%23ffffff' d='M384 96V320H64L64 96H384zM64 32C28.7 32 0 60.7 0 96V320c0 35.3 28.7 64 64 64H181.3l-10.7 32H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H352c17.7 0 32-14.3 32-32s-14.3-32-32-32H277.3l-10.7-32H384c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64zm464 0c-26.5 0-48 21.5-48 48V432c0 26.5 21.5 48 48 48h64c26.5 0 48-21.5 48-48V80c0-26.5-21.5-48-48-48H528zm16 64h32c8.8 0 16 7.2 16 16s-7.2 16-16 16H544c-8.8 0-16-7.2-16-16s7.2-16 16-16zm-16 80c0-8.8 7.2-16 16-16h32c8.8 0 16 7.2 16 16s-7.2 16-16 16H544c-8.8 0-16-7.2-16-16zm32 224a32 32 0 1 1 0 64 32 32 0 1 1 0-64z'/%3E%3C/svg%3E");
+}
+
+/* ============================================================================
+   Settings tab — toolbar, legend and font list
+   Every class here replaces an inline style that used to be written from
+   TypeScript, so the appearance lives in one stylesheet (which is what the
+   plugin guidelines ask for) and follows the theme's variables.
+   ============================================================================ */
+
+.lfl-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+}
+
+.lfl-toolbar-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.lfl-toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--background-modifier-border);
+}
+
+/* Filter, expand/collapse and rescan buttons share one look */
+.lfl-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s ease;
+}
+
+.lfl-chip.is-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.lfl-chip-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.lfl-chip--rescan {
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.lfl-chip--rescan:disabled {
+    opacity: 0.5;
+}
+
+.lfl-legend {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    font-size: 0.9em;
+}
+
+.lfl-legend-items {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.lfl-legend-title {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.lfl-legend-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--background-modifier-border);
+}
+
+.lfl-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lfl-legend-icon.is-converted,
+.font-variant-status.is-converted {
+    color: var(--color-green);
+}
+
+.lfl-legend-icon.is-cached,
+.font-variant-status.is-cached {
+    color: var(--interactive-accent);
+}
+
+.lfl-legend-icon.is-pending,
+.font-variant-status.is-pending {
+    color: var(--text-muted);
+}
+
+.lfl-legend-icon.is-missing,
+.font-variant-status.is-missing {
+    color: var(--text-error);
+}
+
+.lfl-font-list {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.lfl-empty-note {
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.lfl-font-actions {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.lfl-font-actions > button {
+    flex: 1;
+    padding: 12px;
+    cursor: pointer;
+}
+
+/* Collapsible font family */
+.font-family-item {
+    margin-bottom: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.font-family-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    background: var(--background-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.font-family-title {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 12px;
+}
+
+.font-family-toggle {
+    display: inline-flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+}
+
+.font-family-toggle.is-open {
+    transform: rotate(90deg);
+}
+
+.font-family-name {
+    font-weight: 600;
+    font-family: var(--font-monospace);
+}
+
+/* Collapsed by default; the header click toggles .is-open */
+.font-variants {
+    display: none;
+    padding: 8px;
+    background: var(--background-secondary);
+}
+
+.font-variants.is-open {
+    display: block;
+}
+
+.font-variant-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 0;
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--background-primary);
+}
+
+.font-variant-info {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 12px;
+}
+
+.font-variant-label {
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+}
+
+.font-variant-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.font-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+/* Callouts the settings sections render Markdown into */
+.lfl-callout {
+    margin: 8px 0 16px 0;
+}
+
+.lfl-callout--lead {
+    margin: 16px 0;
+}
+
+/* ============================================================================
+   Modals
+   ============================================================================ */
+
+.lfl-text-input {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.lfl-text-input.is-invalid {
+    border-color: var(--text-error);
+}
+
+.lfl-modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.lfl-confirm-message {
+    margin-bottom: 16px;
+}
+
+.lfl-import-dropzone {
+    padding: 60px 40px;
+    border: 2px dashed var(--interactive-accent);
+    border-radius: 8px;
+    background: var(--background-secondary);
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.lfl-import-dropzone.is-dragover {
+    background: var(--background-modifier-hover);
+}
+
+.lfl-import-icon {
+    margin-bottom: 16px;
+    color: var(--interactive-accent);
+}
+
+.lfl-import-icon svg {
+    display: block;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+}
+
+.lfl-import-title {
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-normal);
+}
+
+.lfl-import-subtitle {
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.lfl-import-hint {
+    font-size: 12px;
+    color: var(--text-faint);
+}
+
+.lfl-hidden-input {
+    display: none;
+}
+
+/* Kept in the layout but invisible: a `display: none` select cannot be focused or clicked, and
+   clicking it is what opens the native picker on mobile. */
+.lfl-hidden-select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ============================================================================
+   Misc
+   ============================================================================ */
+
+/* Off-screen host for a forced MathJax layout pass */
+.lfl-render-scratch {
+    display: none;
+}
+
+.lfl-preset-id {
+    margin: 0;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+}
+
+.lfl-global-warning {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0 0 0;
+    color: var(--text-warning);
+}
+
+.lfl-warning-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.lfl-device-info {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 8px;
+}
+
+.lfl-device-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.device-edit-btn {
+    color: var(--text-on-accent);
 }

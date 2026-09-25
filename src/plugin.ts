@@ -6,6 +6,12 @@ import { Component, Plugin, Notice, MarkdownRenderer, Platform } from 'obsidian'
 import { t } from './i18n';
 import { parseFontMetadata } from './font-metadata';
 import { DEFAULT_SETTINGS } from './constants';
+import {
+    planDeviceRepair,
+    remapDeviceIds,
+    resolveDeviceAlias,
+    isGeneratedDeviceName,
+} from './device-repair';
 import type { PluginSettings, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, MathFontMetricSnapshot } from './types';
 import FontManagerSettingTab from './ui/settings-tab';
 
@@ -19,6 +25,18 @@ import FontManagerSettingTab from './ui/settings-tab';
  * navigator.<property>, which cannot tell the two apart.
  */
 const browserNavigator: Navigator = globalThis.navigator;
+
+/**
+ * The keys a device entry is allowed to carry.
+ *
+ * Anything else on a stored entry is a leftover from an older version — `osVersion` is one — and
+ * marks it for a rewrite. `firstSeen` and `lastSeen` are history rather than detection: they are
+ * listed here so the refresh does not mistake them for such a leftover and erase them.
+ */
+const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 'lastSeen'];
+
+/** How long a device entry's "last seen" timestamp may go unrefreshed. */
+const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 /**
  * The snippet the legacy CSS path writes its generated stylesheets into.
@@ -72,6 +90,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
     _isScanning = false;
     _isSaving = false;
     _dataReloadTimer: number | null = null;
+
+    /**
+     * Whether loadSettings() found settings on disk, as opposed to finding nothing at all.
+     *
+     * Read by _persistStartupState(): a plugin that has not seen the file yet must not write one.
+     */
+    _settingsFilePresent = false;
 
     // Log level control
     _logEnabled = false; // logging disabled by default
@@ -353,7 +378,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             // Validate settings structure
             if (!this.settings.presets || this.settings.presets.length === 0) {
-                console.error('[Local Font Loader] Critical: presets array is empty or undefined');
+                this._logError('[Local Font Loader] Critical: presets array is empty or undefined');
                 throw new Error('Settings validation failed: presets missing');
             }
 
@@ -374,53 +399,79 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!this.settings.deviceMeta) {
                 this.settings.deviceMeta = {};
             }
+            if (!this.settings.deviceAliases) {
+                this.settings.deviceAliases = {};
+            }
+
+            // Collapse entries a sync merge left duplicated, before this device registers itself:
+            // the pass may remap this device onto a survivor, and the registration below then
+            // writes its metadata to the id it actually ends up holding.
+            await this.repairDeviceList();
+
+            // Read the id back rather than reusing the local: a repair may have remapped this
+            // device onto the id that survived, and every write below has to land on that one.
+            const activeDeviceId = this.currentDeviceId;
 
             const deviceInfo = this._detectDeviceInfo();
-            const previousMeta = this.settings.deviceMeta[deviceId];
+            const previousMeta = this.settings.deviceMeta[activeDeviceId];
             // A shape mismatch counts as a change too, so metadata written by an older version
             // (an entry still carrying a dropped key, for instance) is rewritten instead of
             // lingering forever — those keys are no longer compared, so nothing else would
-            // ever notice them.
+            // ever notice them. The recorded lifetime is excluded: it is not detected, it is
+            // history, and rewriting it would erase the evidence a repair reads.
+            const legacyShape = previousMeta
+                ? Object.keys(previousMeta).some(key => !RECORDED_META_KEYS.includes(key))
+                : false;
             const metaChanged = !previousMeta
                 || previousMeta.platform !== deviceInfo.platform
                 || previousMeta.os !== deviceInfo.os
                 || previousMeta.model !== deviceInfo.model
                 || previousMeta.hostname !== deviceInfo.hostname
-                || Object.keys(previousMeta).length !== Object.keys(deviceInfo).length;
+                || legacyShape;
 
-            const isKnownDevice = Boolean(this.settings.deviceNameMap[deviceId]);
+            // When this device was last here. Refreshed at most every few hours: the evidence a
+            // repair needs is measured in days, and every write is a synced write.
+            const seenAt = new Date().toISOString();
+            const lastSeenTime = previousMeta && previousMeta.lastSeen ? Date.parse(previousMeta.lastSeen) : Number.NaN;
+            const seenStale = Number.isNaN(lastSeenTime) || (Date.now() - lastSeenTime) > SEEN_REFRESH_MS;
+            const lifetime = {
+                firstSeen: (previousMeta && previousMeta.firstSeen) || seenAt,
+                lastSeen: seenStale ? seenAt : (previousMeta as DeviceMeta).lastSeen,
+            };
+
+            const isKnownDevice = Boolean(this.settings.deviceNameMap[activeDeviceId]);
 
             // A name this plugin generated is refreshed on upgrade (e.g. "Desktop-Linux" becomes
             // the hostname); a name the user typed is never touched.
-            const storedName = this.settings.deviceNameMap[deviceId];
+            const storedName = this.settings.deviceNameMap[activeDeviceId];
             const generatedNameOutdated = isKnownDevice
                 && this._isGeneratedDeviceName(storedName, previousMeta)
                 && storedName !== this._getDefaultDeviceName(deviceInfo);
 
             if (!isKnownDevice) {
-                this.settings.deviceMeta[deviceId] = { ...deviceInfo };
-                this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
-                await this.saveSettings();
-                this._log(`[Local Font Loader] New device registered: ${deviceId} (${this.settings.deviceNameMap[deviceId]})`);
-            } else if (metaChanged || generatedNameOutdated) {
-                this.settings.deviceMeta[deviceId] = { ...deviceInfo };
+                this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
+                this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
+                await this._persistStartupState();
+                this._log(`[Local Font Loader] New device registered: ${activeDeviceId} (${this.settings.deviceNameMap[activeDeviceId]})`);
+            } else if (metaChanged || generatedNameOutdated || seenStale) {
+                this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
 
                 if (generatedNameOutdated) {
-                    this.settings.deviceNameMap[deviceId] = this._getDefaultDeviceName(deviceInfo);
-                    this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[deviceId]}`);
+                    this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
+                    this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[activeDeviceId]}`);
                 }
 
-                await this.saveSettings();
-                this._log(`[Local Font Loader] Device metadata refreshed: ${deviceId}`);
+                await this._persistStartupState();
+                this._log(`[Local Font Loader] Device metadata refreshed: ${activeDeviceId}`);
             } else {
-                this._log(`[Local Font Loader] Device recognized: ${deviceId}`);
+                this._log(`[Local Font Loader] Device recognized: ${activeDeviceId}`);
             }
 
         // Ensure the current device has a preset
         await this._ensureDevicePreset();
         this._log('[Local Font Loader] Device preset ensured');
     } catch (error) {
-        console.error('[Local Font Loader] Failed during initialization:', error);
+        this._logError('[Local Font Loader] Failed during initialization:', error);
         // Continue loading the plugin even if initialization failed, so Obsidian is not blocked
     }
 
@@ -506,6 +557,16 @@ export default class LocalFontLoaderPlugin extends Plugin {
                             await this.loadSettings();
                             this._log('[Local Font Loader] Settings reloaded from data.json');
 
+                            // A merge conflict unions the two sides' device maps, so the duplicate
+                            // this leaves behind is collapsed here, right where it appears. The
+                            // write this may perform is ignored by the guard above on the next
+                            // pass: the file it saves matches the settings it saved from.
+                            try {
+                                await this.repairDeviceList();
+                            } catch (error) {
+                                this._logError('[Local Font Loader] Device-list repair failed:', error);
+                            }
+
                             // Re-apply the font configuration (when auto-load is enabled)
                             if (this.settings.autoLoadOnStartup) {
                                 this._log('[Local Font Loader] Re-applying fonts after settings reload...');
@@ -513,7 +574,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                     await this.applyFonts();
                                     this._log('[Local Font Loader] Fonts re-applied successfully');
                                 } catch (error) {
-                                    console.error('[Local Font Loader] Failed to re-apply fonts:', error);
+                                    this._logError('[Local Font Loader] Failed to re-apply fonts:', error);
                                 }
                             }
 
@@ -538,7 +599,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             await this._refreshFontExistence();
             this._log('[Local Font Loader] Font existence check completed');
         } catch (error) {
-            console.error('[Local Font Loader] Font existence check failed:', error);
+            this._logError('[Local Font Loader] Font existence check failed:', error);
         }
 
         // Auto-load fonts on startup
@@ -548,7 +609,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 await this.applyFonts();
                 this._log('[Local Font Loader] Fonts applied successfully');
             } catch (error) {
-                console.error('[Local Font Loader] Failed to apply fonts:', error);
+                this._logError('[Local Font Loader] Failed to apply fonts:', error);
                 // Show a user-friendly error
                 new Notice('⚠️ Local Font Loader: 字体加载失败，请检查控制台日志', 5000);
             }
@@ -581,40 +642,55 @@ export default class LocalFontLoaderPlugin extends Plugin {
         if (presetStyle) presetStyle.remove();
     }
 
+    /**
+     * Builds the global preset a pre-preset configuration migrates into.
+     *
+     * Its fonts come from the top-level fields those versions wrote. A file that never had them
+     * yields an empty preset, which is the correct outcome: there is nothing to carry over.
+     *
+     * @param data - The settings file as read from disk
+     * @returns The default preset
+     */
+    _buildLegacyDefaultPreset(data): FontPreset {
+        return {
+            id: 'default-preset',
+            name: 'Default',
+            targetDevices: [], // empty array means the global default
+            fonts: data.fonts || {},
+            latinFontEnabled: data.latinFontEnabled || false,
+            latinFontScope: data.latinFontScope || {},
+            headingApplyToFileTitle: data.headingApplyToFileTitle || false
+        } as FontPreset;
+    }
+
     async loadSettings() {
         const data = await this.loadData();
 
-        // Backward compatibility: migrate legacy data
-        // Stricter validation: check not only that presets exist, but that the default preset's fonts config is valid
-        const needsMigration = !data ||
-                              !data.presets ||
-                              data.presets.length === 0 ||
-                              (() => {
-                                  const defaultPreset = data.presets.find(p => p.id === 'default-preset');
-                                  if (!defaultPreset) return true;
-                                  // Check that the fonts object is valid (at least one non-empty field)
-                                  const fonts = (defaultPreset.fonts || {}) as Record<string, string | undefined>;
-                                  const hasValidFonts = Object.values(fonts).some(v => v && v.trim() !== '');
-                                  return !hasValidFonts;
-                              })();
+        // Whether there is a settings file to work from at all. An empty object is not one: a file
+        // sync created but has not filled yet reads back as null or {}, and treating that as
+        // settings is what lets the plugin persist a fresh-install snapshot over the real file —
+        // see _persistStartupState().
+        this._settingsFilePresent = Boolean(data && Object.keys(data).length > 0);
 
-        if (data && needsMigration) {
-            this._log('[Local Font Loader] 检测到配置需要迁移或修复，正在处理...');
+        // Backward compatibility: lift a pre-preset configuration — which kept fonts at the top
+        // level — into a default preset.
+        //
+        // The preset list is never REPLACED here. An earlier version rebuilt it whenever the
+        // default preset's fonts looked empty, which is not a broken state: a device that assigns
+        // its fonts through its own device preset leaves the global one empty on purpose. On a
+        // synced vault that turned one device's empty preset into every device's missing presets.
+        if (data && (!data.presets || data.presets.length === 0)) {
+            this._log('[Local Font Loader] Legacy configuration detected, migrating into a default preset');
 
-            // Migrate legacy font config to the default preset (keep user config as global default)
-            const defaultPreset = {
-                id: 'default-preset',
-                name: 'Default',
-                targetDevices: [], // empty array means the global default
-                fonts: data.fonts || {},
-                latinFontEnabled: data.latinFontEnabled || false,
-                latinFontScope: data.latinFontScope || {},
-                headingApplyToFileTitle: data.headingApplyToFileTitle || false
-            };
+            data.presets = [this._buildLegacyDefaultPreset(data)];
 
-            data.presets = [defaultPreset];
+            this._log('[Local Font Loader] Legacy configuration migrated');
+        } else if (data && !data.presets.some(p => p.id === 'default-preset')) {
+            // Every device preset falls back to the global one, so it has to exist. Added rather
+            // than substituted: the presets already there keep their names and their fonts.
+            this._log('[Local Font Loader] Default preset missing, adding it back');
 
-            this._log('[Local Font Loader] ✓ 配置迁移完成');
+            data.presets.unshift(this._buildLegacyDefaultPreset(data));
         }
 
         // Clean up legacy deviceId and deviceName fields (deprecated)
@@ -632,6 +708,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         if (data && !data.deviceNameMap) {
             data.deviceNameMap = {};
         }
+        if (data && !data.deviceAliases) {
+            data.deviceAliases = {};
+        }
 
         // Deep-clone the default base so settings.presets never shares nested references with the module constant when data is null
         this.settings = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), data);
@@ -644,6 +723,29 @@ export default class LocalFontLoaderPlugin extends Plugin {
         } finally {
             this._isSaving = false;
         }
+    }
+
+    /**
+     * Persists state the plugin derived on startup: device registration and its refresh.
+     *
+     * Deliberately a no-op while no settings file has been loaded. On a device whose data.json
+     * has not arrived from sync yet, `loadData()` returns nothing and the settings in memory are
+     * the defaults — writing them would put a fresh-install snapshot where the synced file was
+     * about to land, and sync would then carry that over every other device. Worse, the empty
+     * default preset it leaves behind used to trip the migration in loadSettings() on those
+     * devices and take their presets with it.
+     *
+     * The in-memory state is kept either way, so nothing is lost: the first save that follows a
+     * real load persists it, and if no file ever arrives this is a fresh install whose defaults
+     * are written by that first user-initiated change.
+     */
+    async _persistStartupState(): Promise<void> {
+        if (!this._settingsFilePresent) {
+            this._log('[Local Font Loader] No settings file loaded yet; not writing startup state');
+            return;
+        }
+
+        await this.saveSettings();
     }
 
     // ============================================================================
@@ -905,6 +1007,96 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
+     * Collapses device entries that describe the same physical device.
+     *
+     * `data.json` is synced, so a conflict unions both sides' device maps. A device's identity is
+     * minted into device-local storage, which a vault copy, a cleared cache or a reinstall does
+     * not carry over — so one physical device can be registered under several ids, and each merge
+     * keeps them all. This pass finds those sets, keeps one id per device, and moves everything
+     * that referenced the others onto the survivor: preset bindings, the display name, the
+     * metadata, and the legacy fingerprint ledger.
+     *
+     * The plan itself is computed by `device-repair.ts`, which is pure data in and data out, so
+     * the decision can be checked without a running app.
+     *
+     * @returns {Promise<number>} How many duplicate groups were merged
+     */
+    async repairDeviceList() {
+        const plan = planDeviceRepair({
+            nameMap: this.settings.deviceNameMap || {},
+            meta: this.settings.deviceMeta || {},
+            aliases: this.settings.deviceAliases || {},
+            now: Date.now(),
+        });
+
+        // Same-model groups are reported rather than ignored, so a duplicate the pass declined to
+        // touch is visible in the log instead of looking like one it failed to find. The history
+        // says whether they were ever seen at the same time, which is the whole of what the
+        // timestamps can establish.
+        plan.ambiguous.forEach(group => {
+            const names = group.ids.map(id => this._getDeviceName(id)).join(', ');
+            this._log(`[Local Font Loader] Same-model entries left alone (history: ${group.history}): ${names}`);
+        });
+
+        if (!plan.changed) {
+            return 0;
+        }
+
+        const removedIds = new Set<string>();
+        plan.merges.forEach(merge => {
+            if (merge.name) {
+                this.settings.deviceNameMap[merge.canonicalId] = merge.name;
+            }
+            if (merge.meta) {
+                this.settings.deviceMeta[merge.canonicalId] = { ...merge.meta };
+            }
+            merge.removedIds.forEach(id => removedIds.add(id));
+        });
+
+        removedIds.forEach(id => {
+            delete this.settings.deviceNameMap[id];
+            delete this.settings.deviceMeta[id];
+        });
+
+        // Presets follow their device. A binding left pointing at a removed id would silently stop
+        // applying, and the device would look unassigned in the settings panel.
+        this.settings.presets.forEach(preset => {
+            preset.targetDevices = remapDeviceIds(preset.targetDevices, plan.aliases);
+        });
+
+        // The migration ledger follows too. A device that has not been opened since the upgrade
+        // still claims its id through its fingerprint, and letting it claim a collapsed id would
+        // re-create the duplicate this pass just removed.
+        Object.keys(this.settings.deviceFingerprints || {}).forEach(fingerprint => {
+            const claimed = this.settings.deviceFingerprints[fingerprint];
+            const mapped = resolveDeviceAlias(claimed, plan.aliases);
+            if (mapped !== claimed) {
+                this.settings.deviceFingerprints[fingerprint] = mapped;
+            }
+        });
+
+        this.settings.deviceAliases = plan.aliases;
+
+        // If this device is one of the collapsed ids, it adopts the survivor and re-persists its
+        // identity. Without this its local id would point at an entry that no longer exists, and
+        // the next launch would register it again — putting the duplicate straight back.
+        const adopted = resolveDeviceAlias(this.currentDeviceId, plan.aliases);
+        if (adopted !== this.currentDeviceId) {
+            this._log(`[Local Font Loader] Device id adopted from repair: ${this.currentDeviceId} -> ${adopted}`);
+            this.currentDeviceId = adopted;
+            await this._persistLocalDeviceId(adopted);
+        }
+
+        await this.saveSettings();
+
+        const merged = plan.merges.length;
+        this._log(`[Local Font Loader] Device list repaired: ${merged} duplicate group(s) merged`);
+        new Notice(t('deviceListRepaired').replace('{0}', String(merged)), 4000);
+
+        return merged;
+    }
+
+    /**
      * Get the display name of a device (for UI rendering)
      * @param {string} deviceId - The device ID
      * @returns {string} - The device name
@@ -975,22 +1167,32 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * It is kept in Obsidian's device-local storage, which lives in the app profile rather than
      * the vault — so it is neither synced between devices nor carried over by a vault copy.
      * Once written it is authoritative for the life of the installation: this method returns
-     * the stored value unchanged and never re-derives it.
+     * the stored value unchanged and never re-derives it, with one exception — a device-list
+     * repair that collapsed this id into a survivor (see `repairDeviceList`) has the device adopt
+     * the survivor instead, because the stored id no longer names an entry in the synced maps.
      *
      * @returns {Promise<string>} The device id
      */
     async _getOrCreateLocalDeviceId() {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
-        // 1. An already stored id is final — never recomputed, never replaced.
+        // 1. An already stored id is final — never recomputed, never replaced, unless a repair
+        //    performed on another device has since collapsed it into a survivor.
         let storedId = null;
         try {
             storedId = this.app.loadLocalStorage(STORAGE_KEY);
         } catch (error) {
-            console.error('[Local Font Loader] Failed to read device-local id:', error);
+            this._logError('[Local Font Loader] Failed to read device-local id:', error);
         }
 
         if (storedId && typeof storedId === 'string') {
+            const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
+            if (adoptedId !== storedId) {
+                await this._persistLocalDeviceId(adoptedId);
+                this._log(`[Local Font Loader] Device id adopted from a device-list repair: ${storedId} -> ${adoptedId}`);
+                return adoptedId;
+            }
+
             // Sealing also covers devices that were already given an id by an earlier version:
             // their ledger entries would otherwise stay claimable by an identical device.
             if (this._sealLegacyEntries(storedId)) {
@@ -1006,19 +1208,34 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // 3. Persist it, then read it back — a silent write failure would hand this device a new
         //    identity on every launch, which is precisely the duplication this system prevents.
+        await this._persistLocalDeviceId(deviceId);
+
+        return deviceId;
+    }
+
+    /**
+     * Writes a device id into device-local storage and verifies it stuck.
+     *
+     * A silent write failure would hand this device a new identity on every launch, which is
+     * precisely the duplication the identity system exists to prevent, so the value is read back
+     * rather than trusted.
+     *
+     * @param {string} deviceId - The id to store
+     */
+    async _persistLocalDeviceId(deviceId) {
+        const STORAGE_KEY = 'local-font-loader-device-id';
+
         try {
             this.app.saveLocalStorage(STORAGE_KEY, deviceId);
             const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
             if (confirmed !== deviceId) {
-                console.error(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
+                this._logError(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
             } else {
                 this._log(`[Local Font Loader] Device id persisted: ${deviceId}`);
             }
         } catch (error) {
-            console.error('[Local Font Loader] Failed to persist device-local id:', error);
+            this._logError('[Local Font Loader] Failed to persist device-local id:', error);
         }
-
-        return deviceId;
     }
 
     /**
@@ -1197,7 +1414,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const process = (window as unknown as { process?: { platform?: string } }).process;
             return process?.platform ?? null;
         } catch (error) {
-            console.error('[Local Font Loader] Could not read the desktop platform:', error);
+            this._logError('[Local Font Loader] Could not read the desktop platform:', error);
             return null;
         }
     }
@@ -1223,7 +1440,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!os) return '';
             return String(os.hostname() || '').trim();
         } catch (error) {
-            console.error('[Local Font Loader] Failed to read hostname:', error);
+            this._logError('[Local Font Loader] Failed to read hostname:', error);
             return '';
         }
     }
@@ -1239,22 +1456,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @returns {boolean} True when the name matches a generated default
      */
     _isGeneratedDeviceName(name, meta) {
-        if (!name) {
-            return false;
-        }
-
-        // Legacy "Desktop-Linux" / "Mobile-Android" forms
-        if (/^(Desktop|Mobile)-(Linux|Windows|Mac|macOS|iOS|iPadOS|Android|Unknown)$/.test(name)) {
-            return true;
-        }
-
-        // A name that merely echoes the device's own hostname or model was also produced by the
-        // default-naming rule, so it must keep following that rule if the rule changes.
-        if (meta && (name === meta.hostname || name === meta.model)) {
-            return true;
-        }
-
-        return false;
+        return isGeneratedDeviceName(name, meta);
     }
 
     /**
@@ -1392,7 +1594,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const defaultPreset = this.settings.presets.find(p => p.id === 'default-preset');
             if (!defaultPreset || defaultPreset.targetDevices.length > 0) {
                 // If the default preset is missing or not global, create a global default preset
-                console.warn('[LocalFontLoader] Default preset missing or corrupted, recreating...');
+                this._log('[Local Font Loader] Default preset missing or not global; recreating it');
                 // Carry over whatever the nearest existing preset had. These three fields live on a
                 // preset, not on settings — reading them from `settings` always yielded undefined,
                 // so recreating the default preset silently reset them.
@@ -1408,7 +1610,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     headingApplyToFileTitle: carryOver?.headingApplyToFileTitle ?? false
                 };
                 this.settings.presets.unshift(newDefaultPreset);
-                await this.saveSettings();
+                await this._persistStartupState();
             }
         }
     }
@@ -1416,6 +1618,34 @@ export default class LocalFontLoaderPlugin extends Plugin {
     // ============================================================================
     // Font Scanning (original methods)
     // ============================================================================
+
+    /**
+     * Creates a folder together with every missing folder above it.
+     *
+     * `adapter.mkdir` creates a single level and fails when the parent is not there yet. That
+     * goes unnoticed on desktop, where these folders tend to already exist, and breaks mobile:
+     * a configured path such as `Components/Library/Fonts/B64Font` is three levels deep, and the
+     * failed mkdir left the conversion with nowhere to write its output.
+     *
+     * @param path - The vault-relative folder path
+     */
+    async _ensureFolder(path: string): Promise<void> {
+        const segments = String(path || '').split('/').filter(Boolean);
+        let current = '';
+
+        for (const segment of segments) {
+            current = current ? `${current}/${segment}` : segment;
+            try {
+                if (!(await this.app.vault.adapter.exists(current))) {
+                    await this.app.vault.adapter.mkdir(current);
+                }
+            } catch (error) {
+                // A folder that appeared between the check and the call is the state being asked
+                // for; anything else matters, because the write that follows depends on it.
+                this._logError(`[Local Font Loader] Could not create the folder ${current}:`, error);
+            }
+        }
+    }
 
     // Scan the font directory (using the built-in metadata parser)
     /**
@@ -1434,12 +1664,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 const targetDir = `${this.settings.fontSourceDir}/Imported`;
                 const targetPath = `${targetDir}/${file.name}`;
 
-                // Ensure the directory exists
-                try {
-                    await this.app.vault.adapter.mkdir(targetDir);
-                } catch {
-                    // 目录已存在等预期情况，忽略
-                }
+                // Ensure the directory exists, its parents included
+                await this._ensureFolder(targetDir);
 
                 await this.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
                 imported++;
@@ -1466,12 +1692,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             this._log('[Local Font Loader] Scanning font family folders...');
 
-            // Create the source directory on first run instead of failing to list it.
-            try {
-                await this.app.vault.adapter.mkdir(this.settings.fontSourceDir);
-            } catch {
-                // 目录已存在等预期情况，忽略
-            }
+            // Create the source directory on first run instead of failing to list it. The entire
+            // chain is created, because a configured source path can be several levels deep.
+            await this._ensureFolder(this.settings.fontSourceDir);
 
             // Get all subfolders in font directory
             const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
@@ -1729,7 +1952,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             await document.fonts.load(`16px "${familyName}"`);
         } catch (error) {
-            console.error(`[Local Font Loader] Could not load math font "${familyName}":`, error);
+            this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
         }
 
         if (!document.fonts.check(`16px "${familyName}"`)) {
@@ -1884,9 +2107,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             // Forces MathJax to lay out a formula, which is what regenerates the stylesheet.
             const scratch = document.createElement('div');
-            scratch.setCssStyles({
-                display: 'none',
-            });
+            scratch.addClass('lfl-render-scratch');
             document.body.appendChild(scratch);
             // A throwaway Component: the plugin outlives every render and must not be used
             // as one, or each render would leak into the plugin's own lifecycle.
@@ -1901,7 +2122,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             return !!document.getElementById('MJX-CHTML-styles');
         } catch (error) {
-            console.error('[Local Font Loader] Failed to rebuild MathJax styles:', error);
+            this._logError('[Local Font Loader] Failed to rebuild MathJax styles:', error);
             return false;
         } finally {
             // Always restore adaptive mode, even if the rebuild failed — leaving it off would
@@ -1911,7 +2132,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     output.options.adaptiveCSS = true;
                 }
             } catch (error) {
-                console.error('[Local Font Loader] Failed to restore adaptive CSS mode:', error);
+                this._logError('[Local Font Loader] Failed to restore adaptive CSS mode:', error);
             }
         }
     }
@@ -1928,7 +2149,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 }
             });
         } catch (error) {
-            console.error('[Local Font Loader] Failed to refresh math views:', error);
+            this._logError('[Local Font Loader] Failed to refresh math views:', error);
         }
     }
 
@@ -2102,7 +2323,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const devicePreset = this._getDevicePreset();
 
             if (!devicePreset) {
-                console.warn('[LocalFontLoader] No preset found for current device, using default preset');
+                this._log('[LocalFontLoader] No preset found for current device, using default preset');
                 return;
             }
 
@@ -2517,7 +2738,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                             return this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
                         })
                         .catch(error => {
-                            console.error('[Local Font Loader] Failed to adopt math font metrics:', error);
+                            this._logError('[Local Font Loader] Failed to adopt math font metrics:', error);
                         });
                 }, 300);
             }
@@ -2544,6 +2765,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
         let skipped = 0;
 
         try {
+            // The cache folder is the plugin's own and is not guaranteed to exist — nothing else
+            // creates it, so without this the conversion had nowhere to write on a fresh device.
+            await this._ensureFolder(this.settings.b64OutputDir);
+
             for (const font of this.settings.availableFonts) {
                 // Skip already cached fonts
                 if (font.hasB64) {

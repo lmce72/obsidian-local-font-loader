@@ -91,6 +91,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
     _isSaving = false;
     _dataReloadTimer: number | null = null;
 
+    /**
+     * Whether loadSettings() found settings on disk, as opposed to finding nothing at all.
+     *
+     * Read by _persistStartupState(): a plugin that has not seen the file yet must not write one.
+     */
+    _settingsFilePresent = false;
+
     // Log level control
     _logEnabled = false; // logging disabled by default
 
@@ -371,7 +378,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             // Validate settings structure
             if (!this.settings.presets || this.settings.presets.length === 0) {
-                console.error('[Local Font Loader] Critical: presets array is empty or undefined');
+                this._logError('[Local Font Loader] Critical: presets array is empty or undefined');
                 throw new Error('Settings validation failed: presets missing');
             }
 
@@ -444,7 +451,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!isKnownDevice) {
                 this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
                 this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
-                await this.saveSettings();
+                await this._persistStartupState();
                 this._log(`[Local Font Loader] New device registered: ${activeDeviceId} (${this.settings.deviceNameMap[activeDeviceId]})`);
             } else if (metaChanged || generatedNameOutdated || seenStale) {
                 this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
@@ -454,7 +461,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[activeDeviceId]}`);
                 }
 
-                await this.saveSettings();
+                await this._persistStartupState();
                 this._log(`[Local Font Loader] Device metadata refreshed: ${activeDeviceId}`);
             } else {
                 this._log(`[Local Font Loader] Device recognized: ${activeDeviceId}`);
@@ -464,7 +471,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         await this._ensureDevicePreset();
         this._log('[Local Font Loader] Device preset ensured');
     } catch (error) {
-        console.error('[Local Font Loader] Failed during initialization:', error);
+        this._logError('[Local Font Loader] Failed during initialization:', error);
         // Continue loading the plugin even if initialization failed, so Obsidian is not blocked
     }
 
@@ -567,7 +574,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                     await this.applyFonts();
                                     this._log('[Local Font Loader] Fonts re-applied successfully');
                                 } catch (error) {
-                                    console.error('[Local Font Loader] Failed to re-apply fonts:', error);
+                                    this._logError('[Local Font Loader] Failed to re-apply fonts:', error);
                                 }
                             }
 
@@ -592,7 +599,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             await this._refreshFontExistence();
             this._log('[Local Font Loader] Font existence check completed');
         } catch (error) {
-            console.error('[Local Font Loader] Font existence check failed:', error);
+            this._logError('[Local Font Loader] Font existence check failed:', error);
         }
 
         // Auto-load fonts on startup
@@ -602,7 +609,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 await this.applyFonts();
                 this._log('[Local Font Loader] Fonts applied successfully');
             } catch (error) {
-                console.error('[Local Font Loader] Failed to apply fonts:', error);
+                this._logError('[Local Font Loader] Failed to apply fonts:', error);
                 // Show a user-friendly error
                 new Notice('⚠️ Local Font Loader: 字体加载失败，请检查控制台日志', 5000);
             }
@@ -635,40 +642,55 @@ export default class LocalFontLoaderPlugin extends Plugin {
         if (presetStyle) presetStyle.remove();
     }
 
+    /**
+     * Builds the global preset a pre-preset configuration migrates into.
+     *
+     * Its fonts come from the top-level fields those versions wrote. A file that never had them
+     * yields an empty preset, which is the correct outcome: there is nothing to carry over.
+     *
+     * @param data - The settings file as read from disk
+     * @returns The default preset
+     */
+    _buildLegacyDefaultPreset(data): FontPreset {
+        return {
+            id: 'default-preset',
+            name: 'Default',
+            targetDevices: [], // empty array means the global default
+            fonts: data.fonts || {},
+            latinFontEnabled: data.latinFontEnabled || false,
+            latinFontScope: data.latinFontScope || {},
+            headingApplyToFileTitle: data.headingApplyToFileTitle || false
+        } as FontPreset;
+    }
+
     async loadSettings() {
         const data = await this.loadData();
 
-        // Backward compatibility: migrate legacy data
-        // Stricter validation: check not only that presets exist, but that the default preset's fonts config is valid
-        const needsMigration = !data ||
-                              !data.presets ||
-                              data.presets.length === 0 ||
-                              (() => {
-                                  const defaultPreset = data.presets.find(p => p.id === 'default-preset');
-                                  if (!defaultPreset) return true;
-                                  // Check that the fonts object is valid (at least one non-empty field)
-                                  const fonts = (defaultPreset.fonts || {}) as Record<string, string | undefined>;
-                                  const hasValidFonts = Object.values(fonts).some(v => v && v.trim() !== '');
-                                  return !hasValidFonts;
-                              })();
+        // Whether there is a settings file to work from at all. An empty object is not one: a file
+        // sync created but has not filled yet reads back as null or {}, and treating that as
+        // settings is what lets the plugin persist a fresh-install snapshot over the real file —
+        // see _persistStartupState().
+        this._settingsFilePresent = Boolean(data && Object.keys(data).length > 0);
 
-        if (data && needsMigration) {
-            this._log('[Local Font Loader] 检测到配置需要迁移或修复，正在处理...');
+        // Backward compatibility: lift a pre-preset configuration — which kept fonts at the top
+        // level — into a default preset.
+        //
+        // The preset list is never REPLACED here. An earlier version rebuilt it whenever the
+        // default preset's fonts looked empty, which is not a broken state: a device that assigns
+        // its fonts through its own device preset leaves the global one empty on purpose. On a
+        // synced vault that turned one device's empty preset into every device's missing presets.
+        if (data && (!data.presets || data.presets.length === 0)) {
+            this._log('[Local Font Loader] Legacy configuration detected, migrating into a default preset');
 
-            // Migrate legacy font config to the default preset (keep user config as global default)
-            const defaultPreset = {
-                id: 'default-preset',
-                name: 'Default',
-                targetDevices: [], // empty array means the global default
-                fonts: data.fonts || {},
-                latinFontEnabled: data.latinFontEnabled || false,
-                latinFontScope: data.latinFontScope || {},
-                headingApplyToFileTitle: data.headingApplyToFileTitle || false
-            };
+            data.presets = [this._buildLegacyDefaultPreset(data)];
 
-            data.presets = [defaultPreset];
+            this._log('[Local Font Loader] Legacy configuration migrated');
+        } else if (data && !data.presets.some(p => p.id === 'default-preset')) {
+            // Every device preset falls back to the global one, so it has to exist. Added rather
+            // than substituted: the presets already there keep their names and their fonts.
+            this._log('[Local Font Loader] Default preset missing, adding it back');
 
-            this._log('[Local Font Loader] ✓ 配置迁移完成');
+            data.presets.unshift(this._buildLegacyDefaultPreset(data));
         }
 
         // Clean up legacy deviceId and deviceName fields (deprecated)
@@ -701,6 +723,29 @@ export default class LocalFontLoaderPlugin extends Plugin {
         } finally {
             this._isSaving = false;
         }
+    }
+
+    /**
+     * Persists state the plugin derived on startup: device registration and its refresh.
+     *
+     * Deliberately a no-op while no settings file has been loaded. On a device whose data.json
+     * has not arrived from sync yet, `loadData()` returns nothing and the settings in memory are
+     * the defaults — writing them would put a fresh-install snapshot where the synced file was
+     * about to land, and sync would then carry that over every other device. Worse, the empty
+     * default preset it leaves behind used to trip the migration in loadSettings() on those
+     * devices and take their presets with it.
+     *
+     * The in-memory state is kept either way, so nothing is lost: the first save that follows a
+     * real load persists it, and if no file ever arrives this is a fresh install whose defaults
+     * are written by that first user-initiated change.
+     */
+    async _persistStartupState(): Promise<void> {
+        if (!this._settingsFilePresent) {
+            this._log('[Local Font Loader] No settings file loaded yet; not writing startup state');
+            return;
+        }
+
+        await this.saveSettings();
     }
 
     // ============================================================================
@@ -1137,7 +1182,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             storedId = this.app.loadLocalStorage(STORAGE_KEY);
         } catch (error) {
-            console.error('[Local Font Loader] Failed to read device-local id:', error);
+            this._logError('[Local Font Loader] Failed to read device-local id:', error);
         }
 
         if (storedId && typeof storedId === 'string') {
@@ -1184,12 +1229,12 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this.app.saveLocalStorage(STORAGE_KEY, deviceId);
             const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
             if (confirmed !== deviceId) {
-                console.error(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
+                this._logError(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
             } else {
                 this._log(`[Local Font Loader] Device id persisted: ${deviceId}`);
             }
         } catch (error) {
-            console.error('[Local Font Loader] Failed to persist device-local id:', error);
+            this._logError('[Local Font Loader] Failed to persist device-local id:', error);
         }
     }
 
@@ -1369,7 +1414,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const process = (window as unknown as { process?: { platform?: string } }).process;
             return process?.platform ?? null;
         } catch (error) {
-            console.error('[Local Font Loader] Could not read the desktop platform:', error);
+            this._logError('[Local Font Loader] Could not read the desktop platform:', error);
             return null;
         }
     }
@@ -1395,7 +1440,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!os) return '';
             return String(os.hostname() || '').trim();
         } catch (error) {
-            console.error('[Local Font Loader] Failed to read hostname:', error);
+            this._logError('[Local Font Loader] Failed to read hostname:', error);
             return '';
         }
     }
@@ -1549,7 +1594,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const defaultPreset = this.settings.presets.find(p => p.id === 'default-preset');
             if (!defaultPreset || defaultPreset.targetDevices.length > 0) {
                 // If the default preset is missing or not global, create a global default preset
-                console.warn('[LocalFontLoader] Default preset missing or corrupted, recreating...');
+                this._log('[Local Font Loader] Default preset missing or not global; recreating it');
                 // Carry over whatever the nearest existing preset had. These three fields live on a
                 // preset, not on settings — reading them from `settings` always yielded undefined,
                 // so recreating the default preset silently reset them.
@@ -1565,7 +1610,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     headingApplyToFileTitle: carryOver?.headingApplyToFileTitle ?? false
                 };
                 this.settings.presets.unshift(newDefaultPreset);
-                await this.saveSettings();
+                await this._persistStartupState();
             }
         }
     }
@@ -1573,6 +1618,34 @@ export default class LocalFontLoaderPlugin extends Plugin {
     // ============================================================================
     // Font Scanning (original methods)
     // ============================================================================
+
+    /**
+     * Creates a folder together with every missing folder above it.
+     *
+     * `adapter.mkdir` creates a single level and fails when the parent is not there yet. That
+     * goes unnoticed on desktop, where these folders tend to already exist, and breaks mobile:
+     * a configured path such as `Components/Library/Fonts/B64Font` is three levels deep, and the
+     * failed mkdir left the conversion with nowhere to write its output.
+     *
+     * @param path - The vault-relative folder path
+     */
+    async _ensureFolder(path: string): Promise<void> {
+        const segments = String(path || '').split('/').filter(Boolean);
+        let current = '';
+
+        for (const segment of segments) {
+            current = current ? `${current}/${segment}` : segment;
+            try {
+                if (!(await this.app.vault.adapter.exists(current))) {
+                    await this.app.vault.adapter.mkdir(current);
+                }
+            } catch (error) {
+                // A folder that appeared between the check and the call is the state being asked
+                // for; anything else matters, because the write that follows depends on it.
+                this._logError(`[Local Font Loader] Could not create the folder ${current}:`, error);
+            }
+        }
+    }
 
     // Scan the font directory (using the built-in metadata parser)
     /**
@@ -1591,12 +1664,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 const targetDir = `${this.settings.fontSourceDir}/Imported`;
                 const targetPath = `${targetDir}/${file.name}`;
 
-                // Ensure the directory exists
-                try {
-                    await this.app.vault.adapter.mkdir(targetDir);
-                } catch {
-                    // 目录已存在等预期情况，忽略
-                }
+                // Ensure the directory exists, its parents included
+                await this._ensureFolder(targetDir);
 
                 await this.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
                 imported++;
@@ -1623,12 +1692,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             this._log('[Local Font Loader] Scanning font family folders...');
 
-            // Create the source directory on first run instead of failing to list it.
-            try {
-                await this.app.vault.adapter.mkdir(this.settings.fontSourceDir);
-            } catch {
-                // 目录已存在等预期情况，忽略
-            }
+            // Create the source directory on first run instead of failing to list it. The entire
+            // chain is created, because a configured source path can be several levels deep.
+            await this._ensureFolder(this.settings.fontSourceDir);
 
             // Get all subfolders in font directory
             const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
@@ -1886,7 +1952,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             await document.fonts.load(`16px "${familyName}"`);
         } catch (error) {
-            console.error(`[Local Font Loader] Could not load math font "${familyName}":`, error);
+            this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
         }
 
         if (!document.fonts.check(`16px "${familyName}"`)) {
@@ -2056,7 +2122,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             return !!document.getElementById('MJX-CHTML-styles');
         } catch (error) {
-            console.error('[Local Font Loader] Failed to rebuild MathJax styles:', error);
+            this._logError('[Local Font Loader] Failed to rebuild MathJax styles:', error);
             return false;
         } finally {
             // Always restore adaptive mode, even if the rebuild failed — leaving it off would
@@ -2066,7 +2132,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     output.options.adaptiveCSS = true;
                 }
             } catch (error) {
-                console.error('[Local Font Loader] Failed to restore adaptive CSS mode:', error);
+                this._logError('[Local Font Loader] Failed to restore adaptive CSS mode:', error);
             }
         }
     }
@@ -2083,7 +2149,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 }
             });
         } catch (error) {
-            console.error('[Local Font Loader] Failed to refresh math views:', error);
+            this._logError('[Local Font Loader] Failed to refresh math views:', error);
         }
     }
 
@@ -2257,7 +2323,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const devicePreset = this._getDevicePreset();
 
             if (!devicePreset) {
-                console.warn('[LocalFontLoader] No preset found for current device, using default preset');
+                this._log('[LocalFontLoader] No preset found for current device, using default preset');
                 return;
             }
 
@@ -2672,7 +2738,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                             return this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
                         })
                         .catch(error => {
-                            console.error('[Local Font Loader] Failed to adopt math font metrics:', error);
+                            this._logError('[Local Font Loader] Failed to adopt math font metrics:', error);
                         });
                 }, 300);
             }
@@ -2699,6 +2765,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
         let skipped = 0;
 
         try {
+            // The cache folder is the plugin's own and is not guaranteed to exist — nothing else
+            // creates it, so without this the conversion had nowhere to write on a fresh device.
+            await this._ensureFolder(this.settings.b64OutputDir);
+
             for (const font of this.settings.availableFonts) {
                 // Skip already cached fonts
                 if (font.hasB64) {

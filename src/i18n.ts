@@ -20,6 +20,9 @@ export const TRANSLATIONS = {
         fontSourceDirDesc: 'Directory containing font family folders',
         cacheDir: 'Base64 Cache Directory',
         cacheDirDesc: 'Directory for converted CSS files',
+        browseFolder: 'Browse',
+        browseFolderDesc: 'Pick a folder from the vault',
+        selectFolder: 'Select a folder',
 
         // General Settings
         autoLoad: 'Auto-load fonts on startup',
@@ -255,6 +258,9 @@ export const TRANSLATIONS = {
         fontSourceDirDesc: '包含字体家族文件夹的目录',
         cacheDir: 'Base64 缓存目录',
         cacheDirDesc: '转换后的 CSS 文件存储位置',
+        browseFolder: '浏览',
+        browseFolderDesc: '从库中选择一个文件夹',
+        selectFolder: '选择文件夹',
 
         // General Settings
         autoLoad: '启动时自动加载',

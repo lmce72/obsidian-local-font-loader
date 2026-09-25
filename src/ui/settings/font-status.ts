@@ -210,7 +210,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
                         await tab.plugin.scanFonts();
                         tab._debouncedDisplay();
                     } catch (error) {
-                        console.error('[Local Font Loader] Import failed:', error);
+                        tab.plugin._logError('[Local Font Loader] Import failed:', error);
                         new Notice(t('importError') || '导入失败');
                     } finally {
                         importBtn.disabled = false;

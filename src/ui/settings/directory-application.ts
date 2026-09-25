@@ -10,6 +10,7 @@ import { Notice, Setting, setIcon, MarkdownRenderer } from 'obsidian';
 import { t } from '../../i18n';
 import type { PresetFonts } from '../../types';
 import type FontManagerSettingTab from '../settings-tab';
+import { addFolderPathInput } from './folder-input';
 
 /**
  * Renders this section into the given container.
@@ -23,37 +24,32 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
         // ========================================
         containerEl.createEl('h3', { text: t('headerDirectoryConfig') });
 
-        new Setting(containerEl)
+        const sourceDirSetting = new Setting(containerEl)
             .setName(t('fontSourceDir'))
-            .setDesc(t('fontSourceDirDesc'))
-            .addText(text => text
-                .setPlaceholder('Local-Fonts')
-                .setValue(tab.plugin.settings.fontSourceDir)
-                .onChange(async (value) => {
-                    tab.plugin.settings.fontSourceDir = value;
-                    await tab.plugin.saveSettings();
-                })
-            )
-            .addButton(btn => btn
-                .setButtonText(t('scanFonts'))
-                .onClick(async () => {
-                    await tab.plugin.scanFonts();
-                    new Notice('✓ Font list updated');
-                    tab.display();
-                })
-            );
+            .setDesc(t('fontSourceDirDesc'));
 
-        new Setting(containerEl)
+        addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, async (value) => {
+            tab.plugin.settings.fontSourceDir = value;
+            await tab.plugin.saveSettings();
+        }, 'Local-Fonts');
+
+        sourceDirSetting.addButton(btn => btn
+            .setButtonText(t('scanFonts'))
+            .onClick(async () => {
+                await tab.plugin.scanFonts();
+                new Notice('✓ Font list updated');
+                tab.display();
+            })
+        );
+
+        const cacheDirSetting = new Setting(containerEl)
             .setName(t('cacheDir'))
-            .setDesc(t('cacheDirDesc'))
-            .addText(text => text
-                .setPlaceholder('Local-Fonts/UsableCssFont')
-                .setValue(tab.plugin.settings.b64OutputDir)
-                .onChange(async (value) => {
-                    tab.plugin.settings.b64OutputDir = value;
-                    await tab.plugin.saveSettings();
-                })
-            );
+            .setDesc(t('cacheDirDesc'));
+
+        addFolderPathInput(cacheDirSetting, tab.app, tab.plugin.settings.b64OutputDir, async (value) => {
+            tab.plugin.settings.b64OutputDir = value;
+            await tab.plugin.saveSettings();
+        }, 'Local-Fonts/UsableCssFont');
 
         // Startup settings
         new Setting(containerEl)
@@ -164,7 +160,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
         // Get activePreset outside the loop so all onChange callbacks reference the same object
         const activePresetForFonts = tab.plugin.settings.presets.find(p => p.id === tab._activePresetId);
         if (!activePresetForFonts) {
-            console.error('[LocalFontLoader] Active preset not found:', tab._activePresetId);
+            tab.plugin._logError('[Local Font Loader] Active preset not found:', tab._activePresetId);
             return;
         }
         const activePresetFonts: PresetFonts = activePresetForFonts.fonts || ({} as PresetFonts);

@@ -582,6 +582,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             const { css: singleFontCss } =
                 this.plugin._buildFontFaceCss(font, base64, this.plugin._getDeviceFontContext());
 
+            // The cache folder is the plugin's own and may not exist yet on this device.
+            await this.plugin._ensureFolder(this.plugin.settings.b64OutputDir);
+
             const cachePath = `${this.plugin.settings.b64OutputDir}/${font.name}.css`;
             await this.plugin.app.vault.adapter.write(cachePath, singleFontCss);
 
@@ -612,7 +615,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                 try {
                     await this.plugin.app.vault.adapter.remove(font.b64Path);
                 } catch {
-                    // 目录已存在等预期情况，忽略
+                    // A cache file that is already gone is the state being asked for
                 }
             }
 
@@ -686,7 +689,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                         try {
                             await this.app.vault.adapter.remove(font.b64Path);
                         } catch {
-                            // 目录已存在等预期情况，忽略
+                            // A cache file that is already gone is the state being asked for
                         }
                     }
 

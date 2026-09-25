@@ -4046,8 +4046,6 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
       let varsCss = `/* Local Font Loader - Variables */
 
 `;
-      varsCss += `:root {
-`;
       const cssVarsMap = {
         ui: ["--font-interface", "--font-interface-override"],
         text: [
@@ -4067,47 +4065,37 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
           "--font-code"
         ]
       };
+      const buildFontStack = (key, fontFamily) => {
+        const separatesLatin = latinFontEnabled && fontsConfig.latin && (key === "text" || key === "ui" && this.settings.latinFontForUI);
+        if (separatesLatin) {
+          return `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif`;
+        }
+        const fallback = key === "monospace" ? "monospace" : "sans-serif";
+        return `"${this._escapeCssString(fontFamily)}", ${fallback}`;
+      };
+      const fontDeclarations = [];
       for (const [key, cssVars] of Object.entries(cssVarsMap)) {
-        if (fontsConfig[key]) {
-          const fontFamily = fontsConfig[key];
-          for (const cssVar of cssVars) {
-            if (key === "text" && latinFontEnabled && fontsConfig.latin) {
-              varsCss += `  ${cssVar}: "${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif !important;
-`;
-            } else if (key === "ui" && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
-              varsCss += `  ${cssVar}: "${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif !important;
-`;
-            } else {
-              const fallback = key === "monospace" ? "monospace" : "sans-serif";
-              varsCss += `  ${cssVar}: "${this._escapeCssString(fontFamily)}", ${fallback} !important;
-`;
-            }
-          }
+        if (!fontsConfig[key]) {
+          continue;
+        }
+        const stack = buildFontStack(key, fontsConfig[key]);
+        for (const cssVar of cssVars) {
+          fontDeclarations.push(`${cssVar}: ${stack} !important;`);
         }
       }
-      varsCss += `}
+      if (fontDeclarations.length > 0) {
+        for (const scope of [":root", "body"]) {
+          varsCss += `${scope} {
+`;
+          for (const declaration of fontDeclarations) {
+            varsCss += `  ${declaration}
+`;
+          }
+          varsCss += `}
 
 `;
-      if (fontsConfig.monospace) {
-        const monospaceStack = `"${this._escapeCssString(fontsConfig.monospace)}", monospace`;
-        varsCss += `/* Monospace variables - body scope (overrides Obsidian core inline style) */
-`;
-        varsCss += `body {
-`;
-        varsCss += `  --font-monospace: ${monospaceStack} !important;
-`;
-        varsCss += `  --font-monospace-override: ${monospaceStack} !important;
-`;
-        varsCss += `  --font-monospace-default: ${monospaceStack} !important;
-`;
-        varsCss += `  --font-monospace-theme: ${monospaceStack} !important;
-`;
-        varsCss += `  --font-code: ${monospaceStack} !important;
-`;
-        varsCss += `}
-
-`;
-        this._log(`[Local Font Loader] Monospace variables re-declared on <body> to override Obsidian core inline style`);
+        }
+        this._log(`[Local Font Loader] ${fontDeclarations.length} font variables declared on :root and re-declared on <body> to override Obsidian core inline styles`);
       }
       if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
         varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.ui)}"`);

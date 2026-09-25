@@ -1,6 +1,6 @@
 {
   "name": "obsidian-local-font-loader",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "private": true,
   "description": "Load local fonts (TTF/OTF/WOFF/WOFF2) with Base64 caching. Manage UI, text, code and math fonts separately, with cross-device presets.",
   "author": "CoreVortex",

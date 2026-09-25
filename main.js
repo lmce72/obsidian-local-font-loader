@@ -4051,6 +4051,8 @@ class LocalFontLoaderPlugin extends import_obsidian7.Plugin {
         text: [
           "--font-text",
           "--font-text-override",
+          "--font-print",
+          "--font-print-override",
           "--font-default",
           "--default-font",
           "--font-family-editor",

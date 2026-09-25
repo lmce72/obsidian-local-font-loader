@@ -2416,6 +2416,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 text: [
                     '--font-text',
                     '--font-text-override',
+                    // Print / PDF export. Obsidian's own chain is
+                    //   --font-print: var(--font-print-override), var(--font-text-override), …,
+                    // and it writes --font-print-override inline on <body> as well, so the
+                    // export leads with Obsidian's font until these are declared too. Printing
+                    // also redefines --font-text as var(--font-print), so the two have to agree.
+                    '--font-print',
+                    '--font-print-override',
                     '--font-default',
                     '--default-font',
                     '--font-family-editor',

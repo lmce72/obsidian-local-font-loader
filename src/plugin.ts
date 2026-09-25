@@ -2396,9 +2396,21 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // Apply CSS variables
             let varsCss = '/* Local Font Loader - Variables */\n\n';
 
-            // Base CSS variables
-            varsCss += ':root {\n';
-
+            // Base CSS variables — one template, emitted at BOTH scopes.
+            //
+            // `:root` is where the variables belong; `<body>` is where they have to be repeated.
+            // Obsidian core writes its appearance font settings as INLINE styles on <body>
+            // (verified via CDP: body.style holds e.g. --font-monospace-override), and a
+            // declaration on the element itself beats anything inherited from :root — however
+            // specific, and however important, the inherited one is.
+            //
+            // Without the body scope the variable resolves to Obsidian's own setting, so every
+            // rule that READS the variable rather than inheriting our direct font-family rules —
+            // Code Styler line numbers, user snippets falling back to var(--font-monospace), and
+            // the font stacks themselves — lands on Obsidian's font. For the UI and text stacks
+            // that is fatal rather than cosmetic: Obsidian's interface font sits in front of the
+            // configured one, and since a CJK face carries Latin glyphs of its own, the Latin
+            // font is never reached.
             const cssVarsMap = {
                 ui: ['--font-interface', '--font-interface-override'],
                 text: [
@@ -2419,51 +2431,51 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 ]
             };
 
+            /**
+             * The stack one category resolves to.
+             *
+             * With Latin separation on, the Latin font comes first and the configured font
+             * follows as the non-Latin fallback: the Latin face carries a unicode-range, so it
+             * only ever claims the characters it was scoped to.
+             *
+             * @param key - The category (ui / text / monospace)
+             * @param fontFamily - The family configured for it
+             * @returns The CSS font stack
+             */
+            const buildFontStack = (key: string, fontFamily: string): string => {
+                const separatesLatin = latinFontEnabled && fontsConfig.latin
+                    && (key === 'text' || (key === 'ui' && this.settings.latinFontForUI));
+
+                if (separatesLatin) {
+                    return `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif`;
+                }
+
+                // Choose an appropriate fallback based on the font type
+                const fallback = (key === 'monospace') ? 'monospace' : 'sans-serif';
+                return `"${this._escapeCssString(fontFamily)}", ${fallback}`;
+            };
+
+            const fontDeclarations: string[] = [];
             for (const [key, cssVars] of Object.entries(cssVarsMap)) {
-                if (fontsConfig[key]) {
-                    const fontFamily = fontsConfig[key];
-                    for (const cssVar of cssVars) {
-                        // If Latin font separation is enabled, body text font needs special handling
-                        if (key === 'text' && latinFontEnabled && fontsConfig.latin) {
-                            varsCss += `  ${cssVar}: "${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif !important;\n`;
-                        } else if (key === 'ui' && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
-                            // If Latin font for UI is enabled, the UI font also uses Latin font separation
-                            varsCss += `  ${cssVar}: "${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif !important;\n`;
-                        } else {
-                            // Choose an appropriate fallback based on the font type
-                            const fallback = (key === 'monospace') ? 'monospace' : 'sans-serif';
-                            varsCss += `  ${cssVar}: "${this._escapeCssString(fontFamily)}", ${fallback} !important;\n`;
-                        }
-                    }
+                if (!fontsConfig[key]) {
+                    continue;
+                }
+                const stack = buildFontStack(key, fontsConfig[key]);
+                for (const cssVar of cssVars) {
+                    fontDeclarations.push(`${cssVar}: ${stack} !important;`);
                 }
             }
 
-            varsCss += '}\n\n';
+            if (fontDeclarations.length > 0) {
+                for (const scope of [':root', 'body']) {
+                    varsCss += `${scope} {\n`;
+                    for (const declaration of fontDeclarations) {
+                        varsCss += `  ${declaration}\n`;
+                    }
+                    varsCss += '}\n\n';
+                }
 
-            // Monospace variables must ALSO be declared on <body>
-            //
-            // Obsidian core writes its appearance font settings as INLINE styles on <body>
-            // (verified via CDP: body.style holds e.g. --font-monospace-override).
-            // A declaration on :root (html) never competes with it, because <body> carries its
-            // own declaration and descendants inherit from <body>, not from <html>.
-            // Consequence without this block: var(--font-monospace) resolves to Obsidian's own
-            // setting. Every rule that reads the variable instead of inheriting our direct
-            // font-family rules — Code Styler line numbers, user CSS snippets that fall back to
-            // var(--font-monospace) — then lands on a system font that mobile devices do not have.
-            //
-            if (fontsConfig.monospace) {
-                const monospaceStack = `"${this._escapeCssString(fontsConfig.monospace)}", monospace`;
-
-                varsCss += `/* Monospace variables - body scope (overrides Obsidian core inline style) */\n`;
-                varsCss += `body {\n`;
-                varsCss += `  --font-monospace: ${monospaceStack} !important;\n`;
-                varsCss += `  --font-monospace-override: ${monospaceStack} !important;\n`;
-                varsCss += `  --font-monospace-default: ${monospaceStack} !important;\n`;
-                varsCss += `  --font-monospace-theme: ${monospaceStack} !important;\n`;
-                varsCss += `  --font-code: ${monospaceStack} !important;\n`;
-                varsCss += `}\n\n`;
-
-                this._log(`[Local Font Loader] Monospace variables re-declared on <body> to override Obsidian core inline style`);
+                this._log(`[Local Font Loader] ${fontDeclarations.length} font variables declared on :root and re-declared on <body> to override Obsidian core inline styles`);
             }
 
             // UI font: one shared template covers workspace chrome and floating UI.

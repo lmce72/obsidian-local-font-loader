@@ -39,12 +39,18 @@ const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 
 const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 /**
- * The snippet the legacy CSS path writes its generated stylesheets into.
+ * The CSS snippet the generated stylesheets are delivered through.
+ *
+ * Obsidian turns an enabled snippet into a `<style>` element in the document, and that is the
+ * whole point of using one: Export to PDF builds a window of its own and clones the main
+ * document's `<style>` elements into it, so a constructable stylesheet — which is not a node —
+ * never makes the trip, while a snippet does. Older WebViews that lack constructable
+ * stylesheets are covered by the same carrier.
  *
  * Named after the plugin so it can be recognized later — including on a device that never
  * wrote it, where it arrived by sync.
  */
-const LEGACY_SNIPPET = 'local-font-loader';
+const FONT_CSS_SNIPPET = 'local-font-loader';
 
 export default class LocalFontLoaderPlugin extends Plugin {
 
@@ -66,27 +72,17 @@ export default class LocalFontLoaderPlugin extends Plugin {
     /** MathJax's original glyph metrics, kept so adoption can be undone. */
     _mathFontSnapshot: MathFontMetricSnapshot | null = null;
 
-    /** Stylesheets applied through applyCss, keyed by id so re-applying replaces them. */
-    _adoptedSheets = new Map<string, CSSStyleSheet>();
-
     /** The CSS text last applied per id, to skip no-op updates. */
     _appliedCss = new Map<string, string>();
 
-    /** The same CSS, kept per id while the snippet carries it instead of a stylesheet. */
+    /** The CSS each id currently contributes to the snippet. */
     _snippetCss = new Map<string, string>();
 
-    /** True once the snippet is on — either written here, or found already enabled. */
+    /** True once the snippet is enabled in Obsidian's CSS snippets. */
     _snippetEnabled = false;
-
-    /** True once this session has written the snippet file, as opposed to finding one there. */
-    _snippetWritten = false;
 
     /** Serializes snippet writes, so the file never holds a half-updated mix of two applies. */
     _snippetSync: Promise<void> = Promise.resolve();
-
-    /** Whether the modern path has already looked for a snippet left over by the legacy one. */
-    _legacySnippetChecked = false;
-
     _isScanning = false;
     _isSaving = false;
     _dataReloadTimer: number | null = null;
@@ -2891,19 +2887,20 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * Applies a generated stylesheet.
+     * Applies a generated stylesheet, by handing it to Obsidian as a CSS snippet.
      *
      * The CSS here is built at runtime from the user's own font files (their `@font-face` rules
      * and the variables derived from their presets), so it cannot live in a static `styles.css`
-     * — which is what the plugin guidelines otherwise ask for. Two carriers are used instead,
-     * and neither makes this plugin attach a `<style>` element:
+     * — which is what the plugin guidelines otherwise ask for. A snippet is the one carrier that
+     * satisfies every constraint at once:
      *
-     *  - A constructable stylesheet adopted by the document — the mechanism Obsidian's own
-     *    bundle prefers, and the one every supported platform has had since Safari 16.4 /
-     *    Chromium 73.
-     *  - On a WebView older than that (iOS 15.6–16.3), a CSS snippet written to the snippets
-     *    folder and enabled through `app.customCss`, so Obsidian loads the CSS itself. Without
-     *    this branch those devices would get no fonts at all.
+     *  - The guidelines: Obsidian loads the file itself, and this plugin attaches no `<style>`
+     *    or `<link>` element of its own.
+     *  - Export to PDF: it opens a window of its own and clones the main document's `<style>`
+     *    elements into it. A snippet arrives as one of those elements. A constructable
+     *    stylesheet does not, because it is not a node — which is exactly why the fonts were
+     *    missing from exported PDFs while the same fonts rendered on screen.
+     *  - iOS below 16.4, where constructable stylesheets do not exist at all.
      *
      * @param css - The CSS text; an empty value removes the stylesheet
      * @param cssId - A stable id, so repeated applies replace rather than accumulate
@@ -2918,51 +2915,22 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        if (this._supportsConstructableStylesheets()) {
-            // Taking the CSS over here means any snippet of ours still carrying it has to go.
-            this._dropLegacySnippet();
-
-            let sheet = this._adoptedSheets.get(cssId);
-            if (!sheet) {
-                sheet = new CSSStyleSheet();
-                this._adoptedSheets.set(cssId, sheet);
-                document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-            }
-            try {
-                sheet.replaceSync(css);
-            } catch (error) {
-                this._logError(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
-                return;
-            }
-        } else {
-            this._snippetCss.set(cssId, css);
-            this._queueSnippetSync();
-        }
+        this._snippetCss.set(cssId, css);
+        this._queueSnippetSync();
 
         this._appliedCss.set(cssId, css);
     }
 
-    /** Whether this document can carry a stylesheet that was built at runtime. */
-    _supportsConstructableStylesheets(): boolean {
-        return typeof CSSStyleSheet === 'function'
-            && 'replaceSync' in CSSStyleSheet.prototype
-            && 'adoptedStyleSheets' in document;
-    }
-
     /**
-     * Removes one generated stylesheet, whichever way it was applied.
+     * Removes one generated stylesheet.
      *
      * @param cssId - The id the stylesheet was applied under
      */
     _removeGeneratedStyles(cssId: string): void {
-        const sheet = this._adoptedSheets.get(cssId);
-        if (sheet) {
-            document.adoptedStyleSheets = document.adoptedStyleSheets.filter(s => s !== sheet);
-            this._adoptedSheets.delete(cssId);
-        }
-
-        // Earlier versions attached a `<style>` element per id. Only the removal of one survives:
-        // reloading the plugin can leave the old element behind for the rest of the session.
+        // Versions up to 1.5.6 attached a `<style>` element per id when the platform had no
+        // constructable stylesheets. Reloading the plugin can leave one behind for the rest of
+        // the session, so it is still cleared here. Obsidian's own snippet element carries no id
+        // and is never matched: turning the snippet off is what removes that one.
         const element = document.getElementById(cssId);
         if (element) {
             element.remove();
@@ -2991,7 +2959,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Brings the snippet in line with the CSS currently generated.
      *
      * The plugin never touches the element Obsidian builds from the snippet: it writes the file
-     * and enables it, and Obsidian loads it like any other snippet.
+     * and enables it, and Obsidian loads it like any other snippet. Rewriting the file is enough
+     * for Obsidian to pick the new content up — its snippet cache is invalidated when the file
+     * changes — so no reload is forced here.
+     *
+     * The file is left in place when the last stylesheet goes away. It is a cache of generated
+     * CSS, like the per-font ones, and deleting it on every unload would push megabytes through
+     * sync on each app start for no change in content.
      */
     async _syncSnippet(): Promise<void> {
         const customCss = this.app.customCss;
@@ -3000,62 +2974,54 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        const path = customCss.getSnippetPath(LEGACY_SNIPPET);
         const css = Array.from(this._snippetCss.values()).join('\n');
 
         if (!css) {
-            // Nothing left to carry — take the snippet back out of the user's list.
+            // Nothing left to carry: stop applying it, and keep the file for the next apply.
             if (!this._snippetEnabled) {
                 return;
             }
             this._snippetEnabled = false;
-            customCss.setCssEnabledStatus(LEGACY_SNIPPET, false);
-
-            // A file this session did not write belongs to someone else — a snippet that arrived
-            // by sync, or one the user made under this name. Disabling it is reversible and
-            // enough; deleting a file the plugin did not author is not.
-            if (!this._snippetWritten) {
-                return;
-            }
-            this._snippetWritten = false;
-
-            // Checked first: removing a file that is already gone would only throw, and a snippet
-            // that is not there is the state being asked for rather than a failure.
-            if (await this.app.vault.adapter.exists(path)) {
-                await this.app.vault.adapter.remove(path);
-            }
+            customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
+            this._log(`[Local Font Loader] No generated CSS left; the "${FONT_CSS_SNIPPET}" snippet is switched off.`);
             return;
         }
 
-        await this.app.vault.adapter.write(path, css);
-        this._snippetWritten = true;
+        await this.app.vault.adapter.write(customCss.getSnippetPath(FONT_CSS_SNIPPET), css);
         if (!this._snippetEnabled) {
             this._snippetEnabled = true;
-            customCss.setCssEnabledStatus(LEGACY_SNIPPET, true);
+            customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
+            this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
         }
-        this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${LEGACY_SNIPPET}" snippet.`);
+        this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
     }
 
     /**
-     * Takes back a snippet left behind by the legacy path — written by this device while it still
-     * needed one, or synced in from a device that did.
+     * Drops the generated stylesheet and the file carrying it.
      *
-     * Runs once per session, on the first apply the modern path handles. An enabled snippet would
-     * otherwise keep applying another device's fonts, and sit in the user's snippet list for good.
+     * Called from clearCache(), where the user is asking for the generated output to go away —
+     * the snippet is the largest of those files, and leaving it behind would keep the fonts
+     * applied with no cache to regenerate them from. The applied-state maps are cleared with it
+     * so the next apply rebuilds everything instead of being skipped as a no-op.
      */
-    _dropLegacySnippet(): void {
-        if (this._legacySnippetChecked) {
+    async _dropGeneratedSnippet(): Promise<void> {
+        const customCss = this.app.customCss;
+        this._snippetCss.clear();
+        this._appliedCss.clear();
+
+        if (!customCss) {
             return;
         }
-        this._legacySnippetChecked = true;
 
-        if (!this.app.customCss?.enabledSnippets?.has(LEGACY_SNIPPET)) {
-            return;
+        if (this._snippetEnabled) {
+            this._snippetEnabled = false;
+            customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
         }
 
-        // No CSS of ours to write, so the queued sync disables and deletes it.
-        this._snippetEnabled = true;
-        this._queueSnippetSync();
+        const path = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+        if (await this.app.vault.adapter.exists(path)) {
+            await this.app.vault.adapter.remove(path);
+        }
     }
 
     removeFontStyles() {
@@ -3085,6 +3051,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 font.hasB64 = false;
                 font.b64Path = null;
             }
+
+            // The generated snippet is the largest cache of all and belongs to the same set.
+            await this._dropGeneratedSnippet();
+
             await this.saveSettings();
 
             this._log(`[Local Font Loader] Cleaned ${count} cache files`);

@@ -2738,18 +2738,15 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
 var browserNavigator = globalThis.navigator;
 var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen"];
 var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
-var LEGACY_SNIPPET = "local-font-loader";
+var FONT_CSS_SNIPPET = "local-font-loader";
 
 class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   currentDeviceId;
   _mathFontSnapshot = null;
-  _adoptedSheets = new Map;
   _appliedCss = new Map;
   _snippetCss = new Map;
   _snippetEnabled = false;
-  _snippetWritten = false;
   _snippetSync = Promise.resolve();
-  _legacySnippetChecked = false;
   _isScanning = false;
   _isSaving = false;
   _dataReloadTimer = null;
@@ -4508,35 +4505,11 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       this._removeGeneratedStyles(cssId);
       return;
     }
-    if (this._supportsConstructableStylesheets()) {
-      this._dropLegacySnippet();
-      let sheet = this._adoptedSheets.get(cssId);
-      if (!sheet) {
-        sheet = new CSSStyleSheet;
-        this._adoptedSheets.set(cssId, sheet);
-        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-      }
-      try {
-        sheet.replaceSync(css);
-      } catch (error) {
-        this._logError(`[Local Font Loader] Could not apply stylesheet "${cssId}":`, error);
-        return;
-      }
-    } else {
-      this._snippetCss.set(cssId, css);
-      this._queueSnippetSync();
-    }
+    this._snippetCss.set(cssId, css);
+    this._queueSnippetSync();
     this._appliedCss.set(cssId, css);
   }
-  _supportsConstructableStylesheets() {
-    return typeof CSSStyleSheet === "function" && "replaceSync" in CSSStyleSheet.prototype && "adoptedStyleSheets" in document;
-  }
   _removeGeneratedStyles(cssId) {
-    const sheet = this._adoptedSheets.get(cssId);
-    if (sheet) {
-      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== sheet);
-      this._adoptedSheets.delete(cssId);
-    }
     const element = document.getElementById(cssId);
     if (element) {
       element.remove();
@@ -4555,7 +4528,6 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       this._logError("[Local Font Loader] No CSS snippets on this platform: the fonts cannot be applied.");
       return;
     }
-    const path = customCss.getSnippetPath(LEGACY_SNIPPET);
     const css = Array.from(this._snippetCss.values()).join(`
 `);
     if (!css) {
@@ -4563,34 +4535,33 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         return;
       }
       this._snippetEnabled = false;
-      customCss.setCssEnabledStatus(LEGACY_SNIPPET, false);
-      if (!this._snippetWritten) {
-        return;
-      }
-      this._snippetWritten = false;
-      if (await this.app.vault.adapter.exists(path)) {
-        await this.app.vault.adapter.remove(path);
-      }
+      customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
+      this._log(`[Local Font Loader] No generated CSS left; the "${FONT_CSS_SNIPPET}" snippet is switched off.`);
       return;
     }
-    await this.app.vault.adapter.write(path, css);
-    this._snippetWritten = true;
+    await this.app.vault.adapter.write(customCss.getSnippetPath(FONT_CSS_SNIPPET), css);
     if (!this._snippetEnabled) {
       this._snippetEnabled = true;
-      customCss.setCssEnabledStatus(LEGACY_SNIPPET, true);
+      customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
+      this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
     }
-    this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${LEGACY_SNIPPET}" snippet.`);
+    this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
   }
-  _dropLegacySnippet() {
-    if (this._legacySnippetChecked) {
+  async _dropGeneratedSnippet() {
+    const customCss = this.app.customCss;
+    this._snippetCss.clear();
+    this._appliedCss.clear();
+    if (!customCss) {
       return;
     }
-    this._legacySnippetChecked = true;
-    if (!this.app.customCss?.enabledSnippets?.has(LEGACY_SNIPPET)) {
-      return;
+    if (this._snippetEnabled) {
+      this._snippetEnabled = false;
+      customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
     }
-    this._snippetEnabled = true;
-    this._queueSnippetSync();
+    const path = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+    if (await this.app.vault.adapter.exists(path)) {
+      await this.app.vault.adapter.remove(path);
+    }
   }
   removeFontStyles() {
     this._removeGeneratedStyles("local-font-loader-faces");
@@ -4611,6 +4582,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         font.hasB64 = false;
         font.b64Path = null;
       }
+      await this._dropGeneratedSnippet();
       await this.saveSettings();
       this._log(`[Local Font Loader] Cleaned ${count} cache files`);
     } catch (error) {

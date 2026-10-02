@@ -1,7 +1,7 @@
 /**
  * The plugin class: font scanning, conversion, device identity and CSS generation.
  */
-import { Component, Plugin, Notice, MarkdownRenderer, Platform } from 'obsidian';
+import { Component, Plugin, Notice, MarkdownRenderer, Platform, normalizePath } from 'obsidian';
 
 import { t } from './i18n';
 import { parseFontMetadata } from './font-metadata';
@@ -2392,41 +2392,71 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                     this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
 
-                    // Read all variants in parallel to improve loading performance
-                    const readPromises = familyFonts
-                        .filter(font => font.hasB64 && font.b64Path)
-                        .map(async (font) => {
-                            try {
-                                const b64Css = await this.app.vault.adapter.read(font.b64Path);
-                                this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB)`);
-                                return { success: true, css: b64Css, font };
-                            } catch (error) {
-                                this._logError(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
-                                return { success: false, font, error };
-                            }
-                        });
+                    // Build each variant's @font-face rule from its own resource URL.
+                    //
+                    // This used to read the base64 cache instead, which meant holding the whole font
+                    // set as one string in memory (tens of MB) and writing a snippet of the same
+                    // size. A resource URL keeps the generated snippet at a few KB and lets the
+                    // browser fetch only the weights a note actually renders. The base64 cache is
+                    // still the fallback, so platforms that cannot hand out a resource URL keep
+                    // working exactly as before.
+                    const deviceFontContext = this._getDeviceFontContext();
+                    const results = await Promise.all(familyFonts.map(async (font) => {
+                        // The resource URL is only worth using when the file is actually there: on a
+                        // device that synced the cache but not the font sources, pointing at a missing
+                        // file would render nothing, whereas the cached rule still works.
+                        let fontFileExists = false;
+                        try {
+                            fontFileExists = await this.app.vault.adapter.exists(normalizePath(font.path));
+                        } catch (error) {
+                            fontFileExists = false;
+                        }
 
-                    const results = await Promise.all(readPromises);
+                        const fontResourceSrc = fontFileExists ? this._getFontResourceSrc(font) : null;
+                        if (fontResourceSrc) {
+                            const built = this._buildFontFaceCss(font, '', deviceFontContext, fontResourceSrc);
+                            this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || 'Unknown'}, resource URL)`);
+                            return { success: true, css: built.css, font, fromResourceUrl: true };
+                        }
+
+                        if (!font.hasB64 || !font.b64Path) {
+                            this._log(`[Local Font Loader] Font not cached and no resource URL, please convert first: ${font.name}`);
+                            return { success: false, font, error: new Error('not converted') };
+                        }
+
+                        try {
+                            const b64Css = await this.app.vault.adapter.read(font.b64Path);
+                            this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB, base64 cache)`);
+                            return { success: true, css: b64Css, font, fromResourceUrl: false };
+                        } catch (error) {
+                            this._logError(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
+                            return { success: false, font, error };
+                        }
+                    }));
 
                     // Collect successfully loaded CSS
                     for (const result of results) {
                         if (result.success) {
                             let css = result.css;
 
-                            // If Latin font separation is enabled and the current font is Latin, add unicode-range
-                            const isLatinFont = latinFontEnabled && fontsConfig.latin &&
-                                (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
+                            // A rule rebuilt from a resource URL already carries its unicode-range
+                            // (emitted inside _buildFontFaceCss); only the cached rule needs the
+                            // post-hoc injection.
+                            if (!result.fromResourceUrl) {
+                                const isLatinFont = latinFontEnabled && fontsConfig.latin &&
+                                    (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
 
-                            if (isLatinFont) {
-                                // Add unicode-range for the Latin font
-                                const unicodeRange = this.getUnicodeRange(latinFontScope);
-                                if (unicodeRange) {
-                                    // Insert unicode-range after font-display and before }
-                                    css = css.replace(
-                                        /font-display:\s*swap;/g,
-                                        `font-display: swap;\n  unicode-range: ${unicodeRange};`
-                                    );
-                                    this._log(`[Local Font Loader] Added unicode-range to Latin font: ${result.font.name}`);
+                                if (isLatinFont) {
+                                    // Add unicode-range for the Latin font
+                                    const unicodeRange = this.getUnicodeRange(latinFontScope);
+                                    if (unicodeRange) {
+                                        // Insert unicode-range after font-display and before }
+                                        css = css.replace(
+                                            /font-display:\s*swap;/g,
+                                            `font-display: swap;\n  unicode-range: ${unicodeRange};`
+                                        );
+                                        this._log(`[Local Font Loader] Added unicode-range to Latin font: ${result.font.name}`);
+                                    }
                                 }
                             }
 
@@ -2435,13 +2465,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
                         } else {
                             failedFonts.push(`${result.font.name} (读取失败: ${result.error.message})`);
                         }
-                    }
-
-                    // Handle uncached fonts
-                    const uncachedFonts = familyFonts.filter(f => !f.hasB64 || !f.b64Path);
-                    for (const font of uncachedFonts) {
-                        this._log(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
-                        failedFonts.push(`${font.name} (not converted)`);
                     }
 
                 } catch (error) {
@@ -2822,14 +2845,42 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
+     * Resolves a font file to a CSS `url("…")` value through Obsidian's resource API.
+     *
+     * `getResourcePath` is the supported way to point the webview at a file inside the vault —
+     * hardcoded `app://local/` and `file://` URLs were removed in Obsidian 1.2.8. It works on
+     * desktop and mobile alike. The returned path is session-specific (it embeds the current
+     * vault location), so callers must resolve it at load time instead of persisting it.
+     *
+     * @param {Object} font The font object
+     * @returns {string|null} the `url(...)` value, or null when no resource URL is available
+     */
+    _getFontResourceSrc(font): string | null {
+        try {
+            // The adapter API expects a normalized vault path (`normalizePath`), and the value
+            // here comes straight from settings, which a user can type.
+            const resourcePath = this.app.vault.adapter.getResourcePath(normalizePath(font.path));
+            if (!resourcePath) {
+                return null;
+            }
+            const escaped = String(resourcePath).replace(/\\/g, '\\\\').replace(/"/g, '%22');
+            return `url("${escaped}")`;
+        } catch (error) {
+            this._logError('[Local Font Loader] getResourcePath failed; using the base64 cache instead', error);
+            return null;
+        }
+    }
+
+    /**
       * Builds a single font's @font-face CSS (config-driven unicode-range determination and family-name escaping).
       * Shared by convertAllFonts / convertSingleFont so Latin determination and escaping stay consistent.
       * @param {Object} font   The font object
       * @param {string} base64 The base64 data
       * @param {Object} ctx    Context from _getDeviceFontContext()
+      * @param {string} [srcOverride] Full `src:` value that replaces the inline data URI (e.g. a resource URL)
      * @returns {{css:string, fontFamily:string, variantType:string, fontWeight:number, fontStyle:string}}
      */
-    _buildFontFaceCss(font, base64, ctx) {
+    _buildFontFaceCss(font, base64, ctx, srcOverride = null) {
         const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
         const formatMap = {
             'ttf': 'font/truetype',
@@ -2868,7 +2919,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         let css = `/* ${this._escapeCssString(fontFamily)} - ${variantType} */\n`;
         css += `@font-face {\n`;
         css += `  font-family: '${this._escapeCssString(fontFamily)}';\n`;
-        css += `  src: url(data:${mimeType};base64,${base64});\n`;
+        css += `  src: ${srcOverride || `url(data:${mimeType};base64,${base64})`};\n`;
         css += `  font-style: ${fontStyle};\n`;
         css += `  font-weight: ${fontWeight};\n`;
         css += `  font-display: swap;\n`;

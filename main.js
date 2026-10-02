@@ -4130,27 +4130,45 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
             continue;
           }
           this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
-          const readPromises = familyFonts.filter((font) => font.hasB64 && font.b64Path).map(async (font) => {
+          const deviceFontContext = this._getDeviceFontContext();
+          const results = await Promise.all(familyFonts.map(async (font) => {
+            let fontFileExists = false;
+            try {
+              fontFileExists = await this.app.vault.adapter.exists(import_obsidian9.normalizePath(font.path));
+            } catch (error) {
+              fontFileExists = false;
+            }
+            const fontResourceSrc = fontFileExists ? this._getFontResourceSrc(font) : null;
+            if (fontResourceSrc) {
+              const built = this._buildFontFaceCss(font, "", deviceFontContext, fontResourceSrc);
+              this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || "Unknown"}, resource URL)`);
+              return { success: true, css: built.css, font, fromResourceUrl: true };
+            }
+            if (!font.hasB64 || !font.b64Path) {
+              this._log(`[Local Font Loader] Font not cached and no resource URL, please convert first: ${font.name}`);
+              return { success: false, font, error: new Error("not converted") };
+            }
             try {
               const b64Css = await this.app.vault.adapter.read(font.b64Path);
-              this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || "Unknown"}, ${(b64Css.length / 1024).toFixed(2)} KB)`);
-              return { success: true, css: b64Css, font };
+              this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || "Unknown"}, ${(b64Css.length / 1024).toFixed(2)} KB, base64 cache)`);
+              return { success: true, css: b64Css, font, fromResourceUrl: false };
             } catch (error) {
               this._logError(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
               return { success: false, font, error };
             }
-          });
-          const results = await Promise.all(readPromises);
+          }));
           for (const result of results) {
             if (result.success) {
               let css = result.css;
-              const isLatinFont = latinFontEnabled && fontsConfig.latin && (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
-              if (isLatinFont) {
-                const unicodeRange = this.getUnicodeRange(latinFontScope);
-                if (unicodeRange) {
-                  css = css.replace(/font-display:\s*swap;/g, `font-display: swap;
+              if (!result.fromResourceUrl) {
+                const isLatinFont = latinFontEnabled && fontsConfig.latin && (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
+                if (isLatinFont) {
+                  const unicodeRange = this.getUnicodeRange(latinFontScope);
+                  if (unicodeRange) {
+                    css = css.replace(/font-display:\s*swap;/g, `font-display: swap;
   unicode-range: ${unicodeRange};`);
-                  this._log(`[Local Font Loader] Added unicode-range to Latin font: ${result.font.name}`);
+                    this._log(`[Local Font Loader] Added unicode-range to Latin font: ${result.font.name}`);
+                  }
                 }
               }
               fontFaceCss += css + `
@@ -4159,11 +4177,6 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
             } else {
               failedFonts.push(`${result.font.name} (读取失败: ${result.error.message})`);
             }
-          }
-          const uncachedFonts = familyFonts.filter((f) => !f.hasB64 || !f.b64Path);
-          for (const font of uncachedFonts) {
-            this._log(`[Local Font Loader] Font not cached, please convert first: ${font.name}`);
-            failedFonts.push(`${font.name} (not converted)`);
           }
         } catch (error) {
           this._logError(`[Local Font Loader] ✗ 无法加载字体家族 ${familyOrFontName}:`, error);
@@ -4445,7 +4458,20 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     }
     return btoa(binary);
   }
-  _buildFontFaceCss(font, base64, ctx) {
+  _getFontResourceSrc(font) {
+    try {
+      const resourcePath = this.app.vault.adapter.getResourcePath(import_obsidian9.normalizePath(font.path));
+      if (!resourcePath) {
+        return null;
+      }
+      const escaped = String(resourcePath).replace(/\\/g, "\\\\").replace(/"/g, "%22");
+      return `url("${escaped}")`;
+    } catch (error) {
+      this._logError("[Local Font Loader] getResourcePath failed; using the base64 cache instead", error);
+      return null;
+    }
+  }
+  _buildFontFaceCss(font, base64, ctx, srcOverride = null) {
     const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
     const formatMap = {
       ttf: "font/truetype",
@@ -4478,7 +4504,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
 `;
     css += `  font-family: '${this._escapeCssString(fontFamily)}';
 `;
-    css += `  src: url(data:${mimeType};base64,${base64});
+    css += `  src: ${srcOverride || `url(data:${mimeType};base64,${base64})`};
 `;
     css += `  font-style: ${fontStyle};
 `;

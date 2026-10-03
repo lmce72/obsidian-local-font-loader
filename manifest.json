@@ -1,7 +1,7 @@
 {
 	"id": "local-font-loader",
 	"name": "Local Font Loader",
-	"version": "1.6.0",
+	"version": "1.6.1",
 	"minAppVersion": "1.13.0",
 	"description": "Load local fonts (TTF/OTF/WOFF/WOFF2) straight from your vault. Manage UI, text, code, and math fonts separately. Support cross-device font presets.",
 	"author": "CoreVortex",

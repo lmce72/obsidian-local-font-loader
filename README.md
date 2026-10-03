@@ -78,8 +78,27 @@
 
 ### Requirements
 
-- Obsidian v1.0.0 or higher
+- Obsidian v1.13.0 or higher
 - Font files in TTF, OTF, WOFF, or WOFF2 format
+
+### Privacy
+
+The plugin works entirely offline: it makes no network requests, and nothing about you or your
+vault leaves the machine. There is no telemetry of any kind.
+
+It does read three things about the device it runs on, all of them only to tell your devices apart
+in the device list and to pick a translation:
+
+| What | Where it is read | Why |
+|------|------------------|-----|
+| The machine hostname (`os.hostname()`) | Desktop only | Names the entry this machine gets in the device list |
+| The platform's app-scoped device identifier (`ANDROID_ID` on Android, `identifierForVendor` on iOS) | Mobile only, through Capacitor | Gives each device a stable identity, so it is not listed twice after its local storage is cleared. The identifier is hashed before it is stored — the raw value is never written anywhere |
+| The app language | Everywhere | Chooses which bundled translation to use |
+
+What is stored lives in `data.json` inside the plugin's own folder: the device display names, the
+recorded model/OS/hostname, when each device was first and last seen, and the hashed mobile
+identifier. That file is synced only by whatever you use to sync `.obsidian` — it is never sent to
+the plugin's author or to anyone else.
 
 ### License
 

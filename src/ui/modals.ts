@@ -126,7 +126,7 @@ export class FontImportModal extends Modal {
         dropZone.createDiv({ cls: 'lfl-import-hint', text: t('importDropHint') });
 
         // Create a hidden input (inside the Modal)
-        const input = document.createElement('input');
+        const input = createEl('input');
         input.type = 'file';
         input.multiple = true;
         input.accept = '.ttf,.otf,.woff,.woff2';

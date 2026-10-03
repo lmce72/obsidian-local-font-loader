@@ -533,7 +533,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             // Delete the source file
             try {
                 await this.plugin.app.vault.adapter.remove(font.path);
-            } catch (err) {
+            } catch {
                 this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
             }
 
@@ -598,7 +598,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                     // Delete the original font file
                     try {
                         await this.app.vault.adapter.remove(font.path);
-                    } catch (err) {
+                    } catch {
                         this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
                     }
 

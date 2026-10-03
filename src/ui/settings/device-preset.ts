@@ -361,11 +361,11 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                         tab._addEventListener(moveBtn, 'click', async (e) => {
                             e.stopPropagation();
 
-                            const selectEl = document.createElement('select');
+                            const selectEl = createEl('select');
                             selectEl.addClass('lfl-hidden-select');
 
                             tab.plugin.settings.presets.forEach(p => {
-                                const option = selectEl.appendChild(document.createElement('option'));
+                                const option = selectEl.appendChild(createEl('option'));
                                 option.value = p.id;
                                 option.text = (p.id === 'default-preset' && p.targetDevices.length === 0)
                                     ? `${p.name} (${t('global')})`
@@ -384,11 +384,16 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                             selectEl.click();
 
                             selectEl.addEventListener('change', async () => {
-                                const targetPresetId = selectEl.value;
-                                await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
-                                new Notice(`✓ ${t('deviceReassigned')}`, 2000);
-                                tab.display();
-                                selectEl.remove();
+                                try {
+                                    const targetPresetId = selectEl.value;
+                                    await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
+                                    new Notice(`✓ ${t('deviceReassigned')}`, 2000);
+                                    tab.display();
+                                } catch (error) {
+                                    tab.plugin._logError('[Local Font Loader] Failed to reassign the device:', error);
+                                } finally {
+                                    selectEl.remove();
+                                }
                             });
 
                             selectEl.addEventListener('blur', () => {

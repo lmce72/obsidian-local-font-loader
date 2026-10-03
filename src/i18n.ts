@@ -1,6 +1,7 @@
 /**
  * Translations and locale helpers.
  */
+import { getLanguage } from 'obsidian';
 
 export const TRANSLATIONS = {
     en: {
@@ -1040,7 +1041,7 @@ export function t(key, localeOrParams = null, params = {}) {
 
     // Auto-detect locale from Obsidian if not provided
     if (!locale) {
-        const fullLocale = window.localStorage.getItem('language') || 'en';
+        const fullLocale = getLanguage() || 'en';
 
         // Prefer the full locale code (e.g., zh-TW)
         if (TRANSLATIONS[fullLocale]) {
@@ -1068,7 +1069,7 @@ export function t(key, localeOrParams = null, params = {}) {
  * @returns {string} Current language code
  */
 export function getCurrentLocale() {
-    return (window.localStorage.getItem('language') || 'en').split('-')[0];
+    return (getLanguage() || 'en').split('-')[0];
 }
 
 /**

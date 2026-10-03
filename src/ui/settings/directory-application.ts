@@ -5,7 +5,7 @@
  * each part can be read, reviewed and changed on its own.
  */
 
-import { Notice, Setting, setIcon, MarkdownRenderer } from 'obsidian';
+import { Notice, Setting, setIcon } from 'obsidian';
 
 import { t } from '../../i18n';
 import type { PresetFonts } from '../../types';
@@ -29,8 +29,12 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             .setDesc(t('fontSourceDirDesc'));
 
         addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, async (value) => {
-            tab.plugin.settings.fontSourceDir = value;
-            await tab.plugin.saveSettings();
+            try {
+                tab.plugin.settings.fontSourceDir = value;
+                await tab.plugin.saveSettings();
+            } catch (error) {
+                tab.plugin._logError('[Local Font Loader] Failed to save the font source directory:', error);
+            }
         }, 'Local-Fonts');
 
         sourceDirSetting.addButton(btn => btn

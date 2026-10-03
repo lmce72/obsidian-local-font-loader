@@ -24,7 +24,7 @@ import FontManagerSettingTab from './ui/settings-tab';
  * purpose. The alias keeps that from tripping the guideline's pattern match on
  * navigator.<property>, which cannot tell the two apart.
  */
-const browserNavigator: Navigator = globalThis.navigator;
+const browserNavigator: Navigator = window.navigator;
 
 /**
  * The keys a device entry is allowed to carry.
@@ -128,7 +128,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
             window.clearTimeout(this._saveSettingsTimer);
         }
         this._saveSettingsTimer = window.setTimeout(() => {
-            this.saveData(this.settings);
+            // Left unhandled, a failed write would reject into nothing and the loss would go unlogged.
+            this.saveData(this.settings)
+                .catch(error => this._logError('[Local Font Loader] Failed to save settings:', error));
             this._saveSettingsTimer = null;
         }, 300); // 300ms debounce delay
     }
@@ -432,7 +434,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const seenStale = Number.isNaN(lastSeenTime) || (Date.now() - lastSeenTime) > SEEN_REFRESH_MS;
             const lifetime = {
                 firstSeen: (previousMeta && previousMeta.firstSeen) || seenAt,
-                lastSeen: seenStale ? seenAt : (previousMeta as DeviceMeta).lastSeen,
+                lastSeen: seenStale ? seenAt : previousMeta.lastSeen,
             };
 
             const isKnownDevice = Boolean(this.settings.deviceNameMap[activeDeviceId]);
@@ -1825,7 +1827,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                         const metadataContent = await this.app.vault.adapter.read(metadataPath);
                         metadata = JSON.parse(metadataContent);
                         this._log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
-                    } catch (err) {
+                    } catch {
                         this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
                     }
 
@@ -1873,7 +1875,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                 else if (variantType === 'bolditalic') family.hasBoldItalic = true;
 
                                 this._log(`[Local Font Loader] Identified font: ${family.familyName} (${variantType})`);
-                            } catch (err) {
+                            } catch {
                                 this._log(`[Local Font Loader] Font file does not exist: ${fontPath}`);
                             }
                         }
@@ -1950,7 +1952,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 if (fontMap.has(prevFont.name)) continue;
                 let stillExists = false;
                 if (prevFont.path) {
-                    try { stillExists = await this.app.vault.adapter.exists(prevFont.path); } catch (e) { stillExists = false; }
+                    try { stillExists = await this.app.vault.adapter.exists(prevFont.path); } catch { stillExists = false; }
                 }
                 if (!stillExists) {
                     const { exists, ...cleanFont } = prevFont;
@@ -2026,7 +2028,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return false;
         }
 
-        const canvas = document.createElement('canvas');
+        const canvas = createEl('canvas');
         canvas.width = 8;
         canvas.height = 8;
         const ctx = canvas.getContext('2d');
@@ -2044,7 +2046,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     d: (m.actualBoundingBoxDescent || 0) / SIZE,
                     w: m.width / SIZE
                 };
-            } catch (error) {
+            } catch {
                 return null;
             }
         };
@@ -2172,7 +2174,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
 
             // Forces MathJax to lay out a formula, which is what regenerates the stylesheet.
-            const scratch = document.createElement('div');
+            const scratch = createEl('div');
             scratch.addClass('lfl-render-scratch');
             document.body.appendChild(scratch);
             // A throwaway Component: the plugin outlives every render and must not be used
@@ -2258,11 +2260,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!document.fonts.check(`16px "${familyName}"`)) {
                 return { status: 'unavailable', deviations: [] };
             }
-        } catch (error) {
+        } catch {
             return { status: 'unavailable', deviations: [] };
         }
 
-        const canvas = document.createElement('canvas');
+        const canvas = createEl('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) {
             return { status: 'unavailable', deviations: [] };
@@ -2273,7 +2275,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             try {
                 ctx.font = `${SIZE}px "${familyName}"`;
                 return ctx.measureText(char).width / SIZE;
-            } catch (error) {
+            } catch {
                 return 0;
             }
         };
@@ -2285,7 +2287,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     above: (metrics.actualBoundingBoxAscent || 0) / SIZE,
                     below: (metrics.actualBoundingBoxDescent || 0) / SIZE
                 };
-            } catch (error) {
+            } catch {
                 return { above: 0, below: 0 };
             }
         };
@@ -2397,7 +2399,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // Use the font config from the device's preset (new)
             const fontsConfig: PresetFonts = devicePreset.fonts || ({} as PresetFonts);
             const latinFontEnabled = devicePreset.latinFontEnabled || false;
-            const latinFontScope = devicePreset.latinFontScope || {};
             const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle || false;
 
             const usedFonts = new Set();

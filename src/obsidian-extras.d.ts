@@ -4,8 +4,6 @@
  * Declaring them here keeps the call sites readable instead of scattering `as any` through the
  * plugin, and keeps the undocumented surface in one file where it can be reviewed.
  */
-import type { App, View } from 'obsidian';
-
 declare module 'obsidian' {
     interface App {
         /**

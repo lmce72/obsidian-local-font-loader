@@ -29,7 +29,7 @@ export function renderFallbackSection(tab: FontManagerSettingTab, containerEl: H
             .setDesc(t('deleteUnusedFontsDesc'))
             .addButton(btn => btn
                 .setButtonText(t('deleteUnusedFonts'))
-                .setWarning()
+                .setDestructive()
                 .onClick(async () => {
                     const unusedFonts = tab._getUnusedFonts();
                     if (unusedFonts.length === 0) {

@@ -141,15 +141,15 @@ export function describeDeviceGroupHistory(
         return 'unknown';
     }
 
-    const ordered = spans.slice().sort((a, b) => (a.first as number) - (b.first as number));
+    const ordered = spans.slice().sort((a, b) => a.first - b.first);
 
     const newest = ordered[ordered.length - 1];
-    if (!Number.isFinite(now) || now - (newest.last as number) > DEVICE_STALE_MS) {
+    if (!Number.isFinite(now) || now - newest.last > DEVICE_STALE_MS) {
         return 'unknown';
     }
 
     for (let i = 0; i < ordered.length - 1; i++) {
-        const gap = (ordered[i + 1].first as number) - (ordered[i].last as number);
+        const gap = ordered[i + 1].first - ordered[i].last;
         if (gap < SUCCESSION_MIN_GAP_MS || gap > SUCCESSION_MAX_GAP_MS) {
             return 'unknown';
         }

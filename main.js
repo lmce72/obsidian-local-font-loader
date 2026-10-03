@@ -1,7 +1,8 @@
 // src/plugin.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 
 // src/i18n.ts
+var import_obsidian = require("obsidian");
 var TRANSLATIONS = {
   en: {
     pluginName: "Local Font Loader",
@@ -859,7 +860,7 @@ function t(key, localeOrParams = null, params = {}) {
     locale = localeOrParams;
   }
   if (!locale) {
-    const fullLocale = window.localStorage.getItem("language") || "en";
+    const fullLocale = import_obsidian.getLanguage() || "en";
     if (TRANSLATIONS[fullLocale]) {
       locale = fullLocale;
     } else {
@@ -874,7 +875,7 @@ function t(key, localeOrParams = null, params = {}) {
   return text;
 }
 function getCurrentLocale() {
-  return (window.localStorage.getItem("language") || "en").split("-")[0];
+  return (import_obsidian.getLanguage() || "en").split("-")[0];
 }
 function isLatinScriptLocale() {
   const locale = getCurrentLocale();
@@ -1245,11 +1246,11 @@ function remapDeviceIds(deviceIds, aliases) {
 }
 
 // src/ui/settings-tab.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/ui/modals.ts
-var import_obsidian = require("obsidian");
-class TextInputModal extends import_obsidian.Modal {
+var import_obsidian2 = require("obsidian");
+class TextInputModal extends import_obsidian2.Modal {
   titleText;
   placeholder;
   defaultValue;
@@ -1313,7 +1314,7 @@ class TextInputModal extends import_obsidian.Modal {
   }
 }
 
-class FontImportModal extends import_obsidian.Modal {
+class FontImportModal extends import_obsidian2.Modal {
   plugin;
   onImport;
   constructor(app, plugin, onImport) {
@@ -1326,11 +1327,11 @@ class FontImportModal extends import_obsidian.Modal {
     titleEl.setText(t("importFont"));
     const dropZone = contentEl.createDiv({ cls: "lfl-import-dropzone" });
     const iconContainer = dropZone.createDiv({ cls: "lfl-import-icon" });
-    import_obsidian.setIcon(iconContainer, "folder");
+    import_obsidian2.setIcon(iconContainer, "folder");
     dropZone.createDiv({ cls: "lfl-import-title", text: t("importDropTitle") });
     dropZone.createDiv({ cls: "lfl-import-subtitle", text: t("importDropSubtitle") });
     dropZone.createDiv({ cls: "lfl-import-hint", text: t("importDropHint") });
-    const input = document.createElement("input");
+    const input = createEl("input");
     input.type = "file";
     input.multiple = true;
     input.accept = ".ttf,.otf,.woff,.woff2";
@@ -1369,7 +1370,7 @@ class FontImportModal extends import_obsidian.Modal {
   }
 }
 function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) {
-  const modal = new import_obsidian.ConfirmationModal(app);
+  const modal = new import_obsidian2.ConfirmationModal(app);
   modal.setTitle(title);
   modal.contentEl.createEl("p", {
     text: message,
@@ -1390,17 +1391,17 @@ function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) 
 }
 
 // src/ui/settings/device-preset.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 function renderDeviceAndPresetSection(tab, containerEl) {
   const syncWarningCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "info" } });
   const syncWarningTitle = syncWarningCallout.createDiv({ cls: "callout-title" });
   const syncWarningIcon = syncWarningTitle.createDiv({ cls: "callout-icon" });
-  import_obsidian2.setIcon(syncWarningIcon, "info");
+  import_obsidian3.setIcon(syncWarningIcon, "info");
   syncWarningTitle.createDiv({ cls: "callout-title-inner", text: t("syncDelayTitle") });
   const syncWarningContent = syncWarningCallout.createDiv({ cls: "callout-content" });
   syncWarningContent.createEl("p", { text: t("syncDelayContent") });
   containerEl.createEl("h3", { text: t("headerPresetManagement") });
-  new import_obsidian2.Setting(containerEl).setName(t("createPreset")).setDesc(t("createPresetDesc")).addText((text) => {
+  new import_obsidian3.Setting(containerEl).setName(t("createPreset")).setDesc(t("createPresetDesc")).addText((text) => {
     text.setPlaceholder(t("presetNamePlaceholder"));
     tab._newPresetNameInput = text;
   }).addButton((btn) => {
@@ -1409,31 +1410,31 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     btn.onClick(async () => {
       const presetName = tab._newPresetNameInput.getValue().trim();
       if (!presetName) {
-        new import_obsidian2.Notice(t("presetNameRequired"), 3000);
+        new import_obsidian3.Notice(t("presetNameRequired"), 3000);
         return;
       }
       const exists = tab.plugin.settings.presets.some((p) => p.name === presetName);
       if (exists) {
-        new import_obsidian2.Notice(t("presetNameExists"), 3000);
+        new import_obsidian3.Notice(t("presetNameExists"), 3000);
         return;
       }
       await tab.plugin.createPreset(presetName);
-      new import_obsidian2.Notice(`✓ ${t("presetCreated")}: ${presetName}`, 2000);
+      new import_obsidian3.Notice(`✓ ${t("presetCreated")}: ${presetName}`, 2000);
       tab.display();
     });
   });
   const deviceManagementHeader = containerEl.createDiv({ cls: "setting-item-heading-with-button" });
   deviceManagementHeader.createEl("h4", { text: t("headerDeviceManagement") });
-  if (import_obsidian2.Platform.isMobile) {
+  if (import_obsidian3.Platform.isMobile) {
     const calloutEl = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "warning" } });
     const titleEl = calloutEl.createDiv({ cls: "callout-title" });
-    import_obsidian2.setIcon(titleEl.createDiv({ cls: "callout-icon" }), "alert-triangle");
+    import_obsidian3.setIcon(titleEl.createDiv({ cls: "callout-icon" }), "alert-triangle");
     titleEl.createDiv({ cls: "callout-title-inner", text: t("deviceLimitTitle") });
-    calloutEl.createDiv({ cls: "callout-content" }).createEl("p", { text: t(import_obsidian2.Platform.isIosApp ? "deviceLimitBodyIos" : "deviceLimitBodyAndroid") });
+    calloutEl.createDiv({ cls: "callout-content" }).createEl("p", { text: t(import_obsidian3.Platform.isIosApp ? "deviceLimitBodyIos" : "deviceLimitBodyAndroid") });
   }
   const refreshBtn = deviceManagementHeader.createEl("button", { cls: "clickable-icon" });
   refreshBtn.setAttribute("aria-label", t("refreshDeviceList"));
-  import_obsidian2.setIcon(refreshBtn, "refresh-cw");
+  import_obsidian3.setIcon(refreshBtn, "refresh-cw");
   tab._addEventListener(refreshBtn, "click", async () => {
     await tab.plugin.loadSettings();
     tab.display();
@@ -1448,7 +1449,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     const presetActions = presetHeader.createDiv({ cls: "preset-actions" });
     const editBtn = presetActions.createEl("button", { cls: "clickable-icon" });
     editBtn.setAttribute("aria-label", t("editPresetName"));
-    import_obsidian2.setIcon(editBtn, "edit");
+    import_obsidian3.setIcon(editBtn, "edit");
     tab._addEventListener(editBtn, "click", async () => {
       new TextInputModal(tab.plugin.app, t("editPresetName"), t("presetNamePlaceholder"), preset.name, async (newName) => {
         if (newName !== preset.name) {
@@ -1459,17 +1460,17 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     });
     const copyBtn = presetActions.createEl("button", { cls: "clickable-icon" });
     copyBtn.setAttribute("aria-label", t("copyPresetCopy"));
-    import_obsidian2.setIcon(copyBtn, "copy");
+    import_obsidian3.setIcon(copyBtn, "copy");
     tab._addEventListener(copyBtn, "click", async () => {
       const copyName = `${preset.name}${t("copySuffix")}`;
       await tab.plugin.copyPresetForDevice(preset.id, copyName);
-      new import_obsidian2.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
+      new import_obsidian3.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
       tab.display();
     });
     if (preset.id !== "default-preset") {
       const deleteBtn = presetActions.createEl("button", { cls: "clickable-icon" });
       deleteBtn.setAttribute("aria-label", t("deletePreset"));
-      import_obsidian2.setIcon(deleteBtn, "trash");
+      import_obsidian3.setIcon(deleteBtn, "trash");
       tab._addEventListener(deleteBtn, "click", async () => {
         showConfirmDialog(tab.plugin.app, t("deletePreset"), t("deletePresetWarning"), async () => {
           await tab.plugin.deletePreset(preset.id);
@@ -1580,7 +1581,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
           cls: "clickable-icon device-edit-btn",
           attr: { "aria-label": t("editDeviceName") }
         });
-        import_obsidian2.setIcon(editBtn2, "edit");
+        import_obsidian3.setIcon(editBtn2, "edit");
         tab._addEventListener(editBtn2, "click", async (e) => {
           e.stopPropagation();
           new TextInputModal(tab.plugin.app, t("editDeviceName"), t("deviceNamePlaceholder"), deviceName, async (newName) => {
@@ -1595,7 +1596,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
             cls: "clickable-icon",
             attr: { "aria-label": t("removeDevice") }
           });
-          import_obsidian2.setIcon(removeBtn, "trash-2");
+          import_obsidian3.setIcon(removeBtn, "trash-2");
           tab._addEventListener(removeBtn, "click", async (e) => {
             e.stopPropagation();
             showConfirmDialog(tab.plugin.app, t("removeDevice"), t("confirmRemoveDevice").replace("{0}", deviceName), async () => {
@@ -1607,18 +1608,18 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         if (isCurrent) {
           deviceItem.addClass("current-device");
         }
-        if (import_obsidian2.Platform.isMobile) {
+        if (import_obsidian3.Platform.isMobile) {
           const moveBtn = btnContainer.createEl("button", {
             cls: "clickable-icon",
             attr: { "aria-label": t("moveDeviceToPreset") }
           });
-          import_obsidian2.setIcon(moveBtn, "move");
+          import_obsidian3.setIcon(moveBtn, "move");
           tab._addEventListener(moveBtn, "click", async (e) => {
             e.stopPropagation();
-            const selectEl = document.createElement("select");
+            const selectEl = createEl("select");
             selectEl.addClass("lfl-hidden-select");
             tab.plugin.settings.presets.forEach((p) => {
-              const option = selectEl.appendChild(document.createElement("option"));
+              const option = selectEl.appendChild(createEl("option"));
               option.value = p.id;
               option.text = p.id === "default-preset" && p.targetDevices.length === 0 ? `${p.name} (${t("global")})` : p.name;
             });
@@ -1630,11 +1631,16 @@ function renderDeviceAndPresetSection(tab, containerEl) {
             selectEl.focus();
             selectEl.click();
             selectEl.addEventListener("change", async () => {
-              const targetPresetId = selectEl.value;
-              await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
-              new import_obsidian2.Notice(`✓ ${t("deviceReassigned")}`, 2000);
-              tab.display();
-              selectEl.remove();
+              try {
+                const targetPresetId = selectEl.value;
+                await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
+                new import_obsidian3.Notice(`✓ ${t("deviceReassigned")}`, 2000);
+                tab.display();
+              } catch (error) {
+                tab.plugin._logError("[Local Font Loader] Failed to reassign the device:", error);
+              } finally {
+                selectEl.remove();
+              }
             });
             selectEl.addEventListener("blur", () => {
               selectEl.remove();
@@ -1660,13 +1666,13 @@ function renderDeviceAndPresetSection(tab, containerEl) {
       tab._addEventListener(cleanupBtn, "click", async () => {
         const prunable = tab.plugin.getPrunableDevices();
         if (prunable.length === 0) {
-          new import_obsidian2.Notice(t("cleanupDevicesNone"), 3000);
+          new import_obsidian3.Notice(t("cleanupDevicesNone"), 3000);
           return;
         }
         const deviceNames = prunable.map((device) => device.name).join("、");
         showConfirmDialog(tab.plugin.app, t("cleanupDevices"), t("confirmCleanupDevices").replace("{0}", deviceNames), async () => {
           const removedCount = await tab.plugin.pruneUnboundDevices();
-          new import_obsidian2.Notice(`✓ ${t("cleanupDevicesDone").replace("{0}", String(removedCount))}`, 3000);
+          new import_obsidian3.Notice(`✓ ${t("cleanupDevicesDone").replace("{0}", String(removedCount))}`, 3000);
           tab.display();
         }, true);
       });
@@ -1674,7 +1680,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
   });
   containerEl.createEl("h4", { text: t("devicePresetManagement"), cls: "setting-item-heading" });
   const devicePreset = tab.plugin._getDevicePreset();
-  new import_obsidian2.Setting(containerEl).setName(t("currentDevicePreset")).setDesc(t("currentDevicePresetDesc")).addDropdown((dropdown) => {
+  new import_obsidian3.Setting(containerEl).setName(t("currentDevicePreset")).setDesc(t("currentDevicePresetDesc")).addDropdown((dropdown) => {
     tab.plugin.settings.presets.forEach((preset) => {
       const label = preset.id === "default-preset" && preset.targetDevices.length === 0 ? `${preset.name} (${t("global")})` : preset.name;
       dropdown.addOption(preset.id, label);
@@ -1682,7 +1688,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     dropdown.setValue(devicePreset ? devicePreset.id : "default-preset");
     dropdown.onChange(async (newPresetId) => {
       await tab.plugin.assignDeviceToPreset(tab.plugin.currentDeviceId, newPresetId);
-      new import_obsidian2.Notice(`✓ ${t("deviceReassigned")}`, 2000);
+      new import_obsidian3.Notice(`✓ ${t("deviceReassigned")}`, 2000);
       tab.display();
     });
   }).addButton((btn) => {
@@ -1690,25 +1696,25 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     btn.setTooltip(t("refreshDeviceList"));
     btn.onClick(() => tab.display());
   });
-  new import_obsidian2.Setting(containerEl).setName(t("copyPresetCopy")).setDesc(t("copyPresetCopyDesc")).addButton((btn) => {
+  new import_obsidian3.Setting(containerEl).setName(t("copyPresetCopy")).setDesc(t("copyPresetCopyDesc")).addButton((btn) => {
     btn.setButtonText(t("copyPresetCopy"));
     btn.onClick(async () => {
       const devicePreset2 = tab.plugin._getDevicePreset();
       const copyName = `${devicePreset2.name}${t("copySuffix")}`;
       await tab.plugin.copyPresetForDevice(devicePreset2.id, copyName);
-      new import_obsidian2.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
+      new import_obsidian3.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
       tab.display();
     });
   });
 }
 
 // src/ui/settings/directory-application.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/ui/settings/folder-input.ts
-var import_obsidian3 = require("obsidian");
 var import_obsidian4 = require("obsidian");
-class FolderInputSuggest extends import_obsidian3.AbstractInputSuggest {
+var import_obsidian5 = require("obsidian");
+class FolderInputSuggest extends import_obsidian4.AbstractInputSuggest {
   onPick;
   constructor(app, textInputEl, onPick) {
     super(app, textInputEl);
@@ -1727,11 +1733,11 @@ class FolderInputSuggest extends import_obsidian3.AbstractInputSuggest {
     this.close();
   }
   vaultFolders() {
-    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian4.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian5.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
 }
 
-class FolderPickerModal extends import_obsidian3.FuzzySuggestModal {
+class FolderPickerModal extends import_obsidian4.FuzzySuggestModal {
   onPick;
   constructor(app, onPick) {
     super(app);
@@ -1739,7 +1745,7 @@ class FolderPickerModal extends import_obsidian3.FuzzySuggestModal {
     this.setPlaceholder(t("selectFolder"));
   }
   getItems() {
-    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian4.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian5.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
   getItemText(folder) {
     return folder.path;
@@ -1773,17 +1779,21 @@ function addFolderPathInput(setting, app, initialValue, onChange, placeholder = 
 // src/ui/settings/directory-application.ts
 function renderDirectoryAndApplicationSection(tab, containerEl) {
   containerEl.createEl("h3", { text: t("headerDirectoryConfig") });
-  const sourceDirSetting = new import_obsidian5.Setting(containerEl).setName(t("fontSourceDir")).setDesc(t("fontSourceDirDesc"));
+  const sourceDirSetting = new import_obsidian6.Setting(containerEl).setName(t("fontSourceDir")).setDesc(t("fontSourceDirDesc"));
   addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, async (value) => {
-    tab.plugin.settings.fontSourceDir = value;
-    await tab.plugin.saveSettings();
+    try {
+      tab.plugin.settings.fontSourceDir = value;
+      await tab.plugin.saveSettings();
+    } catch (error) {
+      tab.plugin._logError("[Local Font Loader] Failed to save the font source directory:", error);
+    }
   }, "Local-Fonts");
   sourceDirSetting.addButton((btn) => btn.setButtonText(t("scanFonts")).onClick(async () => {
     await tab.plugin.scanFonts();
-    new import_obsidian5.Notice("✓ Font list updated");
+    new import_obsidian6.Notice("✓ Font list updated");
     tab.display();
   }));
-  new import_obsidian5.Setting(containerEl).setName(t("autoLoad")).setDesc(t("autoLoadDesc")).addToggle((toggle) => toggle.setValue(tab.plugin.settings.autoLoadOnStartup).onChange(async (value) => {
+  new import_obsidian6.Setting(containerEl).setName(t("autoLoad")).setDesc(t("autoLoadDesc")).addToggle((toggle) => toggle.setValue(tab.plugin.settings.autoLoadOnStartup).onChange(async (value) => {
     tab.plugin.settings.autoLoadOnStartup = value;
     await tab.plugin.saveSettings();
   }));
@@ -1792,7 +1802,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
   if (!tab._activePresetId) {
     tab._activePresetId = currentDevicePreset ? currentDevicePreset.id : "default-preset";
   }
-  new import_obsidian5.Setting(containerEl).setName(t("selectPresetToEdit")).setDesc(t("selectPresetToEditDesc")).addDropdown((dropdown) => {
+  new import_obsidian6.Setting(containerEl).setName(t("selectPresetToEdit")).setDesc(t("selectPresetToEditDesc")).addDropdown((dropdown) => {
     tab.plugin.settings.presets.forEach((preset) => {
       const label = preset.id === "default-preset" && preset.targetDevices.length === 0 ? `${preset.name} (${t("global")})` : preset.name;
       dropdown.addOption(preset.id, label);
@@ -1811,7 +1821,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     });
     const presetInfoTitle = presetInfoEl.createDiv({ cls: "callout-title" });
     const presetInfoIcon = presetInfoTitle.createDiv({ cls: "callout-icon" });
-    import_obsidian5.setIcon(presetInfoIcon, "list-checks");
+    import_obsidian6.setIcon(presetInfoIcon, "list-checks");
     presetInfoTitle.createDiv({
       cls: "callout-title-inner",
       text: `${t("presetName")}: ${activePreset.name}`
@@ -1824,7 +1834,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     if (activePreset.id === "default-preset" && activePreset.targetDevices.length === 0) {
       const warningContainer = presetInfoContent.createEl("p", { cls: "lfl-global-warning" });
       const warningIcon = warningContainer.createSpan({ cls: "lfl-warning-icon" });
-      import_obsidian5.setIcon(warningIcon, "alert-triangle");
+      import_obsidian6.setIcon(warningIcon, "alert-triangle");
       warningContainer.createSpan({ text: t("usingGlobalPreset") });
     }
   }
@@ -1861,18 +1871,18 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
   }
   const activePresetFonts = activePresetForFonts.fonts || {};
   for (const fontType of fontTypes) {
-    const settingItem = new import_obsidian5.Setting(containerEl).setName(fontType.name).setDesc(fontType.desc);
+    const settingItem = new import_obsidian6.Setting(containerEl).setName(fontType.name).setDesc(fontType.desc);
     const selectedFont = activePresetFonts[fontType.key];
     const fontExists = tab.plugin.isFontAvailable(selectedFont);
     if (selectedFont && !fontExists) {
       const warningIcon = settingItem.nameEl.createSpan({ cls: "font-missing-icon" });
-      import_obsidian5.setIcon(warningIcon, "x");
+      import_obsidian6.setIcon(warningIcon, "x");
       warningIcon.setAttribute("aria-label", t("fontNotFound"));
     }
     const mathVerdict = fontType.key === "math" && selectedFont && fontExists ? tab.plugin._evaluateMathFont(selectedFont) : null;
     if (mathVerdict && (mathVerdict.status === "mismatch" || mathVerdict.status === "notMathFont")) {
       const mathWarningIcon = settingItem.nameEl.createSpan({ cls: "font-incompatible-icon" });
-      import_obsidian5.setIcon(mathWarningIcon, "alert-triangle");
+      import_obsidian6.setIcon(mathWarningIcon, "alert-triangle");
       mathWarningIcon.setAttribute("aria-label", t(mathVerdict.status === "notMathFont" ? "mathFontNotMathTitle" : "mathFontMismatchTitle"));
     }
     settingItem.addDropdown((dropdown) => {
@@ -1963,7 +1973,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
 }
 
 // src/ui/settings/font-status.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/ui/font-family-view.ts
 var TOGGLE_SELECTOR = ".font-family-toggle";
@@ -1997,7 +2007,7 @@ function renderFontStatusSection(tab, containerEl) {
       attr: { "aria-label": btnConfig.label }
     });
     const iconEl = btn.createSpan({ cls: "lfl-chip-icon" });
-    import_obsidian6.setIcon(iconEl, btnConfig.icon);
+    import_obsidian7.setIcon(iconEl, btnConfig.icon);
     btn.createSpan({ text: btnConfig.label });
     filterButtonElements.push({ btn, filter: btnConfig.filter });
   });
@@ -2008,7 +2018,7 @@ function renderFontStatusSection(tab, containerEl) {
     attr: { "aria-label": t("expandAll") }
   });
   const expandIcon = expandAllBtn.createSpan({ cls: "lfl-chip-icon" });
-  import_obsidian6.setIcon(expandIcon, "chevrons-down");
+  import_obsidian7.setIcon(expandIcon, "chevrons-down");
   expandAllBtn.createSpan({ text: t("expandAll") });
   tab._addEventListener(expandAllBtn, "click", () => {
     const allFamilies = fontListEl.querySelectorAll(".font-family-item");
@@ -2021,7 +2031,7 @@ function renderFontStatusSection(tab, containerEl) {
     attr: { "aria-label": t("collapseAll") }
   });
   const collapseIcon = collapseAllBtn.createSpan({ cls: "lfl-chip-icon" });
-  import_obsidian6.setIcon(collapseIcon, "chevrons-up");
+  import_obsidian7.setIcon(collapseIcon, "chevrons-up");
   collapseAllBtn.createSpan({ text: t("collapseAll") });
   tab._addEventListener(collapseAllBtn, "click", () => {
     const allFamilies = fontListEl.querySelectorAll(".font-family-item");
@@ -2043,7 +2053,7 @@ function renderFontStatusSection(tab, containerEl) {
   legends.forEach((legend) => {
     const item = legendsContainer.createDiv({ cls: "lfl-legend-item" });
     const iconEl = item.createSpan({ cls: `lfl-legend-icon is-${legend.state}` });
-    import_obsidian6.setIcon(iconEl, legend.icon);
+    import_obsidian7.setIcon(iconEl, legend.icon);
     item.createSpan({ text: legend.text });
   });
   const rescanBtn = legendEl.createEl("button", {
@@ -2051,12 +2061,12 @@ function renderFontStatusSection(tab, containerEl) {
     attr: { "aria-label": t("rescanFonts") || "重新扫描" }
   });
   const rescanIcon = rescanBtn.createSpan({ cls: "lfl-chip-icon" });
-  import_obsidian6.setIcon(rescanIcon, "rotate-cw");
+  import_obsidian7.setIcon(rescanIcon, "rotate-cw");
   rescanBtn.createSpan({ text: t("rescanFonts") || "重新扫描" });
   tab._addEventListener(rescanBtn, "click", async () => {
     rescanBtn.disabled = true;
     await tab.plugin.scanFonts();
-    new import_obsidian6.Notice(t("fontsRescanned") || "✓ 字体已重新扫描");
+    new import_obsidian7.Notice(t("fontsRescanned") || "✓ 字体已重新扫描");
     tab.display();
   });
   const fontListEl = containerEl.createDiv({ cls: "lfl-font-list" });
@@ -2096,12 +2106,12 @@ function renderFontStatusSection(tab, containerEl) {
       importBtn.textContent = t("importing") || "导入中...";
       try {
         await tab.plugin.importFontsFromFiles(files);
-        new import_obsidian6.Notice(t("importedFonts", { count: files.length }));
+        new import_obsidian7.Notice(t("importedFonts", { count: files.length }));
         await tab.plugin.scanFonts();
         tab._debouncedDisplay();
       } catch (error) {
         tab.plugin._logError("[Local Font Loader] Import failed:", error);
-        new import_obsidian6.Notice(t("importError") || "导入失败");
+        new import_obsidian7.Notice(t("importError") || "导入失败");
       } finally {
         importBtn.disabled = false;
         importBtn.textContent = t("importFont");
@@ -2112,27 +2122,27 @@ function renderFontStatusSection(tab, containerEl) {
 }
 
 // src/ui/settings/fallback.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 function renderFallbackSection(tab, containerEl) {
   containerEl.createEl("h3", { text: t("headerFallback") });
-  new import_obsidian7.Setting(containerEl).setName(t("deleteUnusedFonts")).setDesc(t("deleteUnusedFontsDesc")).addButton((btn) => btn.setButtonText(t("deleteUnusedFonts")).setWarning().onClick(async () => {
+  new import_obsidian8.Setting(containerEl).setName(t("deleteUnusedFonts")).setDesc(t("deleteUnusedFontsDesc")).addButton((btn) => btn.setButtonText(t("deleteUnusedFonts")).setDestructive().onClick(async () => {
     const unusedFonts = tab._getUnusedFonts();
     if (unusedFonts.length === 0) {
-      new import_obsidian7.Notice(t("noUnusedFonts"));
+      new import_obsidian8.Notice(t("noUnusedFonts"));
       return;
     }
     showConfirmDialog(tab.plugin.app, t("confirmDelete"), t("confirmDeleteUnusedFonts").replace("{count}", unusedFonts.length), async () => {
       await tab.deleteUnusedFonts();
     }, true);
   }));
-  new import_obsidian7.Setting(containerEl).setName(t("applyNow")).setDesc(t("applyNowDesc")).addButton((btn) => btn.setButtonText(t("applyFonts")).setCta().onClick(async () => {
+  new import_obsidian8.Setting(containerEl).setName(t("applyNow")).setDesc(t("applyNowDesc")).addButton((btn) => btn.setButtonText(t("applyFonts")).setCta().onClick(async () => {
     await tab.plugin.applyFonts();
-    new import_obsidian7.Notice(t("fontsApplied"));
+    new import_obsidian8.Notice(t("fontsApplied"));
   }));
 }
 
 // src/ui/settings-tab.ts
-class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
+class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
   plugin;
   _markdownComponents = [];
   _eventListeners = [];
@@ -2170,10 +2180,10 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
     this._markdownComponents = [];
   }
   _renderMarkdown(el, markdown) {
-    const component = new import_obsidian8.Component;
+    const component = new import_obsidian9.Component;
     component.load();
     this._markdownComponents.push(component);
-    import_obsidian8.MarkdownRenderer.render(this.app, markdown, el, "", component);
+    import_obsidian9.MarkdownRenderer.render(this.app, markdown, el, "", component);
   }
   _debouncedDisplay() {
     if (this._displayDebounceTimer) {
@@ -2252,18 +2262,18 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
     const scrollParent = containerEl.closest(".vertical-tab-content");
     const savedScrollTop = scrollParent ? scrollParent.scrollTop : 0;
     containerEl.empty();
-    new import_obsidian8.Setting(containerEl).setName(t("pluginName")).setHeading();
+    new import_obsidian9.Setting(containerEl).setName(t("pluginName")).setHeading();
     const overrideInfoCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "info" } });
     const overrideInfoTitle = overrideInfoCallout.createDiv({ cls: "callout-title" });
     const overrideInfoIcon = overrideInfoTitle.createDiv({ cls: "callout-icon" });
-    import_obsidian8.setIcon(overrideInfoIcon, "info");
+    import_obsidian9.setIcon(overrideInfoIcon, "info");
     overrideInfoTitle.createDiv({ cls: "callout-title-inner", text: t("overrideSystemSettingsTitle") });
     const overrideInfoContent = overrideInfoCallout.createDiv({ cls: "callout-content" });
     overrideInfoContent.createEl("p", { text: t("overrideSystemSettingsContent") });
     const warningCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "warning" } });
     const warningTitle = warningCallout.createDiv({ cls: "callout-title" });
     const warningIcon = warningTitle.createDiv({ cls: "callout-icon" });
-    import_obsidian8.setIcon(warningIcon, "alert-triangle");
+    import_obsidian9.setIcon(warningIcon, "alert-triangle");
     warningTitle.createDiv({ cls: "callout-title-inner", text: t("performanceWarningTitle") });
     const warningContent = warningCallout.createDiv({ cls: "callout-content" });
     warningContent.createEl("p", { text: t("performanceWarningContent") });
@@ -2289,14 +2299,14 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
 > ${t("latinFontInfoDescForLatinUsers")}`;
     }
     this._renderMarkdown(exampleCalloutEl, exampleMarkdown);
-    new import_obsidian8.Setting(containerEl).setName(t("latinFontEnabled")).setDesc(t("latinFontEnabledDesc")).addToggle((toggle) => toggle.setValue(activePreset.latinFontEnabled).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName(t("latinFontEnabled")).setDesc(t("latinFontEnabledDesc")).addToggle((toggle) => toggle.setValue(activePreset.latinFontEnabled).onChange(async (value) => {
       activePreset.latinFontEnabled = value;
       await this.plugin.saveSettings();
       await this.plugin.applyFonts();
       this.display();
     }));
     if (activePreset.latinFontEnabled) {
-      new import_obsidian8.Setting(containerEl).setName(t("latinFont")).setDesc(t("latinFontDesc")).addDropdown((dropdown) => {
+      new import_obsidian9.Setting(containerEl).setName(t("latinFont")).setDesc(t("latinFontDesc")).addDropdown((dropdown) => {
         dropdown.addOption("", t("systemDefault"));
         const uniqueFamilies = new Set;
         this.plugin.settings.availableFonts.forEach((font) => {
@@ -2364,7 +2374,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
         { key: "symbols", name: "Symbols", desc: t("symbolsDesc") }
       ];
       scopes.forEach((scope) => {
-        new import_obsidian8.Setting(containerEl).setName(scope.name).setDesc(scope.desc).addToggle((toggle) => toggle.setValue(activePreset.latinFontScope?.[scope.key] ?? true).onChange(async (value) => {
+        new import_obsidian9.Setting(containerEl).setName(scope.name).setDesc(scope.desc).addToggle((toggle) => toggle.setValue(activePreset.latinFontScope?.[scope.key] ?? true).onChange(async (value) => {
           if (!activePreset.latinFontScope) {
             activePreset.latinFontScope = { letters: true, numbers: true, punctuation: true, symbols: true };
           }
@@ -2373,7 +2383,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
           await this.plugin.applyFonts();
         }));
       });
-      new import_obsidian8.Setting(containerEl).setName(t("latinFontForUI")).setDesc(t("latinFontForUIDesc")).addToggle((toggle) => toggle.setValue(this.plugin.settings.latinFontForUI ?? false).onChange(async (value) => {
+      new import_obsidian9.Setting(containerEl).setName(t("latinFontForUI")).setDesc(t("latinFontForUIDesc")).addToggle((toggle) => toggle.setValue(this.plugin.settings.latinFontForUI ?? false).onChange(async (value) => {
         this.plugin.settings.latinFontForUI = value;
         await this.plugin.saveSettings();
         await this.plugin.applyFonts();
@@ -2385,7 +2395,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
     if (headingFontValue === "use-text-font") {
       return;
     }
-    new import_obsidian8.Setting(containerEl).setName(t("headingApplyToFileTitle")).setDesc(t("headingApplyToFileTitleDesc")).addToggle((toggle) => toggle.setValue(activePreset.headingApplyToFileTitle || false).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName(t("headingApplyToFileTitle")).setDesc(t("headingApplyToFileTitleDesc")).addToggle((toggle) => toggle.setValue(activePreset.headingApplyToFileTitle || false).onChange(async (value) => {
       activePreset.headingApplyToFileTitle = value;
       await this.plugin.saveSettings();
       await this.plugin.applyFonts();
@@ -2429,7 +2439,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
         cls: "font-family-toggle",
         attr: { "aria-label": t("expandCollapse") }
       });
-      import_obsidian8.setIcon(expandIcon, "chevron-right");
+      import_obsidian9.setIcon(expandIcon, "chevron-right");
       leftEl.createSpan({
         text: familyName,
         cls: "font-family-name"
@@ -2447,7 +2457,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
         const statusIconEl = infoEl.createSpan({
           cls: `font-variant-status is-${status}`
         });
-        import_obsidian8.setIcon(statusIconEl, iconName);
+        import_obsidian9.setIcon(statusIconEl, iconName);
         const variantLabels = {
           regular: "Regular",
           italic: "Italic",
@@ -2467,7 +2477,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
             "aria-label": t("deleteThisFont")
           }
         });
-        import_obsidian8.setIcon(deleteBtn, "trash-2");
+        import_obsidian9.setIcon(deleteBtn, "trash-2");
         this._addEventListener(deleteBtn, "click", async () => {
           showConfirmDialog(this.plugin.app, t("confirmDelete"), t("confirmDeleteFont").replace("{fontName}", font.name), async () => {
             await this.deleteSingleFont(font);
@@ -2481,7 +2491,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
     try {
       try {
         await this.plugin.app.vault.adapter.remove(font.path);
-      } catch (err) {
+      } catch {
         this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
       }
       const index = this.plugin.settings.availableFonts.indexOf(font);
@@ -2489,10 +2499,10 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
         this.plugin.settings.availableFonts.splice(index, 1);
       }
       await this.plugin.saveSettings();
-      new import_obsidian8.Notice(t("deletedFont", { fontName: font.name }));
+      new import_obsidian9.Notice(t("deletedFont", { fontName: font.name }));
     } catch (error) {
       this.plugin._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
-      new import_obsidian8.Notice(t("deleteFailedError", { error: error.message }));
+      new import_obsidian9.Notice(t("deleteFailedError", { error: error.message }));
     }
   }
   _getUnusedFonts() {
@@ -2512,7 +2522,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
   async deleteUnusedFonts() {
     const unusedFonts = this._getUnusedFonts();
     if (unusedFonts.length === 0) {
-      new import_obsidian8.Notice(t("noUnusedFonts"));
+      new import_obsidian9.Notice(t("noUnusedFonts"));
       return;
     }
     this.plugin._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
@@ -2522,7 +2532,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
         try {
           try {
             await this.app.vault.adapter.remove(font.path);
-          } catch (err) {
+          } catch {
             this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
           }
           const index = this.plugin.settings.availableFonts.indexOf(font);
@@ -2535,12 +2545,12 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
         }
       }
       await this.plugin.saveSettings();
-      new import_obsidian8.Notice(t("deletedUnusedFonts", { count: deleted }));
+      new import_obsidian9.Notice(t("deletedUnusedFonts", { count: deleted }));
       this.plugin._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
       this.display();
     } catch (error) {
       this.plugin._logError("[Local Font Loader] 批量删除失败:", error);
-      new import_obsidian8.Notice(t("deleteError"));
+      new import_obsidian9.Notice(t("deleteError"));
     }
   }
   hide() {
@@ -2555,12 +2565,12 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
 }
 
 // src/plugin.ts
-var browserNavigator = globalThis.navigator;
+var browserNavigator = window.navigator;
 var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen"];
 var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 var FONT_CSS_SNIPPET = "local-font-loader";
 
-class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
+class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   currentDeviceId;
   _mathFontSnapshot = null;
   _appliedCss = new Map;
@@ -2594,7 +2604,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       window.clearTimeout(this._saveSettingsTimer);
     }
     this._saveSettingsTimer = window.setTimeout(() => {
-      this.saveData(this.settings);
+      this.saveData(this.settings).catch((error) => this._logError("[Local Font Loader] Failed to save settings:", error));
       this._saveSettingsTimer = null;
     }, 300);
   }
@@ -2813,7 +2823,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       name: "Reload Fonts",
       callback: async () => {
         await this.applyFonts();
-        new import_obsidian9.Notice("✓ Fonts reloaded");
+        new import_obsidian10.Notice("✓ Fonts reloaded");
       }
     });
     this.addCommand({
@@ -2821,7 +2831,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       name: "Rescan Fonts",
       callback: async () => {
         await this.scanFonts();
-        new import_obsidian9.Notice("✓ Font list updated");
+        new import_obsidian10.Notice("✓ Font list updated");
       }
     });
     this.addSettingTab(new FontManagerSettingTab(this.app, this));
@@ -2883,7 +2893,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         this._log("[Local Font Loader] Fonts applied successfully");
       } catch (error) {
         this._logError("[Local Font Loader] Failed to apply fonts:", error);
-        new import_obsidian9.Notice("⚠️ Local Font Loader: 字体加载失败，请检查控制台日志", 5000);
+        new import_obsidian10.Notice("⚠️ Local Font Loader: 字体加载失败，请检查控制台日志", 5000);
       }
     } else {
       this._log("[Local Font Loader] Auto-load disabled, skipping font application");
@@ -3001,7 +3011,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   }
   async deletePreset(presetId) {
     if (presetId === "default-preset") {
-      new import_obsidian9.Notice(t("cannotDeleteDefaultPreset"), 3000);
+      new import_obsidian10.Notice(t("cannotDeleteDefaultPreset"), 3000);
       return;
     }
     const preset = this.settings.presets.find((p) => p.id === presetId);
@@ -3145,7 +3155,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     await this.saveSettings();
     const merged = plan.merges.length;
     this._log(`[Local Font Loader] Device list repaired: ${merged} duplicate group(s) merged`);
-    new import_obsidian9.Notice(t("deviceListRepaired").replace("{0}", String(merged)), 4000);
+    new import_obsidian10.Notice(t("deviceListRepaired").replace("{0}", String(merged)), 4000);
     return merged;
   }
   _getDeviceName(deviceId) {
@@ -3186,7 +3196,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     } catch (error) {
       this._logError("[Local Font Loader] Failed to read device-local id:", error);
     }
-    if (import_obsidian9.Platform.isMobile) {
+    if (import_obsidian10.Platform.isMobile) {
       const derivedId = await this._getPlatformDeviceId();
       if (derivedId) {
         if (storedId && storedId !== derivedId) {
@@ -3240,7 +3250,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       if (!identifier) {
         return null;
       }
-      return await this._hashDeviceIdentifier(`${import_obsidian9.Platform.isAndroidApp ? "android" : "ios"}:${identifier}`);
+      return await this._hashDeviceIdentifier(`${import_obsidian10.Platform.isAndroidApp ? "android" : "ios"}:${identifier}`);
     } catch (error) {
       this._logError("[Local Font Loader] Failed to read the platform device identifier:", error);
       return null;
@@ -3315,10 +3325,10 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   }
   _detectDeviceInfo() {
     const ua = browserNavigator.userAgent;
-    const platform = import_obsidian9.Platform.isMobile ? "mobile" : "desktop";
+    const platform = import_obsidian10.Platform.isMobile ? "mobile" : "desktop";
     const hostname = this._getDesktopHostname();
-    if (import_obsidian9.Platform.isIosApp || /iPhone|iPad|iPod/.test(ua)) {
-      const isTablet = import_obsidian9.Platform.isTablet || /iPad/.test(ua);
+    if (import_obsidian10.Platform.isIosApp || /iPhone|iPad|iPod/.test(ua)) {
+      const isTablet = import_obsidian10.Platform.isTablet || /iPad/.test(ua);
       return {
         platform: "mobile",
         os: isTablet ? "ipados" : "ios",
@@ -3374,7 +3384,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     return { platform, os: "unknown", model: "", hostname };
   }
   _getDesktopOsPlatform() {
-    if (!import_obsidian9.Platform.isDesktopApp) {
+    if (!import_obsidian10.Platform.isDesktopApp) {
       return null;
     }
     try {
@@ -3386,7 +3396,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     }
   }
   _getDesktopHostname() {
-    if (!import_obsidian9.Platform.isDesktopApp) {
+    if (!import_obsidian10.Platform.isDesktopApp) {
       return "";
     }
     try {
@@ -3437,7 +3447,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     return meta && meta.model ? meta.model : "";
   }
   _generateDeviceFingerprint() {
-    const platform = import_obsidian9.Platform.isMobile ? "mobile" : "desktop";
+    const platform = import_obsidian10.Platform.isMobile ? "mobile" : "desktop";
     const ua = browserNavigator.userAgent;
     const features = [
       ua,
@@ -3539,7 +3549,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
             const metadataContent = await this.app.vault.adapter.read(metadataPath);
             metadata = JSON.parse(metadataContent);
             this._log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
-          } catch (err) {
+          } catch {
             this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
           }
           const family = {
@@ -3578,7 +3588,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
                 else if (variantType === "bolditalic")
                   family.hasBoldItalic = true;
                 this._log(`[Local Font Loader] Identified font: ${family.familyName} (${variantType})`);
-              } catch (err) {
+              } catch {
                 this._log(`[Local Font Loader] Font file does not exist: ${fontPath}`);
               }
             }
@@ -3641,7 +3651,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         if (prevFont.path) {
           try {
             stillExists = await this.app.vault.adapter.exists(prevFont.path);
-          } catch (e) {
+          } catch {
             stillExists = false;
           }
         }
@@ -3681,7 +3691,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       this._log(`[Local Font Loader] Math font "${familyName}" is not loaded; metrics not adopted`);
       return false;
     }
-    const canvas = document.createElement("canvas");
+    const canvas = createEl("canvas");
     canvas.width = 8;
     canvas.height = 8;
     const ctx = canvas.getContext("2d");
@@ -3698,7 +3708,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
           d: (m.actualBoundingBoxDescent || 0) / SIZE,
           w: m.width / SIZE
         };
-      } catch (error) {
+      } catch {
         return null;
       }
     };
@@ -3781,13 +3791,13 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       if (existing) {
         existing.remove();
       }
-      const scratch = document.createElement("div");
+      const scratch = createEl("div");
       scratch.addClass("lfl-render-scratch");
       document.body.appendChild(scratch);
-      const typesetComponent = new import_obsidian9.Component;
+      const typesetComponent = new import_obsidian10.Component;
       typesetComponent.load();
       try {
-        await import_obsidian9.MarkdownRenderer.render(this.app, "$x$", scratch, "", typesetComponent);
+        await import_obsidian10.MarkdownRenderer.render(this.app, "$x$", scratch, "", typesetComponent);
       } finally {
         typesetComponent.unload();
       }
@@ -3834,10 +3844,10 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       if (!document.fonts.check(`16px "${familyName}"`)) {
         return { status: "unavailable", deviations: [] };
       }
-    } catch (error) {
+    } catch {
       return { status: "unavailable", deviations: [] };
     }
-    const canvas = document.createElement("canvas");
+    const canvas = createEl("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       return { status: "unavailable", deviations: [] };
@@ -3847,7 +3857,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       try {
         ctx.font = `${SIZE}px "${familyName}"`;
         return ctx.measureText(char).width / SIZE;
-      } catch (error) {
+      } catch {
         return 0;
       }
     };
@@ -3859,7 +3869,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
           above: (metrics.actualBoundingBoxAscent || 0) / SIZE,
           below: (metrics.actualBoundingBoxDescent || 0) / SIZE
         };
-      } catch (error) {
+      } catch {
         return { above: 0, below: 0 };
       }
     };
@@ -3937,7 +3947,6 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       }
       const fontsConfig = devicePreset.fonts || {};
       const latinFontEnabled = devicePreset.latinFontEnabled || false;
-      const latinFontScope = devicePreset.latinFontScope || {};
       const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle || false;
       const usedFonts = new Set;
       const usedFamilies = new Set;
@@ -3958,7 +3967,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         }
       }
       if (missingFonts.length > 0) {
-        new import_obsidian9.Notice(t("fontMissingWarning"), 5000);
+        new import_obsidian10.Notice(t("fontMissingWarning"), 5000);
       }
       if (usedFonts.size === 0) {
         this._log("[Local Font Loader] No fonts configured");
@@ -4239,7 +4248,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   }
   _getFontResourceSrc(font) {
     try {
-      const resourcePath = this.app.vault.adapter.getResourcePath(import_obsidian9.normalizePath(font.path));
+      const resourcePath = this.app.vault.adapter.getResourcePath(import_obsidian10.normalizePath(font.path));
       if (!resourcePath) {
         return null;
       }

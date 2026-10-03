@@ -69,6 +69,21 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
         const deviceManagementHeader = containerEl.createDiv({ cls: 'setting-item-heading-with-button' });
         deviceManagementHeader.createEl('h4', { text: t('headerDeviceManagement') });
 
+        // Mobile only: desktop devices are told apart by hostname, so the limitation below cannot
+        // arise there, and showing it everywhere would only raise a doubt that does not apply.
+        // The wording is per platform because the trigger differs — Android loses its identity to
+        // a factory reset, iOS loses it when the app is uninstalled, since both identifiers are
+        // app-scoped rather than hardware ones.
+        // Built from Obsidian's own callout classes so it inherits the app's styling.
+        if (Platform.isMobile) {
+            const calloutEl = containerEl.createDiv({ cls: 'callout', attr: { 'data-callout': 'warning' } });
+            const titleEl = calloutEl.createDiv({ cls: 'callout-title' });
+            setIcon(titleEl.createDiv({ cls: 'callout-icon' }), 'alert-triangle');
+            titleEl.createDiv({ cls: 'callout-title-inner', text: t('deviceLimitTitle') });
+            calloutEl.createDiv({ cls: 'callout-content' })
+                .createEl('p', { text: t(Platform.isIosApp ? 'deviceLimitBodyIos' : 'deviceLimitBodyAndroid') });
+        }
+
         const refreshBtn = deviceManagementHeader.createEl('button', { cls: 'clickable-icon' });
         refreshBtn.setAttribute('aria-label', t('refreshDeviceList'));
         setIcon(refreshBtn, 'refresh-cw');

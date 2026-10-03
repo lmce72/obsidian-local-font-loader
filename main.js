@@ -13,8 +13,6 @@ var TRANSLATIONS = {
     headerFallback: "Fallback Operations",
     fontSourceDir: "Font Source Directory",
     fontSourceDirDesc: "Directory containing font family folders",
-    cacheDir: "Base64 Cache Directory",
-    cacheDirDesc: "Directory for converted CSS files",
     browseFolder: "Browse",
     browseFolderDesc: "Pick a folder from the vault",
     selectFolder: "Select a folder",
@@ -53,28 +51,17 @@ var TRANSLATIONS = {
     scopeBasic: "Basic Latin only (A-Z, a-z, 0-9)",
     scopeExtended: "Basic + Extended Latin (includes accented characters)",
     scopeFull: "Full Latin + Symbols (includes punctuation and special symbols)",
-    legendConverted: "Converted",
-    legendNotConverted: "Not Converted",
-    legendCachedOnly: "Cached Only",
+    legendConverted: "Available",
     legendNotExist: "Not Exist",
     filterAll: "All",
-    noConvertedFonts: "No converted fonts found",
-    noNotConvertedFonts: "No unconverted fonts found",
     noNotExistFonts: "No missing fonts found",
-    noCachedOnlyFonts: "No cached-only fonts found",
     scanFonts: "Scan Fonts",
-    convertToBase64: "Convert to Base64",
     deleteFont: "Delete Font",
-    convertAll: "Convert All",
     deleteUnusedFonts: "Delete Unused Fonts",
     rescanFonts: "Rescan Fonts",
     fontsRescanned: "Fonts Rescanned",
-    converting: "Converting...",
-    allFontsConverted: "All Fonts Converted",
     fontFileStatus: "Font File Status",
     deleteUnusedFontsDesc: "Delete unused font files (configured fonts will not be deleted)",
-    clearCache: "Clear Cache",
-    clearCacheDesc: "Clear all converted font cache files",
     applyNow: "Apply Now",
     applyNowDesc: "Apply current font configuration",
     applyFonts: "Apply fonts",
@@ -109,16 +96,13 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     variantsSuffix: "variants",
     variantsWithCheckmark: "{familyName} ✓ ({variantCount} variants)",
     variantsWithoutCheckmark: "{familyName} ({variantCount} variants)",
-    converted: "Converted",
     notFoundFontFamily: "Font family not found. Please verify font folder structure.",
     importFont: "Import Font",
-    convertAllFonts: "Convert All Fonts (Make Usable)",
     recommendedLatinFontsLabel: "--- Recommended Latin Fonts ---",
     otherFontsLabel: "--- Other Fonts ---",
     expandCollapse: "Expand/Collapse",
     expandAll: "Expand All",
     collapseAll: "Collapse All",
-    reconvertFont: "Reconvert this font",
     deleteThisFont: "Delete this font",
     confirmDeleteFont: 'Are you sure you want to delete font "{fontName}"?',
     deletedFont: "✓ Deleted {fontName}",
@@ -137,11 +121,7 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     punctuationDesc: ".,!?;: and other common punctuation",
     symbolsDesc: "@#$%&* and other special characters",
     fontsApplied: "✓ Fonts applied",
-    fontConverted: "✓ Font converted",
     conversionFailed: "⚠️ Font conversion failed",
-    allConverted: "✓ All fonts converted",
-    cacheCleared: "✓ Cleaned {count} cache files",
-    cacheClearFailed: "⚠️ Failed to clear cache",
     fontDeleted: "✓ Font deleted",
     deleteFailed: "⚠️ Failed to delete font",
     unusedDeleted: "✓ Deleted {count} unused fonts",
@@ -167,6 +147,9 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     presetNameExists: "Preset name already exists",
     presetCreated: "Preset created",
     headerDeviceManagement: "Device Management (Drag & Drop)",
+    deviceLimitTitle: "Known limitation",
+    deviceLimitBodyAndroid: "On Android, a factory reset leaves the same device duplicated in this list.",
+    deviceLimitBodyIos: "On iOS, uninstalling and reinstalling Obsidian leaves the same device duplicated in this list.",
     devicePresetManagement: "Device Preset Assignment",
     currentDevicePreset: "Current Device Preset",
     currentDevicePresetDesc: "Select which preset this device should use",
@@ -221,8 +204,6 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     headerFallback: "备用操作",
     fontSourceDir: "字体源目录",
     fontSourceDirDesc: "包含字体家族文件夹的目录",
-    cacheDir: "Base64 缓存目录",
-    cacheDirDesc: "转换后的 CSS 文件存储位置",
     browseFolder: "浏览",
     browseFolderDesc: "从库中选择一个文件夹",
     selectFolder: "选择文件夹",
@@ -261,28 +242,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     scopeBasic: "仅基本拉丁字符（A-Z、a-z、0-9）",
     scopeExtended: "基本 + 扩展拉丁字符（包含重音字符）",
     scopeFull: "完整拉丁字符 + 符号（包含标点和特殊符号）",
-    legendConverted: "已转换",
-    legendNotConverted: "未转换",
-    legendCachedOnly: "仅缓存",
+    legendConverted: "可用",
     legendNotExist: "不存在",
     filterAll: "全部",
-    noConvertedFonts: "没有已转换的字体",
-    noNotConvertedFonts: "没有未转换的字体",
     noNotExistFonts: "没有缺失的字体",
-    noCachedOnlyFonts: "没有仅缓存的字体",
     scanFonts: "扫描字体",
-    convertToBase64: "转换为 Base64",
     deleteFont: "删除字体",
-    convertAll: "全部转换",
     deleteUnusedFonts: "删除未使用的字体",
     rescanFonts: "重新扫描",
     fontsRescanned: "字体已重新扫描",
-    converting: "转换中...",
-    allFontsConverted: "所有字体已转换",
     fontFileStatus: "字体文件状态",
     deleteUnusedFontsDesc: "删除未使用的字体文件（已配置的字体不会被删除）",
-    clearCache: "清除缓存",
-    clearCacheDesc: "清除所有转换的字体缓存文件",
     applyNow: "立即应用",
     applyNowDesc: "应用当前字体配置",
     applyFonts: "应用字体",
@@ -317,16 +287,13 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     variantsSuffix: "变体",
     variantsWithCheckmark: "{familyName} ✓ ({variantCount} 个变体)",
     variantsWithoutCheckmark: "{familyName} ({variantCount} 个变体)",
-    converted: "已转换",
     notFoundFontFamily: "未找到字体家族，请确认字体文件夹结构正确",
     importFont: "导入字体",
-    convertAllFonts: "转换所有字体（使其可用）",
     recommendedLatinFontsLabel: "--- 推荐的拉丁字体 ---",
     otherFontsLabel: "--- 其他字体 ---",
     expandCollapse: "展开/收起",
     expandAll: "全部展开",
     collapseAll: "全部折叠",
-    reconvertFont: "重新转换此字体",
     deleteThisFont: "删除此字体",
     confirmDeleteFont: '确定要删除字体 "{fontName}" 吗？',
     deletedFont: "✓ 已删除 {fontName}",
@@ -345,11 +312,7 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     punctuationDesc: ".,!?;: 等常用标点",
     symbolsDesc: "@#$%&* 等特殊字符",
     fontsApplied: "✓ 字体已应用",
-    fontConverted: "✓ 字体已转换",
     conversionFailed: "⚠️ 字体转换失败",
-    allConverted: "✓ 所有字体已转换",
-    cacheCleared: "✓ 已清除 {count} 个缓存文件",
-    cacheClearFailed: "⚠️ 清除缓存失败",
     fontDeleted: "✓ 字体已删除",
     deleteFailed: "⚠️ 删除字体失败",
     unusedDeleted: "✓ 已删除 {count} 个未使用的字体",
@@ -375,6 +338,9 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     presetNameExists: "预设名称已存在",
     presetCreated: "预设已创建",
     headerDeviceManagement: "设备管理（拖拽分配）",
+    deviceLimitTitle: "已知局限",
+    deviceLimitBodyAndroid: "安卓端恢复出厂设置后，会出现同一台设备在此列表中重复的问题。",
+    deviceLimitBodyIos: "iOS 端卸载并重装 Obsidian 后，会出现同一台设备在此列表中重复的问题。",
     devicePresetManagement: "设备所属预设管理",
     currentDevicePreset: "当前设备所属预设",
     currentDevicePresetDesc: "选择当前设备要使用的预设",
@@ -437,8 +403,6 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     usingGlobalPreset: "グローバルプリセットです（未割り当てのすべてのデバイスに適用）",
     fontSourceDir: "フォントソースディレクトリ",
     fontSourceDirDesc: "フォントファミリーフォルダを含むディレクトリ",
-    cacheDir: "Base64 キャッシュディレクトリ",
-    cacheDirDesc: "変換された CSS ファイルの保存場所",
     autoLoad: "起動時に自動読み込み",
     autoLoadDesc: "Obsidian 起動時にフォントを自動適用",
     uiFontName: "UI インターフェースフォント",
@@ -474,27 +438,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     scopeBasic: "基本ラテン文字のみ（A-Z、a-z、0-9）",
     scopeExtended: "基本 + 拡張ラテン文字（アクセント付き文字を含む）",
     scopeFull: "完全ラテン文字 + 記号（句読点と特殊記号を含む）",
-    legendConverted: "変換済み",
-    legendNotConverted: "未変換",
-    legendCachedOnly: "キャッシュのみ",
+    legendConverted: "使用可能",
     legendNotExist: "存在しない",
     filterAll: "すべて",
-    noConvertedFonts: "変換済みのフォントがありません",
-    noNotConvertedFonts: "未変換のフォントがありません",
     noNotExistFonts: "欠落しているフォントがありません",
     scanFonts: "フォントをスキャン",
-    convertToBase64: "Base64 に変換",
     deleteFont: "フォントを削除",
-    convertAll: "すべて変換",
     deleteUnusedFonts: "未使用フォントを削除",
     rescanFonts: "フォントを再スキャン",
     fontsRescanned: "フォントを再スキャンしました",
-    converting: "変換中...",
-    allFontsConverted: "すべてのフォントが変換されました",
     fontFileStatus: "フォントファイルステータス",
     deleteUnusedFontsDesc: "未使用のフォントファイルを削除（設定済みフォントは削除されません）",
-    clearCache: "キャッシュをクリア",
-    clearCacheDesc: "変換されたすべてのフォントキャッシュファイルをクリア",
     applyNow: "今すぐ適用",
     applyNowDesc: "現在のフォント設定を適用",
     applyFonts: "フォントを適用",
@@ -506,11 +460,7 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     variantWarningContinue: "このまま続ける",
     variantWarningCancel: "キャンセル",
     fontsApplied: "✓ フォントが適用されました",
-    fontConverted: "✓ フォントが変換されました",
     conversionFailed: "⚠️ フォント変換に失敗しました",
-    allConverted: "✓ すべてのフォントが変換されました",
-    cacheCleared: "✓ {count} 個のキャッシュファイルをクリアしました",
-    cacheClearFailed: "⚠️ キャッシュのクリアに失敗しました",
     fontDeleted: "✓ フォントが削除されました",
     deleteFailed: "⚠️ フォントの削除に失敗しました",
     unusedDeleted: "✓ {count} 個の未使用フォントを削除しました",
@@ -547,8 +497,6 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     usingGlobalPreset: "전역 프리셋입니다（할당되지 않은 모든 장치에 적용）",
     fontSourceDir: "폰트 소스 디렉토리",
     fontSourceDirDesc: "폰트 패밀리 폴더가 포함된 디렉토리",
-    cacheDir: "Base64 캐시 디렉토리",
-    cacheDirDesc: "변환된 CSS 파일 저장 위치",
     autoLoad: "시작 시 자동 로드",
     autoLoadDesc: "Obsidian 시작 시 폰트 자동 적용",
     uiFontName: "UI 인터페이스 폰트",
@@ -584,27 +532,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     scopeBasic: "기본 라틴 문자만（A-Z, a-z, 0-9）",
     scopeExtended: "기본 + 확장 라틴 문자（악센트 문자 포함）",
     scopeFull: "전체 라틴 문자 + 기호（구두점 및 특수 기호 포함）",
-    legendConverted: "변환됨",
-    legendNotConverted: "변환되지 않음",
-    legendCachedOnly: "캐시만",
+    legendConverted: "사용 가능",
     legendNotExist: "존재하지 않음",
     filterAll: "전체",
-    noConvertedFonts: "변환된 폰트가 없습니다",
-    noNotConvertedFonts: "변환되지 않은 폰트가 없습니다",
     noNotExistFonts: "누락된 폰트가 없습니다",
     scanFonts: "폰트 스캔",
-    convertToBase64: "Base64로 변환",
     deleteFont: "폰트 삭제",
-    convertAll: "모두 변환",
     deleteUnusedFonts: "사용하지 않는 폰트 삭제",
     rescanFonts: "폰트 재스캔",
     fontsRescanned: "폰트 재스캔 완료",
-    converting: "변환 중...",
-    allFontsConverted: "모든 폰트 변환 완료",
     fontFileStatus: "폰트 파일 상태",
     deleteUnusedFontsDesc: "사용하지 않는 폰트 파일 삭제（설정된 폰트는 삭제되지 않음）",
-    clearCache: "캐시 지우기",
-    clearCacheDesc: "변환된 모든 폰트 캐시 파일 지우기",
     applyNow: "지금 적용",
     applyNowDesc: "현재 폰트 설정 적용",
     applyFonts: "폰트 적용",
@@ -616,11 +554,7 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     variantWarningContinue: "계속 진행",
     variantWarningCancel: "취소",
     fontsApplied: "✓ 폰트가 적용되었습니다",
-    fontConverted: "✓ 폰트가 변환되었습니다",
     conversionFailed: "⚠️ 폰트 변환 실패",
-    allConverted: "✓ 모든 폰트가 변환되었습니다",
-    cacheCleared: "✓ {count}개의 캐시 파일을 지웠습니다",
-    cacheClearFailed: "⚠️ 캐시 지우기 실패",
     fontDeleted: "✓ 폰트가 삭제되었습니다",
     deleteFailed: "⚠️ 폰트 삭제 실패",
     unusedDeleted: "✓ {count}개의 사용하지 않는 폰트를 삭제했습니다",
@@ -657,8 +591,6 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     usingGlobalPreset: "Este es un preset global (aplica a todos los dispositivos no asignados)",
     fontSourceDir: "Directorio de Origen de Fuentes",
     fontSourceDirDesc: "Directorio que contiene carpetas de familias de fuentes",
-    cacheDir: "Directorio de Caché Base64",
-    cacheDirDesc: "Donde se almacenan los archivos CSS convertidos",
     autoLoad: "Cargar automáticamente al iniciar",
     autoLoadDesc: "Aplicar automáticamente las fuentes cuando se inicia Obsidian",
     uiFontName: "Fuente de Interfaz UI",
@@ -688,27 +620,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     scopeBasic: "Solo latín básico (A-Z, a-z, 0-9)",
     scopeExtended: "Latín básico + extendido (incluye caracteres acentuados)",
     scopeFull: "Latín completo + símbolos (incluye puntuación y símbolos especiales)",
-    legendConverted: "Convertido",
-    legendNotConverted: "No Convertido",
-    legendCachedOnly: "Solo Caché",
+    legendConverted: "Disponible",
     legendNotExist: "No Existe",
     filterAll: "Todos",
-    noConvertedFonts: "No se encontraron fuentes convertidas",
-    noNotConvertedFonts: "No se encontraron fuentes sin convertir",
     noNotExistFonts: "No se encontraron fuentes faltantes",
     scanFonts: "Escanear Fuentes",
-    convertToBase64: "Convertir a Base64",
     deleteFont: "Eliminar Fuente",
-    convertAll: "Convertir Todo",
     deleteUnusedFonts: "Eliminar Fuentes No Usadas",
     rescanFonts: "Reescanear Fuentes",
     fontsRescanned: "Fuentes Reescaneadas",
-    converting: "Convirtiendo...",
-    allFontsConverted: "Todas las Fuentes Convertidas",
     fontFileStatus: "Estado de Archivos de Fuentes",
     deleteUnusedFontsDesc: "Eliminar archivos de fuentes no usadas (las fuentes configuradas no se eliminarán)",
-    clearCache: "Limpiar Caché",
-    clearCacheDesc: "Limpiar todos los archivos de caché de fuentes convertidas",
     applyNow: "Aplicar Ahora",
     applyNowDesc: "Aplicar la configuración de fuentes actual",
     applyFonts: "Aplicar Fuentes",
@@ -720,11 +642,7 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     variantWarningContinue: "Continuar de todos modos",
     variantWarningCancel: "Cancelar",
     fontsApplied: "✓ Fuentes aplicadas",
-    fontConverted: "✓ Fuente convertida",
     conversionFailed: "⚠️ Conversión de fuente fallida",
-    allConverted: "✓ Todas las fuentes convertidas",
-    cacheCleared: "✓ Se limpiaron {count} archivos de caché",
-    cacheClearFailed: "⚠️ Error al limpiar caché",
     fontDeleted: "✓ Fuente eliminada",
     deleteFailed: "⚠️ Error al eliminar fuente",
     unusedDeleted: "✓ Se eliminaron {count} fuentes no usadas",
@@ -753,8 +671,6 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     headerFallback: "備用操作",
     fontSourceDir: "字型來源目錄",
     fontSourceDirDesc: "包含字型家族資料夾的目錄",
-    cacheDir: "Base64 快取目錄",
-    cacheDirDesc: "轉換後的 CSS 檔案儲存位置",
     autoLoad: "啟動時自動載入",
     autoLoadDesc: "當 Obsidian 啟動時自動套用字型",
     uiFontName: "UI 介面字型",
@@ -790,28 +706,17 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     scopeBasic: "僅基本拉丁字元（A-Z、a-z、0-9）",
     scopeExtended: "基本 + 擴充拉丁字元（包含重音字元）",
     scopeFull: "完整拉丁字元 + 符號（包含標點和特殊符號）",
-    legendConverted: "已轉換",
-    legendNotConverted: "未轉換",
-    legendCachedOnly: "僅快取",
+    legendConverted: "可用",
     legendNotExist: "不存在",
     filterAll: "全部",
-    noConvertedFonts: "沒有已轉換的字型",
-    noNotConvertedFonts: "沒有未轉換的字型",
     noNotExistFonts: "沒有缺失的字型",
-    noCachedOnlyFonts: "沒有僅快取的字型",
     scanFonts: "掃描字型",
-    convertToBase64: "轉換為 Base64",
     deleteFont: "刪除字型",
-    convertAll: "全部轉換",
     deleteUnusedFonts: "刪除未使用的字型",
     rescanFonts: "重新掃描",
     fontsRescanned: "字型已重新掃描",
-    converting: "轉換中...",
-    allFontsConverted: "所有字型已轉換",
     fontFileStatus: "字型檔案狀態",
     deleteUnusedFontsDesc: "刪除未使用的字型檔案（已設定的字型不會被刪除）",
-    clearCache: "清除快取",
-    clearCacheDesc: "清除所有轉換的字型快取檔案",
     applyNow: "立即套用",
     applyNowDesc: "套用目前字型設定",
     applyFonts: "套用字型",
@@ -846,16 +751,13 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     variantsSuffix: "變體",
     variantsWithCheckmark: "{familyName} ✓ ({variantCount} 個變體)",
     variantsWithoutCheckmark: "{familyName} ({variantCount} 個變體)",
-    converted: "已轉換",
     notFoundFontFamily: "未找到字型家族，請確認字型資料夾結構正確",
     importFont: "匯入字型",
-    convertAllFonts: "轉換所有字型（使其可用）",
     recommendedLatinFontsLabel: "--- 推薦的拉丁字型 ---",
     otherFontsLabel: "--- 其他字型 ---",
     expandCollapse: "展開/收合",
     expandAll: "全部展開",
     collapseAll: "全部收合",
-    reconvertFont: "重新轉換此字型",
     deleteThisFont: "刪除此字型",
     confirmDeleteFont: '確定要刪除字型 "{fontName}" 嗎？',
     deletedFont: "✓ 已刪除 {fontName}",
@@ -874,11 +776,7 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     punctuationDesc: ".,!?;: 等常用標點",
     symbolsDesc: "@#$%&* 等特殊字元",
     fontsApplied: "✓ 字型已套用",
-    fontConverted: "✓ 字型已轉換",
     conversionFailed: "⚠️ 字型轉換失敗",
-    allConverted: "✓ 所有字型已轉換",
-    cacheCleared: "✓ 已清除 {count} 個快取檔案",
-    cacheClearFailed: "⚠️ 清除快取失敗",
     fontDeleted: "✓ 字型已刪除",
     deleteFailed: "⚠️ 刪除字型失敗",
     unusedDeleted: "✓ 已刪除 {count} 個未使用的字型",
@@ -904,6 +802,9 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     presetNameExists: "預設名稱已存在",
     presetCreated: "預設已建立",
     headerDeviceManagement: "裝置管理（拖曳分配）",
+    deviceLimitTitle: "已知限制",
+    deviceLimitBodyAndroid: "安卓端恢復原廠設定後，會出現同一台裝置在此列表中重複的問題。",
+    deviceLimitBodyIos: "iOS 端卸載並重新安裝 Obsidian 後，會出現同一台裝置在此列表中重複的問題。",
     devicePresetManagement: "裝置所屬預設管理",
     currentDevicePreset: "目前裝置所屬預設",
     currentDevicePresetDesc: "選擇目前裝置要使用的預設",
@@ -1109,7 +1010,6 @@ function parseFontMetadata(arrayBuffer) {
 // src/constants.ts
 var DEFAULT_SETTINGS = {
   fontSourceDir: "Local-Fonts",
-  b64OutputDir: "Local-Fonts/UsableCssFont",
   availableFonts: [],
   fontFamilies: [],
   autoLoadOnStartup: true,
@@ -1524,6 +1424,13 @@ function renderDeviceAndPresetSection(tab, containerEl) {
   });
   const deviceManagementHeader = containerEl.createDiv({ cls: "setting-item-heading-with-button" });
   deviceManagementHeader.createEl("h4", { text: t("headerDeviceManagement") });
+  if (import_obsidian2.Platform.isMobile) {
+    const calloutEl = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "warning" } });
+    const titleEl = calloutEl.createDiv({ cls: "callout-title" });
+    import_obsidian2.setIcon(titleEl.createDiv({ cls: "callout-icon" }), "alert-triangle");
+    titleEl.createDiv({ cls: "callout-title-inner", text: t("deviceLimitTitle") });
+    calloutEl.createDiv({ cls: "callout-content" }).createEl("p", { text: t(import_obsidian2.Platform.isIosApp ? "deviceLimitBodyIos" : "deviceLimitBodyAndroid") });
+  }
   const refreshBtn = deviceManagementHeader.createEl("button", { cls: "clickable-icon" });
   refreshBtn.setAttribute("aria-label", t("refreshDeviceList"));
   import_obsidian2.setIcon(refreshBtn, "refresh-cw");
@@ -1876,11 +1783,6 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     new import_obsidian5.Notice("✓ Font list updated");
     tab.display();
   }));
-  const cacheDirSetting = new import_obsidian5.Setting(containerEl).setName(t("cacheDir")).setDesc(t("cacheDirDesc"));
-  addFolderPathInput(cacheDirSetting, tab.app, tab.plugin.settings.b64OutputDir, async (value) => {
-    tab.plugin.settings.b64OutputDir = value;
-    await tab.plugin.saveSettings();
-  }, "Local-Fonts/UsableCssFont");
   new import_obsidian5.Setting(containerEl).setName(t("autoLoad")).setDesc(t("autoLoadDesc")).addToggle((toggle) => toggle.setValue(tab.plugin.settings.autoLoadOnStartup).onChange(async (value) => {
     tab.plugin.settings.autoLoadOnStartup = value;
     await tab.plugin.saveSettings();
@@ -1991,8 +1893,8 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
       });
       Array.from(uniqueFamilies).sort().forEach((familyName) => {
         const familyFonts = tab.plugin.settings.availableFonts.filter((f) => (f.familyName || f.name) === familyName);
-        const allConverted = familyFonts.every((f) => f.hasB64);
-        const label = allConverted ? `${familyName} ✓` : familyName;
+        const allUsable = familyFonts.every((f) => tab.plugin._getFontExists(f));
+        const label = allUsable ? `${familyName} ✓` : familyName;
         dropdown.addOption(familyName, label);
       });
       dropdown.setValue(activePresetForFonts.fonts[fontType.key]);
@@ -2084,9 +1986,7 @@ function renderFontStatusSection(tab, containerEl) {
   const filterGroup = buttonContainerEl.createDiv({ cls: "lfl-toolbar-group" });
   const filterButtons = [
     { filter: "all", icon: "list", label: t("filterAll") || "全部" },
-    { filter: "converted", icon: "check", label: t("legendConverted") },
-    { filter: "cachedOnly", icon: "database", label: t("legendCachedOnly") },
-    { filter: "notConverted", icon: "circle", label: t("legendNotConverted") },
+    { filter: "available", icon: "check", label: t("legendConverted") },
     { filter: "notExist", icon: "help-circle", label: t("legendNotExist") }
   ];
   const filterButtonElements = [];
@@ -2137,9 +2037,7 @@ function renderFontStatusSection(tab, containerEl) {
   });
   legendsContainer.createDiv({ cls: "lfl-legend-divider" });
   const legends = [
-    { icon: "check", state: "converted", text: t("legendConverted") },
-    { icon: "circle", state: "pending", text: t("legendNotConverted") },
-    { icon: "check", state: "cached", text: t("legendCachedOnly") },
+    { icon: "check", state: "available", text: t("legendConverted") },
     { icon: "help-circle", state: "missing", text: t("legendNotExist") }
   ];
   legends.forEach((legend) => {
@@ -2211,16 +2109,6 @@ function renderFontStatusSection(tab, containerEl) {
     });
     modal.open();
   });
-  const convertBtn = fontOperationsEl.createEl("button", {
-    text: t("convertAllFonts")
-  });
-  tab._addEventListener(convertBtn, "click", async () => {
-    convertBtn.disabled = true;
-    convertBtn.textContent = t("converting") || "转换中...";
-    await tab.plugin.convertAllFonts();
-    new import_obsidian6.Notice(t("allFontsConverted") || "✓ 所有字体已转换");
-    tab.display();
-  });
 }
 
 // src/ui/settings/fallback.ts
@@ -2236,10 +2124,6 @@ function renderFallbackSection(tab, containerEl) {
     showConfirmDialog(tab.plugin.app, t("confirmDelete"), t("confirmDeleteUnusedFonts").replace("{count}", unusedFonts.length), async () => {
       await tab.deleteUnusedFonts();
     }, true);
-  }));
-  new import_obsidian7.Setting(containerEl).setName(t("clearCache")).setDesc(t("clearCacheDesc")).addButton((btn) => btn.setButtonText(t("clearCache")).setWarning().onClick(async () => {
-    await tab.plugin.clearCache();
-    tab.display();
   }));
   new import_obsidian7.Setting(containerEl).setName(t("applyNow")).setDesc(t("applyNowDesc")).addButton((btn) => btn.setButtonText(t("applyFonts")).setCta().onClick(async () => {
     await tab.plugin.applyFonts();
@@ -2426,9 +2310,9 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
           dropdown.addOption("", t("recommendedLatinFontsLabel"));
           latinFamilies.forEach((familyName) => {
             const familyFonts = this.plugin.settings.availableFonts.filter((f) => (f.familyName || f.name) === familyName);
-            const allConverted = familyFonts.every((f) => f.hasB64);
+            const allUsable = familyFonts.every((f) => this.plugin._getFontExists(f));
             const variantCount = familyFonts.length;
-            const label = allConverted ? `${familyName} ✓ (${variantCount})` : `${familyName} (${variantCount})`;
+            const label = allUsable ? `${familyName} ✓ (${variantCount})` : `${familyName} (${variantCount})`;
             dropdown.addOption(familyName, label);
           });
         }
@@ -2436,9 +2320,9 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
           dropdown.addOption("", t("otherFontsLabel"));
           otherFamilies.forEach((familyName) => {
             const familyFonts = this.plugin.settings.availableFonts.filter((f) => (f.familyName || f.name) === familyName);
-            const allConverted = familyFonts.every((f) => f.hasB64);
+            const allUsable = familyFonts.every((f) => this.plugin._getFontExists(f));
             const variantCount = familyFonts.length;
-            const label = allConverted ? `${familyName} ✓ (${variantCount})` : `${familyName} (${variantCount})`;
+            const label = allUsable ? `${familyName} ✓ (${variantCount})` : `${familyName} (${variantCount})`;
             dropdown.addOption(familyName, label);
           });
         }
@@ -2519,25 +2403,17 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
     const filteredFamilies = Array.from(familiesMap.entries()).filter(([familyName, fonts]) => {
       if (filter === "all") {
         return true;
-      } else if (filter === "converted") {
-        return fonts.some((f) => f.hasB64);
-      } else if (filter === "cachedOnly") {
-        return fonts.some((f) => f.hasB64 && !this.plugin._getFontExists(f));
-      } else if (filter === "notConverted") {
-        return fonts.some((f) => !f.hasB64);
+      } else if (filter === "available") {
+        return fonts.some((f) => this.plugin._getFontExists(f));
       } else if (filter === "notExist") {
         return fonts.some((f) => !this.plugin._getFontExists(f));
       }
       return true;
     });
     if (filteredFamilies.length === 0) {
-      let emptyMessage = t("noConvertedFonts") || "没有已转换的字体";
-      if (filter === "notConverted") {
-        emptyMessage = t("noNotConvertedFonts") || "没有未转换的字体";
-      } else if (filter === "notExist") {
+      let emptyMessage = t("noAvailableFonts") || "没有可用的字体";
+      if (filter === "notExist") {
         emptyMessage = t("noNotExistFonts") || "没有缺失的字体";
-      } else if (filter === "cachedOnly") {
-        emptyMessage = t("noCachedOnlyFonts") || "没有仅缓存的字体";
       }
       containerEl.createEl("div", {
         text: emptyMessage,
@@ -2565,24 +2441,9 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
       fonts.forEach((font) => {
         const variantEl = variantsEl.createDiv({ cls: "font-variant-item" });
         const infoEl = variantEl.createDiv({ cls: "font-variant-info" });
-        let status, iconName;
-        if (!this.plugin._getFontExists(font)) {
-          if (font.hasB64) {
-            status = "cached";
-            iconName = "check";
-          } else {
-            status = "missing";
-            iconName = "help-circle";
-          }
-        } else {
-          if (font.hasB64) {
-            status = "converted";
-            iconName = "check";
-          } else {
-            status = "pending";
-            iconName = "circle";
-          }
-        }
+        const fontSourceExists = this.plugin._getFontExists(font);
+        const status = fontSourceExists ? "available" : "missing";
+        const iconName = fontSourceExists ? "check" : "help-circle";
         const statusIconEl = infoEl.createSpan({
           cls: `font-variant-status is-${status}`
         });
@@ -2599,18 +2460,6 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
           cls: "font-variant-label"
         });
         const actionsEl = variantEl.createDiv({ cls: "font-variant-actions" });
-        const convertBtn = actionsEl.createEl("button", {
-          cls: "font-icon-btn",
-          attr: {
-            title: t("reconvertFont"),
-            "aria-label": t("reconvertFont")
-          }
-        });
-        import_obsidian8.setIcon(convertBtn, "refresh-cw");
-        this._addEventListener(convertBtn, "click", async () => {
-          await this.convertSingleFont(font);
-          this.display();
-        });
         const deleteBtn = actionsEl.createEl("button", {
           cls: "font-icon-btn",
           attr: {
@@ -2628,36 +2477,12 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
       });
     }
   }
-  async convertSingleFont(font) {
-    try {
-      this.plugin._log(`[Local Font Loader] Converting ${font.name}...`);
-      const arrayBuffer = await this.plugin.app.vault.adapter.readBinary(font.path);
-      const base64 = this.plugin.arrayBufferToBase64(arrayBuffer);
-      const { css: singleFontCss } = this.plugin._buildFontFaceCss(font, base64, this.plugin._getDeviceFontContext());
-      await this.plugin._ensureFolder(this.plugin.settings.b64OutputDir);
-      const cachePath = `${this.plugin.settings.b64OutputDir}/${font.name}.css`;
-      await this.plugin.app.vault.adapter.write(cachePath, singleFontCss);
-      font.hasB64 = true;
-      font.b64Path = cachePath;
-      await this.plugin.saveSettings();
-      this.plugin._log(`[Local Font Loader] ${font.name} Conversion complete`);
-      new import_obsidian8.Notice(`✓ ${font.name} Conversion complete`);
-    } catch (error) {
-      this.plugin._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
-      new import_obsidian8.Notice(`⚠️ Conversion failed: ${error.message}`);
-    }
-  }
   async deleteSingleFont(font) {
     try {
       try {
         await this.plugin.app.vault.adapter.remove(font.path);
       } catch (err) {
         this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
-      }
-      if (font.b64Path) {
-        try {
-          await this.plugin.app.vault.adapter.remove(font.b64Path);
-        } catch {}
       }
       const index = this.plugin.settings.availableFonts.indexOf(font);
       if (index > -1) {
@@ -2699,11 +2524,6 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
             await this.app.vault.adapter.remove(font.path);
           } catch (err) {
             this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
-          }
-          if (font.hasB64 && font.b64Path) {
-            try {
-              await this.app.vault.adapter.remove(font.b64Path);
-            } catch {}
           }
           const index = this.plugin.settings.availableFonts.indexOf(font);
           if (index > -1) {
@@ -2997,13 +2817,6 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       }
     });
     this.addCommand({
-      id: "clear-font-cache",
-      name: "Clear Font Cache",
-      callback: async () => {
-        await this.clearCache();
-      }
-    });
-    this.addCommand({
       id: "rescan-fonts",
       name: "Rescan Fonts",
       callback: async () => {
@@ -3011,14 +2824,8 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         new import_obsidian9.Notice("✓ Font list updated");
       }
     });
-    this.addCommand({
-      id: "convert-all-fonts",
-      name: "Convert all fonts to Base64",
-      callback: async () => {
-        await this.convertAllFonts();
-      }
-    });
     this.addSettingTab(new FontManagerSettingTab(this.app, this));
+    this.registerEvent(this.app.workspace.on("css-change", () => this._ensureSnippetEnabled()));
     this.registerEvent(this.app.vault.on("modify", (file) => {
       if (file.path === `${this.manifest.dir}/data.json`) {
         this._log("[Local Font Loader] data.json modified, checking for content changes...");
@@ -3379,6 +3186,19 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     } catch (error) {
       this._logError("[Local Font Loader] Failed to read device-local id:", error);
     }
+    if (import_obsidian9.Platform.isMobile) {
+      const derivedId = await this._getPlatformDeviceId();
+      if (derivedId) {
+        if (storedId && storedId !== derivedId) {
+          await this._adoptDerivedDeviceId(storedId, derivedId);
+        }
+        if (storedId !== derivedId) {
+          await this._persistLocalDeviceId(derivedId);
+        }
+        return derivedId;
+      }
+      this._logError("[Local Font Loader] No platform device identity available; falling back to the stored id");
+    }
     if (storedId && typeof storedId === "string") {
       const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
       if (adoptedId !== storedId) {
@@ -3409,6 +3229,60 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     } catch (error) {
       this._logError("[Local Font Loader] Failed to persist device-local id:", error);
     }
+  }
+  async _getPlatformDeviceId() {
+    try {
+      const deviceBridge = window.Capacitor?.Plugins?.Device;
+      if (!deviceBridge || typeof deviceBridge.getId !== "function") {
+        return null;
+      }
+      const { identifier } = await deviceBridge.getId();
+      if (!identifier) {
+        return null;
+      }
+      return await this._hashDeviceIdentifier(`${import_obsidian9.Platform.isAndroidApp ? "android" : "ios"}:${identifier}`);
+    } catch (error) {
+      this._logError("[Local Font Loader] Failed to read the platform device identifier:", error);
+      return null;
+    }
+  }
+  async _hashDeviceIdentifier(value) {
+    if (!window.crypto || !window.crypto.subtle) {
+      this._logError("[Local Font Loader] crypto.subtle is unavailable; cannot derive a device id");
+      return null;
+    }
+    const digest = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+    const hex = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+  async _adoptDerivedDeviceId(fromId, toId) {
+    const nameMap = this.settings.deviceNameMap || {};
+    const meta = this.settings.deviceMeta || {};
+    if (nameMap[fromId] && !nameMap[toId]) {
+      nameMap[toId] = nameMap[fromId];
+    }
+    if (meta[fromId] && !meta[toId]) {
+      meta[toId] = meta[fromId];
+    }
+    delete nameMap[fromId];
+    delete meta[fromId];
+    this.settings.deviceNameMap = nameMap;
+    this.settings.deviceMeta = meta;
+    const aliases = { [fromId]: toId };
+    this.settings.presets.forEach((preset) => {
+      preset.targetDevices = remapDeviceIds(preset.targetDevices, aliases);
+    });
+    Object.keys(this.settings.deviceFingerprints || {}).forEach((fingerprint) => {
+      if (this.settings.deviceFingerprints[fingerprint] === fromId) {
+        this.settings.deviceFingerprints[fingerprint] = toId;
+      }
+    });
+    if (!this.settings.deviceAliases) {
+      this.settings.deviceAliases = {};
+    }
+    this.settings.deviceAliases[fromId] = toId;
+    await this.saveSettings();
+    this._log(`[Local Font Loader] Device id derived from the platform: ${fromId} -> ${toId}`);
   }
   async _claimLegacyDeviceId() {
     const ledger = this.settings.deviceFingerprints;
@@ -3650,23 +3524,8 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       this._log("[Local Font Loader] Scanning font family folders...");
       await this._ensureFolder(this.settings.fontSourceDir);
       const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
-      const cacheFolderName = this.settings.b64OutputDir.split("/").filter(Boolean).pop();
-      const fontDirs = dirList.folders.filter((dir) => {
-        const basename = dir.split("/").pop();
-        return basename !== cacheFolderName;
-      });
+      const fontDirs = dirList.folders;
       this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
-      let b64Files = [];
-      try {
-        const b64List = await this.app.vault.adapter.list(this.settings.b64OutputDir);
-        b64Files = b64List.files.map((f) => {
-          const basename = f.split("/").pop().replace(".css", "");
-          return basename;
-        });
-        this._log(`[Local Font Loader] Found ${b64Files.length} cached fonts`);
-      } catch (err) {
-        this._log("[Local Font Loader] B64 cache directory does not exist, will be created during conversion");
-      }
       const previousFonts = this.settings.availableFonts;
       this.settings.availableFonts = [];
       this.settings.fontFamilies = [];
@@ -3699,17 +3558,13 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
                 const basename = filename;
                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, "");
                 const ext = basename.split(".").pop().toLowerCase();
-                const hasB64 = b64Files.includes(name);
-                const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
                 const fontInfo = {
                   name,
                   path: fontPath,
                   basename,
                   ext,
                   familyName: family.familyName,
-                  variantType,
-                  hasB64,
-                  b64Path
+                  variantType
                 };
                 if (!fontMap.has(name)) {
                   fontMap.set(name, fontInfo);
@@ -3740,17 +3595,13 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
                 const fontMetadata = parseFontMetadata(arrayBuffer);
                 const realFamilyName = fontMetadata?.familyName || family.familyName;
                 const variantType = fontMetadata?.variantType || "regular";
-                const hasB64 = b64Files.includes(name);
-                const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
                 const fontInfo = {
                   name,
                   path: fontPath,
                   basename,
                   ext,
                   familyName: realFamilyName,
-                  variantType,
-                  hasB64,
-                  b64Path
+                  variantType
                 };
                 this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
                 return { success: true, fontInfo, variantType };
@@ -4132,46 +3983,17 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
           this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
           const deviceFontContext = this._getDeviceFontContext();
           const results = await Promise.all(familyFonts.map(async (font) => {
-            let fontFileExists = false;
-            try {
-              fontFileExists = await this.app.vault.adapter.exists(import_obsidian9.normalizePath(font.path));
-            } catch (error) {
-              fontFileExists = false;
+            const fontResourceSrc = this._getFontResourceSrc(font);
+            if (!fontResourceSrc) {
+              return { success: false, font, error: new Error("no resource URL") };
             }
-            const fontResourceSrc = fontFileExists ? this._getFontResourceSrc(font) : null;
-            if (fontResourceSrc) {
-              const built = this._buildFontFaceCss(font, "", deviceFontContext, fontResourceSrc);
-              this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || "Unknown"}, resource URL)`);
-              return { success: true, css: built.css, font, fromResourceUrl: true };
-            }
-            if (!font.hasB64 || !font.b64Path) {
-              this._log(`[Local Font Loader] Font not cached and no resource URL, please convert first: ${font.name}`);
-              return { success: false, font, error: new Error("not converted") };
-            }
-            try {
-              const b64Css = await this.app.vault.adapter.read(font.b64Path);
-              this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || "Unknown"}, ${(b64Css.length / 1024).toFixed(2)} KB, base64 cache)`);
-              return { success: true, css: b64Css, font, fromResourceUrl: false };
-            } catch (error) {
-              this._logError(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
-              return { success: false, font, error };
-            }
+            const built = this._buildFontFaceCss(font, deviceFontContext, fontResourceSrc);
+            this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || "Unknown"})`);
+            return { success: true, css: built.css, font };
           }));
           for (const result of results) {
             if (result.success) {
-              let css = result.css;
-              if (!result.fromResourceUrl) {
-                const isLatinFont = latinFontEnabled && fontsConfig.latin && (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
-                if (isLatinFont) {
-                  const unicodeRange = this.getUnicodeRange(latinFontScope);
-                  if (unicodeRange) {
-                    css = css.replace(/font-display:\s*swap;/g, `font-display: swap;
-  unicode-range: ${unicodeRange};`);
-                    this._log(`[Local Font Loader] Added unicode-range to Latin font: ${result.font.name}`);
-                  }
-                }
-              }
-              fontFaceCss += css + `
+              fontFaceCss += result.css + `
 `;
               loadedCount++;
             } else {
@@ -4415,49 +4237,6 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       this._logError(`[Local Font Loader] Apply fonts失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
     }
   }
-  async convertAllFonts() {
-    this._log("[Local Font Loader] Starting font conversion...");
-    let converted = 0;
-    let skipped = 0;
-    try {
-      await this._ensureFolder(this.settings.b64OutputDir);
-      for (const font of this.settings.availableFonts) {
-        if (font.hasB64) {
-          skipped++;
-          continue;
-        }
-        try {
-          const variantLabel = font.variantType || "unknown";
-          this._log(`[Local Font Loader] Converting font: ${font.name} (${font.familyName || "Unknown"} - ${variantLabel})`);
-          const arrayBuffer = await this.app.vault.adapter.readBinary(font.path);
-          const base64 = this.arrayBufferToBase64(arrayBuffer);
-          const { css: singleFontCss, fontFamily, variantType, fontWeight, fontStyle } = this._buildFontFaceCss(font, base64, this._getDeviceFontContext());
-          const cachePath = `${this.settings.b64OutputDir}/${font.name}.css`;
-          await this.app.vault.adapter.write(cachePath, singleFontCss);
-          font.hasB64 = true;
-          font.b64Path = cachePath;
-          converted++;
-          this._log(`[Local Font Loader] ✓ Converted: ${font.name} (${fontFamily} - ${variantType}, weight: ${fontWeight}, style: ${fontStyle})`);
-        } catch (error) {
-          this._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
-        }
-      }
-      await this.saveSettings();
-      this._log(`[Local Font Loader] Conversion complete：${converted} newly converted，${skipped} already cached`);
-    } catch (error) {
-      this._logError("[Local Font Loader] 批量Conversion failed:", error);
-    }
-  }
-  arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    const chunkSize = 8192;
-    let binary = "";
-    for (let i = 0;i < bytes.byteLength; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength));
-      binary += String.fromCharCode.apply(null, chunk);
-    }
-    return btoa(binary);
-  }
   _getFontResourceSrc(font) {
     try {
       const resourcePath = this.app.vault.adapter.getResourcePath(import_obsidian9.normalizePath(font.path));
@@ -4471,15 +4250,8 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       return null;
     }
   }
-  _buildFontFaceCss(font, base64, ctx, srcOverride = null) {
+  _buildFontFaceCss(font, ctx, srcValue) {
     const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
-    const formatMap = {
-      ttf: "font/truetype",
-      otf: "font/opentype",
-      woff: "font/woff",
-      woff2: "font/woff2"
-    };
-    const mimeType = formatMap[font.ext] || "font/truetype";
     const fontFamily = font.familyName || font.name;
     const variantType = font.variantType || "regular";
     const isLatinFont = latinFontEnabled && fontsConfig.latin && (fontFamily === fontsConfig.latin || font.name === fontsConfig.latin);
@@ -4504,7 +4276,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
 `;
     css += `  font-family: '${this._escapeCssString(fontFamily)}';
 `;
-    css += `  src: ${srcOverride || `url(data:${mimeType};base64,${base64})`};
+    css += `  src: ${srcValue};
 `;
     css += `  font-style: ${fontStyle};
 `;
@@ -4548,6 +4320,19 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   _queueSnippetSync() {
     this._snippetSync = this._snippetSync.then(() => this._syncSnippet()).catch((error) => this._logError("[Local Font Loader] Could not write the CSS snippet:", error));
   }
+  _ensureSnippetEnabled() {
+    const customCss = this.app.customCss;
+    if (!customCss || this._snippetCss.size === 0) {
+      return;
+    }
+    const isSnippetEnabled = customCss.enabledSnippets ? customCss.enabledSnippets.has(FONT_CSS_SNIPPET) : this._snippetEnabled;
+    if (isSnippetEnabled) {
+      return;
+    }
+    this._snippetEnabled = true;
+    customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
+    this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off elsewhere; switching it back on.`);
+  }
   async _syncSnippet() {
     const customCss = this.app.customCss;
     if (!customCss) {
@@ -4556,8 +4341,9 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     }
     const css = Array.from(this._snippetCss.values()).join(`
 `);
+    const isSnippetEnabled = customCss.enabledSnippets ? customCss.enabledSnippets.has(FONT_CSS_SNIPPET) : this._snippetEnabled;
     if (!css) {
-      if (!this._snippetEnabled) {
+      if (!isSnippetEnabled) {
         return;
       }
       this._snippetEnabled = false;
@@ -4565,55 +4351,20 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       this._log(`[Local Font Loader] No generated CSS left; the "${FONT_CSS_SNIPPET}" snippet is switched off.`);
       return;
     }
-    await this.app.vault.adapter.write(customCss.getSnippetPath(FONT_CSS_SNIPPET), css);
-    if (!this._snippetEnabled) {
+    const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+    await this._ensureFolder(snippetPath.split("/").slice(0, -1).join("/"));
+    await this.app.vault.adapter.write(snippetPath, css);
+    if (!isSnippetEnabled) {
       this._snippetEnabled = true;
       customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
       this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
     }
     this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
   }
-  async _dropGeneratedSnippet() {
-    const customCss = this.app.customCss;
-    this._snippetCss.clear();
-    this._appliedCss.clear();
-    if (!customCss) {
-      return;
-    }
-    if (this._snippetEnabled) {
-      this._snippetEnabled = false;
-      customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
-    }
-    const path = customCss.getSnippetPath(FONT_CSS_SNIPPET);
-    if (await this.app.vault.adapter.exists(path)) {
-      await this.app.vault.adapter.remove(path);
-    }
-  }
   removeFontStyles() {
     this._removeGeneratedStyles("local-font-loader-faces");
     this._removeGeneratedStyles("local-font-loader-vars");
     this._restoreMathFontMetrics();
-  }
-  async clearCache() {
-    try {
-      const files = await this.app.vault.adapter.list(this.settings.b64OutputDir);
-      let count = 0;
-      for (const file of files.files) {
-        if (file.endsWith(".css")) {
-          await this.app.vault.adapter.remove(file);
-          count++;
-        }
-      }
-      for (const font of this.settings.availableFonts) {
-        font.hasB64 = false;
-        font.b64Path = null;
-      }
-      await this._dropGeneratedSnippet();
-      await this.saveSettings();
-      this._log(`[Local Font Loader] Cleaned ${count} cache files`);
-    } catch (error) {
-      this._logError("[Local Font Loader] Clear Cache失败:", error);
-    }
   }
 }
 

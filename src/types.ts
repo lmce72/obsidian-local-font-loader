@@ -28,10 +28,6 @@ export interface FontInfo {
     /** Subfamily as named by the font, when it could be read. */
     subfamilyName?: string;
     variantType: FontVariantType;
-    /** Whether a Base64 stylesheet has been generated for this file. */
-    hasB64: boolean;
-    /** Vault-relative path of the generated Base64 stylesheet. */
-    b64Path: string | null;
     /** False when the source file has gone missing since the last scan. */
     exists?: boolean;
 }
@@ -125,7 +121,6 @@ export interface DeviceMeta {
  */
 export interface PluginSettings {
     fontSourceDir: string;
-    b64OutputDir: string;
     availableFonts: FontInfo[];
     fontFamilies: FontFamily[];
     autoLoadOnStartup: boolean;

@@ -390,20 +390,11 @@
     gap: 6px;
 }
 
-.lfl-legend-icon.is-converted,
-.font-variant-status.is-converted {
+.lfl-legend-icon.is-available,
+.font-variant-status.is-available {
     color: var(--color-green);
 }
 
-.lfl-legend-icon.is-cached,
-.font-variant-status.is-cached {
-    color: var(--interactive-accent);
-}
-
-.lfl-legend-icon.is-pending,
-.font-variant-status.is-pending {
-    color: var(--text-muted);
-}
 
 .lfl-legend-icon.is-missing,
 .font-variant-status.is-missing {

@@ -5,9 +5,8 @@ import type { PluginSettings } from './types';
 
 export const DEFAULT_SETTINGS: PluginSettings = {
     // A folder of the plugin's own, so a fresh install does not read or write inside a directory
-    // that belongs to something else in the vault. Both are created on demand — see scanFonts().
+    // that belongs to something else in the vault. Created on demand — see scanFonts().
     fontSourceDir: 'Local-Fonts',
-    b64OutputDir: 'Local-Fonts/UsableCssFont',
     availableFonts: [],       // Global font list (shared by all presets)
     fontFamilies: [],         // Global font family grouping info (shared by all presets)
     autoLoadOnStartup: true,

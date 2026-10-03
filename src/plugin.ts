@@ -498,14 +498,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
         });
 
         this.addCommand({
-            id: 'clear-font-cache',
-            name: 'Clear Font Cache',
-            callback: async () => {
-                await this.clearCache();
-            }
-        });
-
-        this.addCommand({
             id: 'rescan-fonts',
             name: 'Rescan Fonts',
             callback: async () => {
@@ -514,16 +506,12 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
         });
 
-        this.addCommand({
-            id: 'convert-all-fonts',
-            name: 'Convert all fonts to Base64',
-            callback: async () => {
-                await this.convertAllFonts();
-            }
-        });
-
         // Add Settings Panel
         this.addSettingTab(new FontManagerSettingTab(this.app, this));
+
+        // A snippet being toggled fires css-change, and that toggle may have been this plugin's
+        // snippet — see `_ensureSnippetEnabled`.
+        this.registerEvent(this.app.workspace.on('css-change', () => this._ensureSnippetEnabled()));
 
         // Listen for data.json changes (for multi-device sync)
         this.registerEvent(
@@ -1172,8 +1160,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
     async _getOrCreateLocalDeviceId() {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
-        // 1. An already stored id is final — never recomputed, never replaced, unless a repair
-        //    performed on another device has since collapsed it into a survivor.
         let storedId = null;
         try {
             storedId = this.app.loadLocalStorage(STORAGE_KEY);
@@ -1181,6 +1167,28 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this._logError('[Local Font Loader] Failed to read device-local id:', error);
         }
 
+        // Mobile derives its identity from the platform instead of carrying it in storage.
+        //
+        // Android reports ANDROID_ID and iOS identifierForVendor through Capacitor, and both
+        // outlive an app data reset — the case that used to hand the same tablet a second identity
+        // and put it in the device list twice. The id is recomputed on every launch, so losing the
+        // cached copy costs nothing; storage only mirrors it.
+        if (Platform.isMobile) {
+            const derivedId = await this._getPlatformDeviceId();
+            if (derivedId) {
+                if (storedId && storedId !== derivedId) {
+                    await this._adoptDerivedDeviceId(storedId, derivedId);
+                }
+                if (storedId !== derivedId) {
+                    await this._persistLocalDeviceId(derivedId);
+                }
+                return derivedId;
+            }
+            this._logError('[Local Font Loader] No platform device identity available; falling back to the stored id');
+        }
+
+        // 1. An already stored id is final — never recomputed, never replaced, unless a repair
+        //    performed on another device has since collapsed it into a survivor.
         if (storedId && typeof storedId === 'string') {
             const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
             if (adoptedId !== storedId) {
@@ -1232,6 +1240,102 @@ export default class LocalFontLoaderPlugin extends Plugin {
         } catch (error) {
             this._logError('[Local Font Loader] Failed to persist device-local id:', error);
         }
+    }
+
+    /**
+     * This device's id as the platform reports it, on mobile only.
+     *
+     * The raw identifier is hashed rather than stored: the id ends up in `data.json`, which users
+     * sync and some keep in version control, and a platform identifier has no business travelling
+     * there. The platform is folded into the hash so an Android id can never collide with an iOS
+     * one, and the digest is laid out like the uuid the desktop path mints so ids read the same
+     * wherever they are displayed.
+     *
+     * @returns {Promise<string|null>} The derived id, or null when the platform cannot supply one
+     */
+    async _getPlatformDeviceId() {
+        try {
+            const deviceBridge = window.Capacitor?.Plugins?.Device;
+            if (!deviceBridge || typeof deviceBridge.getId !== 'function') {
+                return null;
+            }
+
+            const { identifier } = await deviceBridge.getId();
+            if (!identifier) {
+                return null;
+            }
+
+            return await this._hashDeviceIdentifier(`${Platform.isAndroidApp ? 'android' : 'ios'}:${identifier}`);
+        } catch (error) {
+            this._logError('[Local Font Loader] Failed to read the platform device identifier:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Hashes a platform identifier into the id this plugin stores.
+     *
+     * `crypto.subtle` is available in both contexts the plugin runs in: the desktop `app://`
+     * document and the mobile `http://localhost/` one, which the webview treats as a secure
+     * context. A missing implementation returns null rather than falling back to a weaker hash —
+     * two different hashes for one device would fork its identity, which is the whole failure this
+     * code exists to avoid.
+     *
+     * @param {string} value - The platform identifier, already prefixed with its platform
+     * @returns {Promise<string|null>} The device id, or null when hashing is unavailable
+     */
+    async _hashDeviceIdentifier(value) {
+        if (!window.crypto || !window.crypto.subtle) {
+            this._logError('[Local Font Loader] crypto.subtle is unavailable; cannot derive a device id');
+            return null;
+        }
+
+        const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+        const hex = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+    }
+
+    /**
+     * Hands the entry a device held under its stored id over to its derived id.
+     *
+     * Without this the first launch on the new identity registers a second row, so every mobile
+     * device would gain a duplicate instead of losing one. The name, the recorded history, the
+     * preset bindings and the legacy ledger entry all follow, so only the id itself changes.
+     *
+     * @param {string} fromId - The id the device held in storage
+     * @param {string} toId - The id derived from the platform
+     */
+    async _adoptDerivedDeviceId(fromId, toId) {
+        const nameMap = this.settings.deviceNameMap || {};
+        const meta = this.settings.deviceMeta || {};
+
+        if (nameMap[fromId] && !nameMap[toId]) {
+            nameMap[toId] = nameMap[fromId];
+        }
+        if (meta[fromId] && !meta[toId]) {
+            meta[toId] = meta[fromId];
+        }
+        delete nameMap[fromId];
+        delete meta[fromId];
+        this.settings.deviceNameMap = nameMap;
+        this.settings.deviceMeta = meta;
+
+        const aliases = { [fromId]: toId };
+        this.settings.presets.forEach(preset => {
+            preset.targetDevices = remapDeviceIds(preset.targetDevices, aliases);
+        });
+        Object.keys(this.settings.deviceFingerprints || {}).forEach(fingerprint => {
+            if (this.settings.deviceFingerprints[fingerprint] === fromId) {
+                this.settings.deviceFingerprints[fingerprint] = toId;
+            }
+        });
+        if (!this.settings.deviceAliases) {
+            this.settings.deviceAliases = {};
+        }
+        this.settings.deviceAliases[fromId] = toId;
+
+        await this.saveSettings();
+        this._log(`[Local Font Loader] Device id derived from the platform: ${fromId} -> ${toId}`);
     }
 
     /**
@@ -1695,31 +1799,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // Get all subfolders in font directory
             const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
 
-            // Exclude the Base64 cache by its configured name rather than a hard-coded one: the
-            // cache defaults to living inside the source folder, and a renamed cache would
-            // otherwise be scanned as though it were a font family.
-            const cacheFolderName = this.settings.b64OutputDir.split('/').filter(Boolean).pop();
-
-            const fontDirs = dirList.folders.filter(dir => {
-                const basename = dir.split('/').pop();
-                return basename !== cacheFolderName;
-            });
+            const fontDirs = dirList.folders;
 
             this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
-
-            // Normalize the path format, match by filename
-            let b64Files = [];
-            try {
-                const b64List = await this.app.vault.adapter.list(this.settings.b64OutputDir);
-                b64Files = b64List.files.map(f => {
-                    // Extract the basename (without path and extension) for matching
-                    const basename = f.split('/').pop().replace('.css', '');
-                    return basename;
-                });
-                this._log(`[Local Font Loader] Found ${b64Files.length} cached fonts`);
-            } catch (err) {
-                this._log('[Local Font Loader] B64 cache directory does not exist, will be created during conversion');
-            }
 
             // Capture the old list so entries whose source file is missing can be merged back after scanning
             const previousFonts = this.settings.availableFonts;
@@ -1770,19 +1852,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
                                 const ext = basename.split('.').pop().toLowerCase();
 
-                                // Match by filename
-                                const hasB64 = b64Files.includes(name);
-                                const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
-
                                 const fontInfo = {
                                     name,
                                     path: fontPath,
                                     basename,
                                     ext,
                                     familyName: family.familyName, // use the correct family name from the metadata
-                                    variantType,
-                                    hasB64,
-                                    b64Path
+                                    variantType
                                 };
 
                                 // Deduplicate: avoid adding duplicate fonts
@@ -1823,19 +1899,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                 const realFamilyName = fontMetadata?.familyName || family.familyName;
                                 const variantType = fontMetadata?.variantType || 'regular';
 
-                                // Match by filename
-                                const hasB64 = b64Files.includes(name);
-                                const b64Path = hasB64 ? `${this.settings.b64OutputDir}/${name}.css` : null;
-
                                 const fontInfo = {
                                     name,
                                     path: fontPath,
                                     basename,
                                     ext,
                                     familyName: realFamilyName, // use the correct family name from the font itself
-                                    variantType,
-                                    hasB64,
-                                    b64Path
+                                    variantType
                                 };
 
                                 this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
@@ -2309,6 +2379,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         return this._fontExistsMap[font.name] !== false;
     }
 
+
     // Apply fonts config (load from cache only)
     async applyFonts() {
         const startTime = performance.now();
@@ -2394,73 +2465,27 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                     // Build each variant's @font-face rule from its own resource URL.
                     //
-                    // This used to read the base64 cache instead, which meant holding the whole font
-                    // set as one string in memory (tens of MB) and writing a snippet of the same
-                    // size. A resource URL keeps the generated snippet at a few KB and lets the
-                    // browser fetch only the weights a note actually renders. The base64 cache is
-                    // still the fallback, so platforms that cannot hand out a resource URL keep
-                    // working exactly as before.
+                    // The rule points at the font file and the browser fetches it, so nothing is
+                    // embedded and nothing is cached: the generated snippet stays at a few KB no
+                    // matter how large the fonts are, and only the weights a note actually renders
+                    // get pulled in. `_buildFontFaceCss` emits the unicode-range for the Latin font
+                    // itself, so no post-processing is needed here.
                     const deviceFontContext = this._getDeviceFontContext();
                     const results = await Promise.all(familyFonts.map(async (font) => {
-                        // The resource URL is only worth using when the file is actually there: on a
-                        // device that synced the cache but not the font sources, pointing at a missing
-                        // file would render nothing, whereas the cached rule still works.
-                        let fontFileExists = false;
-                        try {
-                            fontFileExists = await this.app.vault.adapter.exists(normalizePath(font.path));
-                        } catch (error) {
-                            fontFileExists = false;
+                        const fontResourceSrc = this._getFontResourceSrc(font);
+                        if (!fontResourceSrc) {
+                            return { success: false, font, error: new Error('no resource URL') };
                         }
 
-                        const fontResourceSrc = fontFileExists ? this._getFontResourceSrc(font) : null;
-                        if (fontResourceSrc) {
-                            const built = this._buildFontFaceCss(font, '', deviceFontContext, fontResourceSrc);
-                            this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || 'Unknown'}, resource URL)`);
-                            return { success: true, css: built.css, font, fromResourceUrl: true };
-                        }
-
-                        if (!font.hasB64 || !font.b64Path) {
-                            this._log(`[Local Font Loader] Font not cached and no resource URL, please convert first: ${font.name}`);
-                            return { success: false, font, error: new Error('not converted') };
-                        }
-
-                        try {
-                            const b64Css = await this.app.vault.adapter.read(font.b64Path);
-                            this._log(`[Local Font Loader] ✓ Loaded variant: ${font.name} (${font.subfamilyName || 'Unknown'}, ${(b64Css.length / 1024).toFixed(2)} KB, base64 cache)`);
-                            return { success: true, css: b64Css, font, fromResourceUrl: false };
-                        } catch (error) {
-                            this._logError(`[Local Font Loader] ✗ 读取失败: ${font.name}`, error);
-                            return { success: false, font, error };
-                        }
+                        const built = this._buildFontFaceCss(font, deviceFontContext, fontResourceSrc);
+                        this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || 'Unknown'})`);
+                        return { success: true, css: built.css, font };
                     }));
 
                     // Collect successfully loaded CSS
                     for (const result of results) {
                         if (result.success) {
-                            let css = result.css;
-
-                            // A rule rebuilt from a resource URL already carries its unicode-range
-                            // (emitted inside _buildFontFaceCss); only the cached rule needs the
-                            // post-hoc injection.
-                            if (!result.fromResourceUrl) {
-                                const isLatinFont = latinFontEnabled && fontsConfig.latin &&
-                                    (familyOrFontName === fontsConfig.latin || result.font.name === fontsConfig.latin);
-
-                                if (isLatinFont) {
-                                    // Add unicode-range for the Latin font
-                                    const unicodeRange = this.getUnicodeRange(latinFontScope);
-                                    if (unicodeRange) {
-                                        // Insert unicode-range after font-display and before }
-                                        css = css.replace(
-                                            /font-display:\s*swap;/g,
-                                            `font-display: swap;\n  unicode-range: ${unicodeRange};`
-                                        );
-                                        this._log(`[Local Font Loader] Added unicode-range to Latin font: ${result.font.name}`);
-                                    }
-                                }
-                            }
-
-                            fontFaceCss += css + '\n';
+                            fontFaceCss += result.css + '\n';
                             loadedCount++;
                         } else {
                             failedFonts.push(`${result.font.name} (读取失败: ${result.error.message})`);
@@ -2777,72 +2802,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
     }
 
-    // Convert all fonts to Base64
-    async convertAllFonts() {
-        this._log('[Local Font Loader] Starting font conversion...');
-        let converted = 0;
-        let skipped = 0;
-
-        try {
-            // The cache folder is the plugin's own and is not guaranteed to exist — nothing else
-            // creates it, so without this the conversion had nowhere to write on a fresh device.
-            await this._ensureFolder(this.settings.b64OutputDir);
-
-            for (const font of this.settings.availableFonts) {
-                // Skip already cached fonts
-                if (font.hasB64) {
-                    skipped++;
-                    continue;
-                }
-
-                try {
-                    const variantLabel = font.variantType || 'unknown';
-                    this._log(`[Local Font Loader] Converting font: ${font.name} (${font.familyName || 'Unknown'} - ${variantLabel})`);
-
-                    const arrayBuffer = await this.app.vault.adapter.readBinary(font.path);
-                    const base64 = this.arrayBufferToBase64(arrayBuffer);
-
-                    // Build the @font-face CSS (config-driven unicode-range determination and family-name escaping)
-                    const { css: singleFontCss, fontFamily, variantType, fontWeight, fontStyle } =
-                        this._buildFontFaceCss(font, base64, this._getDeviceFontContext());
-
-                    // Save to cache
-                    const cachePath = `${this.settings.b64OutputDir}/${font.name}.css`;
-                    await this.app.vault.adapter.write(cachePath, singleFontCss);
-
-                    // Update font status
-                    font.hasB64 = true;
-                    font.b64Path = cachePath;
-
-                    converted++;
-                    this._log(`[Local Font Loader] ✓ Converted: ${font.name} (${fontFamily} - ${variantType}, weight: ${fontWeight}, style: ${fontStyle})`);
-
-                } catch (error) {
-                    this._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
-                }
-            }
-
-            await this.saveSettings();
-
-            this._log(`[Local Font Loader] Conversion complete：${converted} newly converted，${skipped} already cached`);
-
-        } catch (error) {
-            this._logError('[Local Font Loader] 批量Conversion failed:', error);
-        }
-    }
-
-    arrayBufferToBase64(buffer) {
-        const bytes = new Uint8Array(buffer);
-        const chunkSize = 8192; // 8KB chunked processing
-        let binary = "";
-
-        for (let i = 0; i < bytes.byteLength; i += chunkSize) {
-            const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength));
-            binary += String.fromCharCode.apply(null, chunk);
-        }
-
-        return btoa(binary);
-    }
 
     /**
      * Resolves a font file to a CSS `url("…")` value through Obsidian's resource API.
@@ -2873,22 +2832,18 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     /**
       * Builds a single font's @font-face CSS (config-driven unicode-range determination and family-name escaping).
-      * Shared by convertAllFonts / convertSingleFont so Latin determination and escaping stay consistent.
-      * @param {Object} font   The font object
-      * @param {string} base64 The base64 data
-      * @param {Object} ctx    Context from _getDeviceFontContext()
-      * @param {string} [srcOverride] Full `src:` value that replaces the inline data URI (e.g. a resource URL)
+      *
+      * `srcValue` is the rule's `src:` — a resource URL resolved by `_getFontResourceSrc`. The rule
+      * used to carry a base64 data URI instead, which is what the font cache existed to produce;
+      * pointing at the file directly made that whole pipeline unnecessary.
+      *
+      * @param {Object} font     The font object
+      * @param {Object} ctx      Context from _getDeviceFontContext()
+      * @param {string} srcValue Full `src:` value, e.g. `url("app://…")`
      * @returns {{css:string, fontFamily:string, variantType:string, fontWeight:number, fontStyle:string}}
      */
-    _buildFontFaceCss(font, base64, ctx, srcOverride = null) {
+    _buildFontFaceCss(font, ctx, srcValue) {
         const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
-        const formatMap = {
-            'ttf': 'font/truetype',
-            'otf': 'font/opentype',
-            'woff': 'font/woff',
-            'woff2': 'font/woff2'
-        };
-        const mimeType = formatMap[font.ext] || 'font/truetype';
 
         const fontFamily = font.familyName || font.name;
         const variantType = font.variantType || 'regular';
@@ -2919,7 +2874,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         let css = `/* ${this._escapeCssString(fontFamily)} - ${variantType} */\n`;
         css += `@font-face {\n`;
         css += `  font-family: '${this._escapeCssString(fontFamily)}';\n`;
-        css += `  src: ${srcOverride || `url(data:${mimeType};base64,${base64})`};\n`;
+        css += `  src: ${srcValue};\n`;
         css += `  font-style: ${fontStyle};\n`;
         css += `  font-weight: ${fontWeight};\n`;
         css += `  font-display: swap;\n`;
@@ -3018,6 +2973,38 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * CSS, like the per-font ones, and deleting it on every unload would push megabytes through
      * sync on each app start for no change in content.
      */
+    /**
+     * Puts the generated snippet back on when something else switched it off.
+     *
+     * The stylesheet is the only carrier the fonts have, and it can be turned off outside this
+     * plugin — Appearance → CSS snippets is one click, and a snippet manager plugin can do the
+     * same. Reacting matters because `applyCss` skips an unchanged stylesheet: in a session where
+     * nothing else changes there is no later apply to notice. Obsidian fires `css-change` on
+     * exactly that toggle, so that is what this listens to.
+     *
+     * Does nothing while the snippet is already on, or once the plugin holds no generated CSS —
+     * the state after the user clears the fonts — so it neither fights a deliberate shutdown nor
+     * loops with its own `setCssEnabledStatus` call.
+     */
+    _ensureSnippetEnabled(): void {
+        const customCss = this.app.customCss;
+        if (!customCss || this._snippetCss.size === 0) {
+            return;
+        }
+
+        const isSnippetEnabled = customCss.enabledSnippets
+            ? customCss.enabledSnippets.has(FONT_CSS_SNIPPET)
+            : this._snippetEnabled;
+
+        if (isSnippetEnabled) {
+            return;
+        }
+
+        this._snippetEnabled = true;
+        customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
+        this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off elsewhere; switching it back on.`);
+    }
+
     async _syncSnippet(): Promise<void> {
         const customCss = this.app.customCss;
         if (!customCss) {
@@ -3027,9 +3014,20 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         const css = Array.from(this._snippetCss.values()).join('\n');
 
+        // Read the snippet's live state rather than trusting `_snippetEnabled`.
+        //
+        // That flag only records what this plugin last did, and the snippet can be switched off
+        // behind its back — Appearance → CSS snippets is one click away, and a CSS snippet
+        // manager plugin can do the same. Trusting the flag meant the fonts stayed broken for the
+        // rest of the session: the plugin believed the snippet was on and never turned it back on.
+        // `enabledSnippets` is undocumented, so the flag remains the fallback when it is absent.
+        const isSnippetEnabled = customCss.enabledSnippets
+            ? customCss.enabledSnippets.has(FONT_CSS_SNIPPET)
+            : this._snippetEnabled;
+
         if (!css) {
             // Nothing left to carry: stop applying it, and keep the file for the next apply.
-            if (!this._snippetEnabled) {
+            if (!isSnippetEnabled) {
                 return;
             }
             this._snippetEnabled = false;
@@ -3038,8 +3036,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        await this.app.vault.adapter.write(customCss.getSnippetPath(FONT_CSS_SNIPPET), css);
-        if (!this._snippetEnabled) {
+        // A vault that never had a snippet has no `snippets` folder, and writing into a folder that
+        // is not there throws. Every fresh install hit this: the write failed, no stylesheet was
+        // ever carried, and the queued sync swallowed the error behind the log switch — so the
+        // fonts simply never applied, with nothing said.
+        const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+        await this._ensureFolder(snippetPath.split('/').slice(0, -1).join('/'));
+
+        await this.app.vault.adapter.write(snippetPath, css);
+        if (!isSnippetEnabled) {
             this._snippetEnabled = true;
             customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
             this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
@@ -3047,33 +3052,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
     }
 
-    /**
-     * Drops the generated stylesheet and the file carrying it.
-     *
-     * Called from clearCache(), where the user is asking for the generated output to go away —
-     * the snippet is the largest of those files, and leaving it behind would keep the fonts
-     * applied with no cache to regenerate them from. The applied-state maps are cleared with it
-     * so the next apply rebuilds everything instead of being skipped as a no-op.
-     */
-    async _dropGeneratedSnippet(): Promise<void> {
-        const customCss = this.app.customCss;
-        this._snippetCss.clear();
-        this._appliedCss.clear();
-
-        if (!customCss) {
-            return;
-        }
-
-        if (this._snippetEnabled) {
-            this._snippetEnabled = false;
-            customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
-        }
-
-        const path = customCss.getSnippetPath(FONT_CSS_SNIPPET);
-        if (await this.app.vault.adapter.exists(path)) {
-            await this.app.vault.adapter.remove(path);
-        }
-    }
 
     removeFontStyles() {
         this._removeGeneratedStyles('local-font-loader-faces');
@@ -3085,33 +3063,4 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this._restoreMathFontMetrics();
     }
 
-    async clearCache() {
-        try {
-            const files = await this.app.vault.adapter.list(this.settings.b64OutputDir);
-            let count = 0;
-
-            for (const file of files.files) {
-                if (file.endsWith('.css')) {
-                    await this.app.vault.adapter.remove(file);
-                    count++;
-                }
-            }
-
-            // Update font list status
-            for (const font of this.settings.availableFonts) {
-                font.hasB64 = false;
-                font.b64Path = null;
-            }
-
-            // The generated snippet is the largest cache of all and belongs to the same set.
-            await this._dropGeneratedSnippet();
-
-            await this.saveSettings();
-
-            this._log(`[Local Font Loader] Cleaned ${count} cache files`);
-
-        } catch (error) {
-            this._logError('[Local Font Loader] Clear Cache失败:', error);
-        }
-    }
 }

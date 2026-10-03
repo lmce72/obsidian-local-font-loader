@@ -266,9 +266,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                             const familyFonts = this.plugin.settings.availableFonts.filter(f =>
                                 (f.familyName || f.name) === familyName
                             );
-                            const allConverted = familyFonts.every(f => f.hasB64);
+                            const allUsable = familyFonts.every(f => this.plugin._getFontExists(f));
                             const variantCount = familyFonts.length;
-                            const label = allConverted
+                            const label = allUsable
                                 ? `${familyName} ✓ (${variantCount})`
                                 : `${familyName} (${variantCount})`;
                             dropdown.addOption(familyName, label);
@@ -281,9 +281,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                             const familyFonts = this.plugin.settings.availableFonts.filter(f =>
                                 (f.familyName || f.name) === familyName
                             );
-                            const allConverted = familyFonts.every(f => f.hasB64);
+                            const allUsable = familyFonts.every(f => this.plugin._getFontExists(f));
                             const variantCount = familyFonts.length;
-                            const label = allConverted
+                            const label = allUsable
                                 ? `${familyName} ✓ (${variantCount})`
                                 : `${familyName} (${variantCount})`;
                             dropdown.addOption(familyName, label);
@@ -407,15 +407,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         const filteredFamilies = Array.from(familiesMap.entries()).filter(([familyName, fonts]) => {
             if (filter === 'all') {
                 return true; // show all
-            } else if (filter === 'converted') {
-                // At least one variant is converted
-                return fonts.some(f => f.hasB64);
-            } else if (filter === 'cachedOnly') {
-                // Cache only (has B64 but the source file is missing)
-                return fonts.some(f => f.hasB64 && !this.plugin._getFontExists(f));
-            } else if (filter === 'notConverted') {
-                // At least one variant is not converted
-                return fonts.some(f => !f.hasB64);
+            } else if (filter === 'available') {
+                // Usable: the source file is there, so the rule renders it
+                return fonts.some(f => this.plugin._getFontExists(f));
             } else if (filter === 'notExist') {
                 // At least one variant's source file is missing
                 return fonts.some(f => !this.plugin._getFontExists(f));
@@ -425,13 +419,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
         // If there are no results after filtering, show a hint
         if (filteredFamilies.length === 0) {
-            let emptyMessage = t('noConvertedFonts') || '没有已转换的字体';
-            if (filter === 'notConverted') {
-                emptyMessage = t('noNotConvertedFonts') || '没有未转换的字体';
-            } else if (filter === 'notExist') {
+            let emptyMessage = t('noAvailableFonts') || '没有可用的字体';
+            if (filter === 'notExist') {
                 emptyMessage = t('noNotExistFonts') || '没有缺失的字体';
-            } else if (filter === 'cachedOnly') {
-                emptyMessage = t('noCachedOnlyFonts') || '没有仅缓存的字体';
             }
             containerEl.createEl('div', {
                 text: emptyMessage,
@@ -478,34 +468,15 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                 const infoEl = variantEl.createDiv({ cls: 'font-variant-info' });
 
                 // Status icon
-                // Four states, named so the stylesheet colours them — the same names the legend
-                // above the list uses, so the two can never disagree:
-                // 1. Source missing + cache exists -> check, "cached"
-                // 2. Source missing + cache missing -> question mark, "missing"
-                // 3. Source exists + converted -> check, "converted"
-                // 4. Source exists + not converted -> circle, "pending"
+                // Two states, named so the stylesheet colours them — the same names the legend
+                // above the list uses, so the two can never disagree. A font is usable exactly when
+                // its source file is there, because the rule points straight at it.
+                // 1. Source exists -> check, "available"
+                // 2. Source missing -> question mark, "missing"
 
-                let status, iconName;
-
-                if (!this.plugin._getFontExists(font)) {
-                    // Source file missing
-                    if (font.hasB64) {
-                        status = 'cached';
-                        iconName = 'check';
-                    } else {
-                        status = 'missing';
-                        iconName = 'help-circle';
-                    }
-                } else {
-                    // Source file exists
-                    if (font.hasB64) {
-                        status = 'converted';
-                        iconName = 'check';
-                    } else {
-                        status = 'pending';
-                        iconName = 'circle';
-                    }
-                }
+                const fontSourceExists = this.plugin._getFontExists(font);
+                const status = fontSourceExists ? 'available' : 'missing';
+                const iconName = fontSourceExists ? 'check' : 'help-circle';
 
                 const statusIconEl = infoEl.createSpan({
                     cls: `font-variant-status is-${status}`
@@ -530,20 +501,6 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
                 // Action buttons
                 const actionsEl = variantEl.createDiv({ cls: 'font-variant-actions' });
-
-                // Reconvert button
-                const convertBtn = actionsEl.createEl('button', {
-                    cls: 'font-icon-btn',
-                    attr: {
-                        title: t('reconvertFont'),
-                        'aria-label': t('reconvertFont')
-                    }
-                });
-                setIcon(convertBtn, 'refresh-cw');
-                this._addEventListener(convertBtn, 'click', async () => {
-                    await this.convertSingleFont(font);
-                    this.display();
-                });
 
                 // Delete button
                 const deleteBtn = actionsEl.createEl('button', {
@@ -570,53 +527,14 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         }
     }
 
-    // Convert a single font
-    async convertSingleFont(font) {
-        try {
-            this.plugin._log(`[Local Font Loader] Converting ${font.name}...`);
-
-            const arrayBuffer = await this.plugin.app.vault.adapter.readBinary(font.path);
-            const base64 = this.plugin.arrayBufferToBase64(arrayBuffer);
-
-            // Build the @font-face CSS (config-driven unicode-range determination and family-name escaping)
-            const { css: singleFontCss } =
-                this.plugin._buildFontFaceCss(font, base64, this.plugin._getDeviceFontContext());
-
-            // The cache folder is the plugin's own and may not exist yet on this device.
-            await this.plugin._ensureFolder(this.plugin.settings.b64OutputDir);
-
-            const cachePath = `${this.plugin.settings.b64OutputDir}/${font.name}.css`;
-            await this.plugin.app.vault.adapter.write(cachePath, singleFontCss);
-
-            font.hasB64 = true;
-            font.b64Path = cachePath;
-            await this.plugin.saveSettings();
-
-            this.plugin._log(`[Local Font Loader] ${font.name} Conversion complete`);
-            new Notice(`✓ ${font.name} Conversion complete`);
-        } catch (error) {
-            this.plugin._logError(`[Local Font Loader] Conversion failed: ${font.name}`, error);
-            new Notice(`⚠️ Conversion failed: ${error.message}`);
-        }
-    }
-
     // Delete a single font
     async deleteSingleFont(font) {
         try {
-            // Delete the source file (for cache-only fonts the source may be gone; ignore and keep cleaning the cache)
+            // Delete the source file
             try {
                 await this.plugin.app.vault.adapter.remove(font.path);
             } catch (err) {
                 this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
-            }
-
-            // Delete the cache
-            if (font.b64Path) {
-                try {
-                    await this.plugin.app.vault.adapter.remove(font.b64Path);
-                } catch {
-                    // A cache file that is already gone is the state being asked for
-                }
             }
 
             // Remove from the list
@@ -677,20 +595,11 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         try {
             for (const font of unusedFonts) {
                 try {
-                    // Delete the original font file (for cache-only fonts the source may be gone; ignore and keep cleaning the cache)
+                    // Delete the original font file
                     try {
                         await this.app.vault.adapter.remove(font.path);
                     } catch (err) {
                         this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
-                    }
-
-                    // Delete the cache file
-                    if (font.hasB64 && font.b64Path) {
-                        try {
-                            await this.app.vault.adapter.remove(font.b64Path);
-                        } catch {
-                            // A cache file that is already gone is the state being asked for
-                        }
                     }
 
                     // Remove from the list

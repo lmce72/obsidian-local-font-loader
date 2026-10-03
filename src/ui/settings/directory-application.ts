@@ -42,15 +42,6 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             })
         );
 
-        const cacheDirSetting = new Setting(containerEl)
-            .setName(t('cacheDir'))
-            .setDesc(t('cacheDirDesc'));
-
-        addFolderPathInput(cacheDirSetting, tab.app, tab.plugin.settings.b64OutputDir, async (value) => {
-            tab.plugin.settings.b64OutputDir = value;
-            await tab.plugin.saveSettings();
-        }, 'Local-Fonts/UsableCssFont');
-
         // Startup settings
         new Setting(containerEl)
             .setName(t('autoLoad'))
@@ -223,10 +214,10 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                             (f.familyName || f.name) === familyName
                         );
 
-                        const allConverted = familyFonts.every(f => f.hasB64);
+                        const allUsable = familyFonts.every(f => tab.plugin._getFontExists(f));
 
-                        // Show only the font name, adding a checkmark for converted fonts
-                        const label = allConverted ? `${familyName} ✓` : familyName;
+                        // Show only the font name, adding a checkmark for fonts that render
+                        const label = allUsable ? `${familyName} ✓` : familyName;
 
                         dropdown.addOption(familyName, label);
                     });

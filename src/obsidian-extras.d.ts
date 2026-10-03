@@ -50,6 +50,26 @@ declare module 'obsidian' {
 declare global {
     interface Window {
         /**
+         * Capacitor's runtime, injected by Obsidian's mobile shell.
+         *
+         * Present on desktop as well, but there it registers no native plugins — the Device bridge
+         * below exists only on mobile, which is exactly the split the plugin's identity code is
+         * built on. Only the one member the plugin reads is declared, so the surface stays small.
+         */
+        Capacitor?: {
+            Plugins?: {
+                Device?: {
+                    /**
+                     * Android: `ANDROID_ID`, a 64-bit hex string scoped to the signing key, the
+                     * user and the device. iOS: `identifierForVendor`. Both outlive an app data
+                     * reset, unlike anything the plugin can store for itself.
+                     */
+                    getId(): Promise<{ identifier: string }>;
+                };
+            };
+        };
+
+        /**
          * MathJax's runtime, present only once Obsidian has typeset something on this platform.
          *
          * Left loosely typed on purpose: only the small surface the plugin actually touches is

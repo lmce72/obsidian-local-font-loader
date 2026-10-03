@@ -18,8 +18,6 @@ export const TRANSLATIONS = {
         // Directory Configuration
         fontSourceDir: 'Font Source Directory',
         fontSourceDirDesc: 'Directory containing font family folders',
-        cacheDir: 'Base64 Cache Directory',
-        cacheDirDesc: 'Directory for converted CSS files',
         browseFolder: 'Browse',
         browseFolderDesc: 'Pick a folder from the vault',
         selectFolder: 'Select a folder',
@@ -66,32 +64,21 @@ export const TRANSLATIONS = {
         scopeFull: 'Full Latin + Symbols (includes punctuation and special symbols)',
 
         // Font Legend
-        legendConverted: 'Converted',
-        legendNotConverted: 'Not Converted',
-        legendCachedOnly: 'Cached Only',
+        legendConverted: 'Available',
         legendNotExist: 'Not Exist',
         filterAll: 'All',
-        noConvertedFonts: 'No converted fonts found',
-        noNotConvertedFonts: 'No unconverted fonts found',
         noNotExistFonts: 'No missing fonts found',
-        noCachedOnlyFonts: 'No cached-only fonts found',
 
         // Font Actions
         scanFonts: 'Scan Fonts',
-        convertToBase64: 'Convert to Base64',
         deleteFont: 'Delete Font',
-        convertAll: 'Convert All',
 
         // Fallback Operations
         deleteUnusedFonts: 'Delete Unused Fonts',
         rescanFonts: 'Rescan Fonts',
         fontsRescanned: 'Fonts Rescanned',
-        converting: 'Converting...',
-        allFontsConverted: 'All Fonts Converted',
         fontFileStatus: 'Font File Status',
         deleteUnusedFontsDesc: 'Delete unused font files (configured fonts will not be deleted)',
-        clearCache: 'Clear Cache',
-        clearCacheDesc: 'Clear all converted font cache files',
         applyNow: 'Apply Now',
         applyNowDesc: 'Apply current font configuration',
         applyFonts: 'Apply fonts',
@@ -132,16 +119,13 @@ export const TRANSLATIONS = {
         variantsSuffix: 'variants',
         variantsWithCheckmark: '{familyName} ✓ ({variantCount} variants)',
         variantsWithoutCheckmark: '{familyName} ({variantCount} variants)',
-        converted: 'Converted',
         notFoundFontFamily: 'Font family not found. Please verify font folder structure.',
         importFont: 'Import Font',
-        convertAllFonts: 'Convert All Fonts (Make Usable)',
         recommendedLatinFontsLabel: '--- Recommended Latin Fonts ---',
         otherFontsLabel: '--- Other Fonts ---',
         expandCollapse: 'Expand/Collapse',
         expandAll: 'Expand All',
         collapseAll: 'Collapse All',
-        reconvertFont: 'Reconvert this font',
         deleteThisFont: 'Delete this font',
         confirmDeleteFont: 'Are you sure you want to delete font "{fontName}"?',
         deletedFont: '✓ Deleted {fontName}',
@@ -162,11 +146,7 @@ export const TRANSLATIONS = {
 
         // Notices
         fontsApplied: '✓ Fonts applied',
-        fontConverted: '✓ Font converted',
         conversionFailed: '⚠️ Font conversion failed',
-        allConverted: '✓ All fonts converted',
-        cacheCleared: '✓ Cleaned {count} cache files',
-        cacheClearFailed: '⚠️ Failed to clear cache',
         fontDeleted: '✓ Font deleted',
         deleteFailed: '⚠️ Failed to delete font',
         unusedDeleted: '✓ Deleted {count} unused fonts',
@@ -198,6 +178,9 @@ export const TRANSLATIONS = {
         presetNameExists: 'Preset name already exists',
         presetCreated: 'Preset created',
         headerDeviceManagement: 'Device Management (Drag & Drop)',
+        deviceLimitTitle: 'Known limitation',
+        deviceLimitBodyAndroid: 'On Android, a factory reset leaves the same device duplicated in this list.',
+        deviceLimitBodyIos: 'On iOS, uninstalling and reinstalling Obsidian leaves the same device duplicated in this list.',
         devicePresetManagement: 'Device Preset Assignment',
         currentDevicePreset: 'Current Device Preset',
         currentDevicePresetDesc: 'Select which preset this device should use',
@@ -256,8 +239,6 @@ export const TRANSLATIONS = {
         // Directory Configuration
         fontSourceDir: '字体源目录',
         fontSourceDirDesc: '包含字体家族文件夹的目录',
-        cacheDir: 'Base64 缓存目录',
-        cacheDirDesc: '转换后的 CSS 文件存储位置',
         browseFolder: '浏览',
         browseFolderDesc: '从库中选择一个文件夹',
         selectFolder: '选择文件夹',
@@ -304,32 +285,21 @@ export const TRANSLATIONS = {
         scopeFull: '完整拉丁字符 + 符号（包含标点和特殊符号）',
 
         // Font Legend
-        legendConverted: '已转换',
-        legendNotConverted: '未转换',
-        legendCachedOnly: '仅缓存',
+        legendConverted: '可用',
         legendNotExist: '不存在',
         filterAll: '全部',
-        noConvertedFonts: '没有已转换的字体',
-        noNotConvertedFonts: '没有未转换的字体',
         noNotExistFonts: '没有缺失的字体',
-        noCachedOnlyFonts: '没有仅缓存的字体',
 
         // Font Operations
         scanFonts: '扫描字体',
-        convertToBase64: '转换为 Base64',
         deleteFont: '删除字体',
-        convertAll: '全部转换',
 
         // Fallback Operations
         deleteUnusedFonts: '删除未使用的字体',
         rescanFonts: '重新扫描',
         fontsRescanned: '字体已重新扫描',
-        converting: '转换中...',
-        allFontsConverted: '所有字体已转换',
         fontFileStatus: '字体文件状态',
         deleteUnusedFontsDesc: '删除未使用的字体文件（已配置的字体不会被删除）',
-        clearCache: '清除缓存',
-        clearCacheDesc: '清除所有转换的字体缓存文件',
         applyNow: '立即应用',
         applyNowDesc: '应用当前字体配置',
         applyFonts: '应用字体',
@@ -370,16 +340,13 @@ export const TRANSLATIONS = {
         variantsSuffix: '变体',
         variantsWithCheckmark: '{familyName} ✓ ({variantCount} 个变体)',
         variantsWithoutCheckmark: '{familyName} ({variantCount} 个变体)',
-        converted: '已转换',
         notFoundFontFamily: '未找到字体家族，请确认字体文件夹结构正确',
         importFont: '导入字体',
-        convertAllFonts: '转换所有字体（使其可用）',
         recommendedLatinFontsLabel: '--- 推荐的拉丁字体 ---',
         otherFontsLabel: '--- 其他字体 ---',
         expandCollapse: '展开/收起',
         expandAll: '全部展开',
         collapseAll: '全部折叠',
-        reconvertFont: '重新转换此字体',
         deleteThisFont: '删除此字体',
         confirmDeleteFont: '确定要删除字体 "{fontName}" 吗？',
         deletedFont: '✓ 已删除 {fontName}',
@@ -400,11 +367,7 @@ export const TRANSLATIONS = {
 
         // Notices
         fontsApplied: '✓ 字体已应用',
-        fontConverted: '✓ 字体已转换',
         conversionFailed: '⚠️ 字体转换失败',
-        allConverted: '✓ 所有字体已转换',
-        cacheCleared: '✓ 已清除 {count} 个缓存文件',
-        cacheClearFailed: '⚠️ 清除缓存失败',
         fontDeleted: '✓ 字体已删除',
         deleteFailed: '⚠️ 删除字体失败',
         unusedDeleted: '✓ 已删除 {count} 个未使用的字体',
@@ -437,6 +400,9 @@ export const TRANSLATIONS = {
         presetNameExists: '预设名称已存在',
         presetCreated: '预设已创建',
         headerDeviceManagement: '设备管理（拖拽分配）',
+        deviceLimitTitle: '已知局限',
+        deviceLimitBodyAndroid: '安卓端恢复出厂设置后，会出现同一台设备在此列表中重复的问题。',
+        deviceLimitBodyIos: 'iOS 端卸载并重装 Obsidian 后，会出现同一台设备在此列表中重复的问题。',
         devicePresetManagement: '设备所属预设管理',
         currentDevicePreset: '当前设备所属预设',
         currentDevicePresetDesc: '选择当前设备要使用的预设',
@@ -503,8 +469,6 @@ export const TRANSLATIONS = {
         // Directory Settings
         fontSourceDir: 'フォントソースディレクトリ',
         fontSourceDirDesc: 'フォントファミリーフォルダを含むディレクトリ',
-        cacheDir: 'Base64 キャッシュディレクトリ',
-        cacheDirDesc: '変換された CSS ファイルの保存場所',
 
         // General Settings
         autoLoad: '起動時に自動読み込み',
@@ -548,31 +512,21 @@ export const TRANSLATIONS = {
         scopeFull: '完全ラテン文字 + 記号（句読点と特殊記号を含む）',
 
         // Font Legend
-        legendConverted: '変換済み',
-        legendNotConverted: '未変換',
-        legendCachedOnly: 'キャッシュのみ',
+        legendConverted: '使用可能',
         legendNotExist: '存在しない',
         filterAll: 'すべて',
-        noConvertedFonts: '変換済みのフォントがありません',
-        noNotConvertedFonts: '未変換のフォントがありません',
         noNotExistFonts: '欠落しているフォントがありません',
 
         // Font Operations
         scanFonts: 'フォントをスキャン',
-        convertToBase64: 'Base64 に変換',
         deleteFont: 'フォントを削除',
-        convertAll: 'すべて変換',
 
         // Fallback Operations
         deleteUnusedFonts: '未使用フォントを削除',
         rescanFonts: 'フォントを再スキャン',
         fontsRescanned: 'フォントを再スキャンしました',
-        converting: '変換中...',
-        allFontsConverted: 'すべてのフォントが変換されました',
         fontFileStatus: 'フォントファイルステータス',
         deleteUnusedFontsDesc: '未使用のフォントファイルを削除（設定済みフォントは削除されません）',
-        clearCache: 'キャッシュをクリア',
-        clearCacheDesc: '変換されたすべてのフォントキャッシュファイルをクリア',
         applyNow: '今すぐ適用',
         applyNowDesc: '現在のフォント設定を適用',
         applyFonts: 'フォントを適用',
@@ -588,11 +542,7 @@ export const TRANSLATIONS = {
 
         // Notices
         fontsApplied: '✓ フォントが適用されました',
-        fontConverted: '✓ フォントが変換されました',
         conversionFailed: '⚠️ フォント変換に失敗しました',
-        allConverted: '✓ すべてのフォントが変換されました',
-        cacheCleared: '✓ {count} 個のキャッシュファイルをクリアしました',
-        cacheClearFailed: '⚠️ キャッシュのクリアに失敗しました',
         fontDeleted: '✓ フォントが削除されました',
         deleteFailed: '⚠️ フォントの削除に失敗しました',
         unusedDeleted: '✓ {count} 個の未使用フォントを削除しました',
@@ -639,8 +589,6 @@ export const TRANSLATIONS = {
         // Directory Settings
         fontSourceDir: '폰트 소스 디렉토리',
         fontSourceDirDesc: '폰트 패밀리 폴더가 포함된 디렉토리',
-        cacheDir: 'Base64 캐시 디렉토리',
-        cacheDirDesc: '변환된 CSS 파일 저장 위치',
 
         // General Settings
         autoLoad: '시작 시 자동 로드',
@@ -684,31 +632,21 @@ export const TRANSLATIONS = {
         scopeFull: '전체 라틴 문자 + 기호（구두점 및 특수 기호 포함）',
 
         // Font Legend
-        legendConverted: '변환됨',
-        legendNotConverted: '변환되지 않음',
-        legendCachedOnly: '캐시만',
+        legendConverted: '사용 가능',
         legendNotExist: '존재하지 않음',
         filterAll: '전체',
-        noConvertedFonts: '변환된 폰트가 없습니다',
-        noNotConvertedFonts: '변환되지 않은 폰트가 없습니다',
         noNotExistFonts: '누락된 폰트가 없습니다',
 
         // Font Operations
         scanFonts: '폰트 스캔',
-        convertToBase64: 'Base64로 변환',
         deleteFont: '폰트 삭제',
-        convertAll: '모두 변환',
 
         // Fallback Operations
         deleteUnusedFonts: '사용하지 않는 폰트 삭제',
         rescanFonts: '폰트 재스캔',
         fontsRescanned: '폰트 재스캔 완료',
-        converting: '변환 중...',
-        allFontsConverted: '모든 폰트 변환 완료',
         fontFileStatus: '폰트 파일 상태',
         deleteUnusedFontsDesc: '사용하지 않는 폰트 파일 삭제（설정된 폰트는 삭제되지 않음）',
-        clearCache: '캐시 지우기',
-        clearCacheDesc: '변환된 모든 폰트 캐시 파일 지우기',
         applyNow: '지금 적용',
         applyNowDesc: '현재 폰트 설정 적용',
         applyFonts: '폰트 적용',
@@ -724,11 +662,7 @@ export const TRANSLATIONS = {
 
         // Notices
         fontsApplied: '✓ 폰트가 적용되었습니다',
-        fontConverted: '✓ 폰트가 변환되었습니다',
         conversionFailed: '⚠️ 폰트 변환 실패',
-        allConverted: '✓ 모든 폰트가 변환되었습니다',
-        cacheCleared: '✓ {count}개의 캐시 파일을 지웠습니다',
-        cacheClearFailed: '⚠️ 캐시 지우기 실패',
         fontDeleted: '✓ 폰트가 삭제되었습니다',
         deleteFailed: '⚠️ 폰트 삭제 실패',
         unusedDeleted: '✓ {count}개의 사용하지 않는 폰트를 삭제했습니다',
@@ -775,8 +709,6 @@ export const TRANSLATIONS = {
         // Directory Settings
         fontSourceDir: 'Directorio de Origen de Fuentes',
         fontSourceDirDesc: 'Directorio que contiene carpetas de familias de fuentes',
-        cacheDir: 'Directorio de Caché Base64',
-        cacheDirDesc: 'Donde se almacenan los archivos CSS convertidos',
 
         // General Settings
         autoLoad: 'Cargar automáticamente al iniciar',
@@ -814,31 +746,21 @@ export const TRANSLATIONS = {
         scopeFull: 'Latín completo + símbolos (incluye puntuación y símbolos especiales)',
 
         // Leyenda de fuentes
-        legendConverted: 'Convertido',
-        legendNotConverted: 'No Convertido',
-        legendCachedOnly: 'Solo Caché',
+        legendConverted: 'Disponible',
         legendNotExist: 'No Existe',
         filterAll: 'Todos',
-        noConvertedFonts: 'No se encontraron fuentes convertidas',
-        noNotConvertedFonts: 'No se encontraron fuentes sin convertir',
         noNotExistFonts: 'No se encontraron fuentes faltantes',
 
         // Acciones de fuentes
         scanFonts: 'Escanear Fuentes',
-        convertToBase64: 'Convertir a Base64',
         deleteFont: 'Eliminar Fuente',
-        convertAll: 'Convertir Todo',
 
         // Operaciones de respaldo
         deleteUnusedFonts: 'Eliminar Fuentes No Usadas',
         rescanFonts: 'Reescanear Fuentes',
         fontsRescanned: 'Fuentes Reescaneadas',
-        converting: 'Convirtiendo...',
-        allFontsConverted: 'Todas las Fuentes Convertidas',
         fontFileStatus: 'Estado de Archivos de Fuentes',
         deleteUnusedFontsDesc: 'Eliminar archivos de fuentes no usadas (las fuentes configuradas no se eliminarán)',
-        clearCache: 'Limpiar Caché',
-        clearCacheDesc: 'Limpiar todos los archivos de caché de fuentes convertidas',
         applyNow: 'Aplicar Ahora',
         applyNowDesc: 'Aplicar la configuración de fuentes actual',
         applyFonts: 'Aplicar Fuentes',
@@ -854,11 +776,7 @@ export const TRANSLATIONS = {
 
         // Notificaciones
         fontsApplied: '✓ Fuentes aplicadas',
-        fontConverted: '✓ Fuente convertida',
         conversionFailed: '⚠️ Conversión de fuente fallida',
-        allConverted: '✓ Todas las fuentes convertidas',
-        cacheCleared: '✓ Se limpiaron {count} archivos de caché',
-        cacheClearFailed: '⚠️ Error al limpiar caché',
         fontDeleted: '✓ Fuente eliminada',
         deleteFailed: '⚠️ Error al eliminar fuente',
         unusedDeleted: '✓ Se eliminaron {count} fuentes no usadas',
@@ -898,8 +816,6 @@ export const TRANSLATIONS = {
         // Directory Configuration
         fontSourceDir: '字型來源目錄',
         fontSourceDirDesc: '包含字型家族資料夾的目錄',
-        cacheDir: 'Base64 快取目錄',
-        cacheDirDesc: '轉換後的 CSS 檔案儲存位置',
 
         // General Settings
         autoLoad: '啟動時自動載入',
@@ -943,32 +859,21 @@ export const TRANSLATIONS = {
         scopeFull: '完整拉丁字元 + 符號（包含標點和特殊符號）',
 
         // Font Legend
-        legendConverted: '已轉換',
-        legendNotConverted: '未轉換',
-        legendCachedOnly: '僅快取',
+        legendConverted: '可用',
         legendNotExist: '不存在',
         filterAll: '全部',
-        noConvertedFonts: '沒有已轉換的字型',
-        noNotConvertedFonts: '沒有未轉換的字型',
         noNotExistFonts: '沒有缺失的字型',
-        noCachedOnlyFonts: '沒有僅快取的字型',
 
         // Font Operations
         scanFonts: '掃描字型',
-        convertToBase64: '轉換為 Base64',
         deleteFont: '刪除字型',
-        convertAll: '全部轉換',
 
         // Fallback Operations
         deleteUnusedFonts: '刪除未使用的字型',
         rescanFonts: '重新掃描',
         fontsRescanned: '字型已重新掃描',
-        converting: '轉換中...',
-        allFontsConverted: '所有字型已轉換',
         fontFileStatus: '字型檔案狀態',
         deleteUnusedFontsDesc: '刪除未使用的字型檔案（已設定的字型不會被刪除）',
-        clearCache: '清除快取',
-        clearCacheDesc: '清除所有轉換的字型快取檔案',
         applyNow: '立即套用',
         applyNowDesc: '套用目前字型設定',
         applyFonts: '套用字型',
@@ -1009,16 +914,13 @@ export const TRANSLATIONS = {
         variantsSuffix: '變體',
         variantsWithCheckmark: '{familyName} ✓ ({variantCount} 個變體)',
         variantsWithoutCheckmark: '{familyName} ({variantCount} 個變體)',
-        converted: '已轉換',
         notFoundFontFamily: '未找到字型家族，請確認字型資料夾結構正確',
         importFont: '匯入字型',
-        convertAllFonts: '轉換所有字型（使其可用）',
         recommendedLatinFontsLabel: '--- 推薦的拉丁字型 ---',
         otherFontsLabel: '--- 其他字型 ---',
         expandCollapse: '展開/收合',
         expandAll: '全部展開',
         collapseAll: '全部收合',
-        reconvertFont: '重新轉換此字型',
         deleteThisFont: '刪除此字型',
         confirmDeleteFont: '確定要刪除字型 "{fontName}" 嗎？',
         deletedFont: '✓ 已刪除 {fontName}',
@@ -1039,11 +941,7 @@ export const TRANSLATIONS = {
 
         // Notices
         fontsApplied: '✓ 字型已套用',
-        fontConverted: '✓ 字型已轉換',
         conversionFailed: '⚠️ 字型轉換失敗',
-        allConverted: '✓ 所有字型已轉換',
-        cacheCleared: '✓ 已清除 {count} 個快取檔案',
-        cacheClearFailed: '⚠️ 清除快取失敗',
         fontDeleted: '✓ 字型已刪除',
         deleteFailed: '⚠️ 刪除字型失敗',
         unusedDeleted: '✓ 已刪除 {count} 個未使用的字型',
@@ -1075,6 +973,9 @@ export const TRANSLATIONS = {
         presetNameExists: '預設名稱已存在',
         presetCreated: '預設已建立',
         headerDeviceManagement: '裝置管理（拖曳分配）',
+        deviceLimitTitle: '已知限制',
+        deviceLimitBodyAndroid: '安卓端恢復原廠設定後，會出現同一台裝置在此列表中重複的問題。',
+        deviceLimitBodyIos: 'iOS 端卸載並重新安裝 Obsidian 後，會出現同一台裝置在此列表中重複的問題。',
         devicePresetManagement: '裝置所屬預設管理',
         currentDevicePreset: '目前裝置所屬預設',
         currentDevicePresetDesc: '選擇目前裝置要使用的預設',

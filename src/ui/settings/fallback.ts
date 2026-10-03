@@ -49,19 +49,6 @@ export function renderFallbackSection(tab: FontManagerSettingTab, containerEl: H
                 })
             );
 
-        // Clear Cache
-        new Setting(containerEl)
-            .setName(t('clearCache'))
-            .setDesc(t('clearCacheDesc'))
-            .addButton(btn => btn
-                .setButtonText(t('clearCache'))
-                .setWarning()
-                .onClick(async () => {
-                    await tab.plugin.clearCache();
-                    tab.display();
-                })
-            );
-
         // Apply Now
         new Setting(containerEl)
             .setName(t('applyNow'))

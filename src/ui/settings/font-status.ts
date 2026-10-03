@@ -26,7 +26,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
 
         // Filter state (stored on this to persist across re-renders)
         if (!tab._fontFilter) {
-            tab._fontFilter = 'all'; // 'all' | 'converted' | 'notConverted' | 'notExist'
+            tab._fontFilter = 'all'; // 'all' | 'available' | 'notExist'
         }
 
         // Button group container (filter + expand/collapse)
@@ -38,9 +38,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         // Filter button config
         const filterButtons = [
             { filter: 'all', icon: 'list', label: t('filterAll') || '全部' },
-            { filter: 'converted', icon: 'check', label: t('legendConverted') },
-            { filter: 'cachedOnly', icon: 'database', label: t('legendCachedOnly') },
-            { filter: 'notConverted', icon: 'circle', label: t('legendNotConverted') },
+            { filter: 'available', icon: 'check', label: t('legendConverted') },
             { filter: 'notExist', icon: 'help-circle', label: t('legendNotExist') }
         ];
 
@@ -115,9 +113,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
         // The state names double as the modifier on the icon class, so a legend entry and the
         // variant row it describes can never drift apart in colour.
         const legends = [
-            { icon: 'check', state: 'converted', text: t('legendConverted') },
-            { icon: 'circle', state: 'pending', text: t('legendNotConverted') },
-            { icon: 'check', state: 'cached', text: t('legendCachedOnly') },
+            { icon: 'check', state: 'available', text: t('legendConverted') },
             { icon: 'help-circle', state: 'missing', text: t('legendNotExist') }
         ];
 
@@ -221,19 +217,4 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
             modal.open();
         });
 
-        // Convert all fonts
-        const convertBtn = fontOperationsEl.createEl('button', {
-            text: t('convertAllFonts')
-        });
-        tab._addEventListener(convertBtn, 'click', async () => {
-            convertBtn.disabled = true;
-            convertBtn.textContent = t('converting') || '转换中...';
-            await tab.plugin.convertAllFonts();
-            new Notice(t('allFontsConverted') || '✓ 所有字体已转换');
-
-            // Re-render so newly converted families show their ✓ and become selectable.
-            // This rebuilds the button too, so its label and disabled state no longer need
-            // restoring by hand here.
-            tab.display();
-        });
 }

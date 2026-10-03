@@ -13,7 +13,7 @@ export type FontVariantType = 'regular' | 'italic' | 'bold' | 'bolditalic';
 /** A font category the user can assign a family to. */
 export type FontCategoryKey = 'ui' | 'text' | 'heading' | 'monospace' | 'math';
 
-/** A font file found by a scan, and its cached Base64 counterpart. */
+/** A font file found by a scan. */
 export interface FontInfo {
     /** File name without extension — the deduplication key. */
     name: string;

@@ -42,7 +42,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** Preset currently being edited. */
     _activePresetId = 'default-preset';
 
-    /** Font-list filter: all | converted | notConverted | notExist | cachedOnly. */
+    /** Font-list filter: all | available | notExist. */
     _fontFilter = 'all';
 
     /** The preset-name input, while it is on screen. */

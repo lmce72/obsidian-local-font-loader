@@ -1,24 +1,24 @@
 {
-  "name": "obsidian-local-font-loader",
-  "version": "1.5.9",
-  "private": true,
-  "description": "Load local fonts (TTF/OTF/WOFF/WOFF2) with Base64 caching. Manage UI, text, code and math fonts separately, with cross-device presets.",
-  "author": "CoreVortex",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/lmce72/obsidian-local-font-loader.git"
-  },
-  "scripts": {
-    "build": "bun build src/main.ts --outfile=main.js --target=node --format=cjs --external obsidian",
-    "dev": "bun build src/main.ts --outfile=main.js --target=node --format=cjs --external obsidian --watch",
-    "typecheck": "tsc --noEmit",
-    "sync-version": "bun run scripts/sync-version.mjs",
-    "publish-release": "bun run scripts/publish-release.mjs"
-  },
-  "devDependencies": {
-    "@types/node": "24.12.2",
-    "obsidian": "1.13.1",
-    "typescript": "7.0.2"
-  }
+	"name": "obsidian-local-font-loader",
+	"version": "1.6.0",
+	"private": true,
+	"description": "Load local fonts (TTF/OTF/WOFF/WOFF2) straight from your vault. Manage UI, text, code, and math fonts separately. Support cross-device font presets.",
+	"author": "CoreVortex",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lmce72/obsidian-local-font-loader.git"
+	},
+	"scripts": {
+		"build": "bun build src/main.ts --outfile=main.js --target=node --format=cjs --external obsidian",
+		"dev": "bun build src/main.ts --outfile=main.js --target=node --format=cjs --external obsidian --watch",
+		"typecheck": "tsc --noEmit",
+		"sync-version": "bun run scripts/sync-version.mjs",
+		"publish-release": "bun run scripts/publish-release.mjs"
+	},
+	"devDependencies": {
+		"@types/node": "24.12.2",
+		"obsidian": "1.13.1",
+		"typescript": "7.0.2"
+	}
 }

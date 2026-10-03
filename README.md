@@ -14,10 +14,10 @@
 
 - **📁 Local Font Management**: Load TTF, OTF, WOFF, and WOFF2 fonts from your vault
 - **🎨 Font Categories**: Separate control for UI, body text, code blocks, and LaTeX math
-- **⚡ Base64 Caching**: Optimized font loading with automatic Base64 conversion and caching
+- **⚡ Direct Loading**: The generated CSS points straight at your font files — nothing is embedded, nothing is duplicated, and the browser fetches only the weights a note actually renders
 - **🌍 Latin Font Separation**: Use different fonts for Latin and CJK characters with fine-grained unicode-range control
 - **🔄 Font Family Support**: Automatically detects and groups Regular, Italic, Bold, and Bold Italic variants
-- **⚙️ Full-Featured Settings**: Intuitive UI for font scanning, conversion, and application
+- **⚙️ Full-Featured Settings**: Intuitive UI for scanning, previewing and applying fonts
 - **🚀 Auto-load on Startup**: Optionally apply your font configuration when Obsidian launches
 
 ### Installation
@@ -55,9 +55,7 @@
    - Set your font source directory
    - Click "Rescan" to detect all fonts
 
-3. **Convert Fonts**: Click "Convert All Fonts to Base64" to generate cached CSS
-
-4. **Apply Fonts**: 
+3. **Apply Fonts**: 
    - Select fonts for each category (UI, Text, Code, Math)
    - Click "Apply Fonts"
    - Your fonts are now active!
@@ -74,7 +72,6 @@
 | Setting | Description |
 |---------|-------------|
 | **Font Source Directory** | Path to your font families folder |
-| **Base64 Cache Directory** | Where converted CSS files are stored |
 | **Auto-load on Startup** | Automatically apply fonts when Obsidian starts |
 | **Latin Font Separation** | Use separate fonts for Latin vs CJK characters |
 | **Latin Font Scope** | Fine-tune which character ranges use the Latin font |
@@ -146,10 +143,10 @@ release with the changelog section as its body.
 
 - **📁 本地字体管理**: 从仓库加载 TTF、OTF、WOFF 和 WOFF2 字体
 - **🎨 字体分类**: 分别控制界面、正文、代码块和 LaTeX 数学公式字体
-- **⚡ Base64 缓存**: 自动转换和缓存字体以优化加载速度
+- **⚡ 直接加载**: 生成的 CSS 直接指向字体文件，不内嵌、不复制，浏览器只拉取笔记真正用到的字重
 - **🌍 拉丁字体分离**: 为拉丁字符和 CJK 字符使用不同字体，支持精细的 unicode-range 控制
 - **🔄 字体家族支持**: 自动检测并分组 Regular、Italic、Bold 和 Bold Italic 变体
-- **⚙️ 完整设置界面**: 直观的字体扫描、转换和应用 UI
+- **⚙️ 完整设置界面**: 直观的字体扫描与应用界面
 - **🚀 启动时自动加载**: 可选在 Obsidian 启动时自动应用字体配置
 
 ### 安装
@@ -187,9 +184,7 @@ release with the changelog section as its body.
    - 设置字体源目录
    - 点击"重新扫描"检测所有字体
 
-3. **转换字体**: 点击"转换所有字体为 Base64"生成缓存 CSS
-
-4. **应用字体**: 
+3. **应用字体**: 
    - 为每个类别选择字体（界面、正文、代码、数学）
    - 点击"应用字体"
    - 字体现已生效！
@@ -206,7 +201,6 @@ release with the changelog section as its body.
 | 设置项 | 说明 |
 |--------|------|
 | **字体源目录** | 字体家族文件夹的路径 |
-| **Base64 缓存目录** | 转换后 CSS 文件的存储位置 |
 | **启动时自动加载** | Obsidian 启动时自动应用字体 |
 | **拉丁字体分离** | 为拉丁字符和 CJK 字符使用不同字体 |
 | **拉丁字体作用范围** | 精细调整哪些字符范围使用拉丁字体 |
@@ -244,10 +238,10 @@ release with the changelog section as its body.
 
 - **📁 本機字型管理**: 從儲存庫載入 TTF、OTF、WOFF 和 WOFF2 字型
 - **🎨 字型分類**: 分別控制介面、正文、程式碼區塊和 LaTeX 數學公式字型
-- **⚡ Base64 快取**: 自動轉換和快取字型以最佳化載入速度
+- **⚡ 直接載入**: 產生的 CSS 直接指向字型檔案，不內嵌、不複製，瀏覽器只載入筆記真正用到的字重
 - **🌍 拉丁字型分離**: 為拉丁字元和 CJK 字元使用不同字型，支援精細的 unicode-range 控制
 - **🔄 字型家族支援**: 自動偵測並分組 Regular、Italic、Bold 和 Bold Italic 變體
-- **⚙️ 完整設定介面**: 直覺的字型掃描、轉換和套用 UI
+- **⚙️ 完整設定介面**: 直覺的字型掃描與套用介面
 - **🚀 啟動時自動載入**: 可選擇在 Obsidian 啟動時自動套用字型設定
 
 ### 安裝
@@ -285,9 +279,7 @@ release with the changelog section as its body.
    - 設定字型來源目錄
    - 點擊「重新掃描」偵測所有字型
 
-3. **轉換字型**: 點擊「將所有字型轉換為 Base64」產生快取 CSS
-
-4. **套用字型**: 
+3. **套用字型**: 
    - 為每個類別選擇字型（介面、正文、程式碼、數學）
    - 點擊「套用字型」
    - 字型已生效！
@@ -304,7 +296,6 @@ release with the changelog section as its body.
 | 設定項目 | 說明 |
 |---------|------|
 | **字型來源目錄** | 字型家族資料夾的路徑 |
-| **Base64 快取目錄** | 轉換後 CSS 檔案的儲存位置 |
 | **啟動時自動載入** | Obsidian 啟動時自動套用字型 |
 | **拉丁字型分離** | 為拉丁字元和 CJK 字元使用不同字型 |
 | **拉丁字型作用範圍** | 精細調整哪些字元範圍使用拉丁字型 |
@@ -342,10 +333,10 @@ release with the changelog section as its body.
 
 - **📁 ローカルフォント管理**: Vault から TTF、OTF、WOFF、WOFF2 フォントを読み込み
 - **🎨 フォントカテゴリ**: UI、本文、コードブロック、LaTeX 数式を個別に制御
-- **⚡ Base64 キャッシング**: 自動 Base64 変換とキャッシングによる最適化
+- **⚡ 直接読み込み**: 生成される CSS はフォントファイルを直接参照します。埋め込みも複製もなく、実際に使うウェイトだけが読み込まれます
 - **🌍 ラテン文字フォント分離**: ラテン文字と CJK 文字に異なるフォントを使用、詳細な unicode-range 制御
 - **🔄 フォントファミリーサポート**: Regular、Italic、Bold、Bold Italic バリアントを自動検出・グループ化
-- **⚙️ フル機能設定**: 直感的なフォントスキャン、変換、適用 UI
+- **⚙️ フル機能設定**: 直感的なフォントスキャンと適用 UI
 - **🚀 起動時自動読み込み**: Obsidian 起動時にフォント設定を自動適用（オプション）
 
 ### インストール
@@ -383,9 +374,7 @@ release with the changelog section as its body.
    - フォントソースディレクトリを設定
    - 「再スキャン」をクリックしてすべてのフォントを検出
 
-3. **フォントを変換**: 「すべてのフォントを Base64 に変換」をクリックしてキャッシュ CSS を生成
-
-4. **フォントを適用**: 
+3. **フォントを適用**: 
    - 各カテゴリ（UI、テキスト、コード、数式）にフォントを選択
    - 「フォントを適用」をクリック
    - フォントが有効になりました！
@@ -402,7 +391,6 @@ release with the changelog section as its body.
 | 設定項目 | 説明 |
 |---------|------|
 | **フォントソースディレクトリ** | フォントファミリーフォルダのパス |
-| **Base64 キャッシュディレクトリ** | 変換された CSS ファイルの保存場所 |
 | **起動時に自動読み込み** | Obsidian 起動時にフォントを自動適用 |
 | **ラテン文字フォント分離** | ラテン文字と CJK 文字に異なるフォントを使用 |
 | **ラテン文字フォントスコープ** | どの文字範囲にラテン文字フォントを使用するかを微調整 |
@@ -440,10 +428,10 @@ release with the changelog section as its body.
 
 - **📁 로컬 폰트 관리**: 보관함에서 TTF, OTF, WOFF, WOFF2 폰트 로드
 - **🎨 폰트 카테고리**: UI, 본문 텍스트, 코드 블록, LaTeX 수식을 개별 제어
-- **⚡ Base64 캐싱**: 자동 Base64 변환 및 캐싱으로 최적화된 폰트 로딩
+- **⚡ 직접 로드**: 생성된 CSS가 폰트 파일을 직접 가리킵니다. 내장도 복제도 없고, 실제로 쓰이는 굵기만 불러옵니다
 - **🌍 라틴 폰트 분리**: 라틴 문자와 CJK 문자에 다른 폰트 사용, 세밀한 unicode-range 제어
 - **🔄 폰트 패밀리 지원**: Regular, Italic, Bold, Bold Italic 변형 자동 감지 및 그룹화
-- **⚙️ 완전한 설정 기능**: 직관적인 폰트 스캔, 변환, 적용 UI
+- **⚙️ 완전한 설정 기능**: 직관적인 폰트 스캔 및 적용 UI
 - **🚀 시작 시 자동 로드**: Obsidian 시작 시 폰트 설정 자동 적용(선택 사항)
 
 ### 설치
@@ -481,9 +469,7 @@ release with the changelog section as its body.
    - 폰트 소스 디렉토리 설정
    - "재스캔"을 클릭하여 모든 폰트 감지
 
-3. **폰트 변환**: "모든 폰트를 Base64로 변환"을 클릭하여 캐시된 CSS 생성
-
-4. **폰트 적용**: 
+3. **폰트 적용**: 
    - 각 카테고리(UI, 텍스트, 코드, 수식)에 대한 폰트 선택
    - "폰트 적용" 클릭
    - 이제 폰트가 활성화되었습니다!
@@ -500,7 +486,6 @@ release with the changelog section as its body.
 | 설정 | 설명 |
 |-----|------|
 | **폰트 소스 디렉토리** | 폰트 패밀리 폴더 경로 |
-| **Base64 캐시 디렉토리** | 변환된 CSS 파일 저장 위치 |
 | **시작 시 자동 로드** | Obsidian 시작 시 폰트 자동 적용 |
 | **라틴 폰트 분리** | 라틴 문자와 CJK 문자에 다른 폰트 사용 |
 | **라틴 폰트 범위** | 라틴 폰트를 사용할 문자 범위 세밀 조정 |
@@ -538,10 +523,10 @@ release with the changelog section as its body.
 
 - **📁 Gestión de Fuentes Locales**: Carga fuentes TTF, OTF, WOFF y WOFF2 desde tu bóveda
 - **🎨 Categorías de Fuentes**: Control separado para UI, texto del cuerpo, bloques de código y matemáticas LaTeX
-- **⚡ Caché Base64**: Carga de fuentes optimizada con conversión y almacenamiento en caché automático Base64
+- **⚡ Carga Directa**: El CSS generado apunta directamente a tus archivos de fuente — sin incrustar ni duplicar, y solo se descargan los pesos que una nota usa
 - **🌍 Separación de Fuentes Latinas**: Usa diferentes fuentes para caracteres latinos y CJK con control detallado de unicode-range
 - **🔄 Soporte de Familias de Fuentes**: Detecta y agrupa automáticamente variantes Regular, Italic, Bold y Bold Italic
-- **⚙️ Configuración Completa**: UI intuitiva para escaneo, conversión y aplicación de fuentes
+- **⚙️ Configuración Completa**: UI intuitiva para escanear y aplicar fuentes
 - **🚀 Carga Automática al Inicio**: Opcionalmente aplica tu configuración de fuentes cuando se inicia Obsidian
 
 ### Instalación
@@ -579,9 +564,7 @@ release with the changelog section as its body.
    - Establece tu directorio de origen de fuentes
    - Haz clic en "Reescanear" para detectar todas las fuentes
 
-3. **Convertir Fuentes**: Haz clic en "Convertir Todas las Fuentes a Base64" para generar CSS en caché
-
-4. **Aplicar Fuentes**: 
+3. **Aplicar Fuentes**: 
    - Selecciona fuentes para cada categoría (UI, Texto, Código, Matemáticas)
    - Haz clic en "Aplicar Fuentes"
    - ¡Tus fuentes ya están activas!
@@ -598,7 +581,6 @@ release with the changelog section as its body.
 | Ajuste | Descripción |
 |--------|-------------|
 | **Directorio de Origen de Fuentes** | Ruta a tu carpeta de familias de fuentes |
-| **Directorio de Caché Base64** | Donde se almacenan los archivos CSS convertidos |
 | **Carga Automática al Inicio** | Aplica automáticamente las fuentes cuando se inicia Obsidian |
 | **Separación de Fuentes Latinas** | Usa fuentes separadas para caracteres latinos vs CJK |
 | **Ámbito de Fuente Latina** | Ajusta qué rangos de caracteres usan la fuente latina |

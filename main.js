@@ -4246,7 +4246,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       const escaped = String(resourcePath).replace(/\\/g, "\\\\").replace(/"/g, "%22");
       return `url("${escaped}")`;
     } catch (error) {
-      this._logError("[Local Font Loader] getResourcePath failed; using the base64 cache instead", error);
+      this._logError("[Local Font Loader] getResourcePath failed; this font cannot be applied", error);
       return null;
     }
   }

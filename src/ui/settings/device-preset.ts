@@ -59,7 +59,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
 
                     await tab.plugin.createPreset(presetName);
                     new Notice(`✓ ${t('presetCreated')}: ${presetName}`, 2000);
-                    tab.display();
+                    tab.update();
                 });
             });
 
@@ -91,7 +91,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
             // Reload settings (read from the file)
             await tab.plugin.loadSettings();
             // Re-render the entire settings page
-            tab.display();
+            tab.update();
         });
 
         const dragContainer = containerEl.createDiv({ cls: 'preset-drag-container' });
@@ -120,7 +120,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     async (newName) => {
                         if (newName !== preset.name) {
                             await tab.plugin.renamePreset(preset.id, newName);
-                            tab.display();
+                            tab.update();
                         }
                     }
                 ).open();
@@ -134,7 +134,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 const copyName = `${preset.name}${t('copySuffix')}`;
                 await tab.plugin.copyPresetForDevice(preset.id, copyName);
                 new Notice(`✓ ${t('presetCopied')}: ${copyName}`, 2000);
-                tab.display();
+                tab.update();
             });
 
             if (preset.id !== 'default-preset') {
@@ -153,7 +153,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                                 const fallbackPreset = tab.plugin._getDevicePreset();
                                 tab._activePresetId = fallbackPreset ? fallbackPreset.id : 'default-preset';
                             }
-                            tab.display();
+                            tab.update();
                         },
                         true  // isDangerous = true (dangerous operation)
                     );
@@ -186,7 +186,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 const targetPresetId = devicesContainer.dataset.presetId ?? '';
 
                 await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
-                tab.display();
+                tab.update();
             });
 
             // Get the device list to display
@@ -321,7 +321,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                             async (newName) => {
                                 if (newName !== deviceName) {
                                     await tab.plugin.updateDeviceName(deviceId, newName);
-                                    tab.display();
+                                    tab.update();
                                 }
                             }
                         ).open();
@@ -343,7 +343,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                                 t('confirmRemoveDevice').replace('{0}', deviceName),
                                 async () => {
                                     await tab.plugin.removeDeviceFromPresets(deviceId);
-                                    tab.display();
+                                    tab.update();
                                 },
                                 true  // isDangerous = true
                             );
@@ -390,7 +390,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                                     const targetPresetId = selectEl.value;
                                     await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
                                     new Notice(`✓ ${t('deviceReassigned')}`, 2000);
-                                    tab.display();
+                                    tab.update();
                                 } catch (error) {
                                     tab.plugin._logError('[Local Font Loader] Failed to reassign the device:', error);
                                 } finally {
@@ -444,7 +444,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                         async () => {
                             const removedCount = await tab.plugin.pruneUnboundDevices();
                             new Notice(`✓ ${t('cleanupDevicesDone').replace('{0}', String(removedCount))}`, 3000);
-                            tab.display();
+                            tab.update();
                         },
                         true  // isDangerous = true
                     );
@@ -475,13 +475,13 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 dropdown.onChange(async (newPresetId) => {
                     await tab.plugin.assignDeviceToPreset(tab.plugin.currentDeviceId, newPresetId);
                     new Notice(`✓ ${t('deviceReassigned')}`, 2000);
-                    tab.display();
+                    tab.update();
                 });
             })
             .addButton(btn => {
                 btn.setIcon('refresh-cw');
                 btn.setTooltip(t('refreshDeviceList'));
-                btn.onClick(() => tab.display());
+                btn.onClick(() => tab.update());
             });
 
         new Setting(containerEl)
@@ -497,7 +497,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     const copyName = `${devicePreset.name}${t('copySuffix')}`;
                     await tab.plugin.copyPresetForDevice(devicePreset.id, copyName);
                     new Notice(`✓ ${t('presetCopied')}: ${copyName}`, 2000);
-                    tab.display();
+                    tab.update();
                 });
             });
 }

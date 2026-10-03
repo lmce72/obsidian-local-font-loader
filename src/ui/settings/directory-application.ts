@@ -42,7 +42,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             .onClick(async () => {
                 await tab.plugin.scanFonts();
                 new Notice('✓ Font list updated');
-                tab.display();
+                tab.update();
             })
         );
 
@@ -89,7 +89,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                 // Switch the currently edited preset
                 dropdown.onChange(async (newPresetId) => {
                     tab._activePresetId = newPresetId;
-                    tab.display(); // refresh the UI to show the selected preset font config
+                    tab.update(); // refresh the UI to show the selected preset font config
                 });
             });
 
@@ -249,7 +249,7 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
                         // Refresh the UI to show the variant warning
                         // Use requestAnimationFrame so DOM ops run in the next frame, avoiding double renders
                         window.requestAnimationFrame(() => {
-                            tab.display();
+                            tab.update();
                         });
                     });
                 });

@@ -654,3 +654,11 @@
 .device-edit-btn {
     color: var(--text-on-accent);
 }
+
+/* The settings tab renders its whole page inside one declarative render definition, so that
+   row must not add a card around it. */
+.lfl-settings-page {
+    display: block;
+    padding: 0;
+    border: 0;
+}

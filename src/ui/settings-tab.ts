@@ -2,6 +2,7 @@
  * Settings UI for font management, presets and device assignment.
  */
 import { App, Component, PluginSettingTab, Setting, Notice, MarkdownRenderer, TextComponent, setIcon } from 'obsidian';
+import type { SettingDefinitionItem } from 'obsidian';
 
 import { t, isLatinScriptLocale } from '../i18n';
 import { showConfirmDialog } from './modals';
@@ -111,7 +112,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             window.clearTimeout(this._displayDebounceTimer);
         }
         this._displayDebounceTimer = window.setTimeout(() => {
-            this.display();
+            this.update();
             this._displayDebounceTimer = null;
         }, this._displayDebounceDelay);
     }
@@ -161,11 +162,36 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     }
 
 
-    display() {
+    /**
+     * Obsidian 1.13 replaced `display()` with `getSettingDefinitions()`, and a tab that returns
+     * definitions never has `display()` called at all. The declarative model is row-shaped,
+     * though: it has no entry point for a whole page — callouts, headings, a drag-and-drop device
+     * list — so the page is hosted by a single `render` definition, and the tab is refreshed
+     * through `update()`, which re-runs the definitions.
+     */
+    getSettingDefinitions(): SettingDefinitionItem[] {
+        return [{
+            type: 'group',
+            items: [{
+                // No `type` tag: the render variant of a definition is told apart by carrying
+                // `render` rather than by a discriminator.
+                name: t('pluginName'),
+                render: (setting) => {
+                    // Rendered into the definition's own row, not into the group's list: that list
+                    // belongs to Obsidian, which lays its own items out over it after this returns
+                    // — writing into it means watching the page get wiped. The row's own chrome is
+                    // flattened by the plugin's stylesheet so the page keeps its former layout.
+                    setting.settingEl.addClass('lfl-settings-page');
+                    this._renderPage(setting.settingEl);
+                },
+            }],
+        }];
+    }
+
+    /** Renders the tab's contents into the given container. */
+    _renderPage(containerEl: HTMLElement) {
         this._isVisible = true; // Mark the settings tab visible (settings-changed guard)
         this._cleanupEventListeners();
-
-        const { containerEl } = this;
 
         // Save the scroll position
         const scrollParent = containerEl.closest('.vertical-tab-content');
@@ -241,7 +267,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                     activePreset.latinFontEnabled = value;
                     await this.plugin.saveSettings();
                     await this.plugin.applyFonts();
-                    this.display(); // refresh the UI
+                    this.update(); // refresh the UI
                 }));
 
         if (activePreset.latinFontEnabled) {
@@ -305,7 +331,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                         // Refresh the UI to show the warning
                         // Use requestAnimationFrame so DOM ops run in the next frame, avoiding double renders
                         window.requestAnimationFrame(() => {
-                            this.display();
+                            this.update();
                         });
                     });
                 });
@@ -523,7 +549,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                         t('confirmDeleteFont').replace('{fontName}', font.name),
                         async () => {
                             await this.deleteSingleFont(font);
-                            this.display();
+                            this.update();
                         },
                         true  // isDangerous = true
                     );
@@ -625,7 +651,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             new Notice(t('deletedUnusedFonts', { count: deleted }));
             this.plugin._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
 
-            this.display(); // refresh the UI
+            this.update(); // refresh the UI
 
         } catch (error) {
             this.plugin._logError('[Local Font Loader] 批量删除失败:', error);

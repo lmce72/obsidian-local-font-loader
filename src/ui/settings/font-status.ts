@@ -142,7 +142,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
             // Re-render so the font dropdowns pick up the rescanned list — they read
             // settings.availableFonts when they are built, so without this the new families stay
             // invisible until the settings tab is reopened by hand.
-            tab.display();
+            tab.update();
         });
 
         // Font list (must be defined first for the button event listeners)

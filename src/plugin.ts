@@ -12,7 +12,7 @@ import {
     resolveDeviceAlias,
     isGeneratedDeviceName,
 } from './device-repair';
-import type { PluginSettings, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, MathFontMetricSnapshot } from './types';
+import type { PluginSettings, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, LegacyFontSettings, MathFontMetricSnapshot, MathFontDeviation, MathFontReferenceMetrics, MathFontVerdict, FontInfo, FontCategoryKey } from './types';
 import FontManagerSettingTab from './ui/settings-tab';
 
 /**
@@ -97,13 +97,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
     // Log level control
     _logEnabled = false; // logging disabled by default
 
-    _log(...args) {
+    _log(...args: unknown[]) {
         if (this._logEnabled) {
             console.log(...args);
         }
     }
 
-    _logError(...args) {
+    _logError(...args: unknown[]) {
         console.error(...args); // error logs are always emitted
     }
 
@@ -112,7 +112,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
       * Used to determine whether a data.json change originated from this plugin's own writes.
       * Returns false on serialization failure (conservative: prefer reloading over missing a sync).
      */
-    _settingsEqual(a, b) {
+    _settingsEqual(a: unknown, b: unknown) {
         try {
             return JSON.stringify(a) === JSON.stringify(b);
         } catch (error) {
@@ -122,7 +122,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     // saveSettings debounce optimization
-    _saveSettingsTimer = null;
+    _saveSettingsTimer: number | null = null;
     _debouncedSaveSettings() {
         if (this._saveSettingsTimer) {
             window.clearTimeout(this._saveSettingsTimer);
@@ -136,7 +136,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     // Generate unicode-range (based on scope configuration)
-    getUnicodeRange(scope) {
+    getUnicodeRange(scope: LatinFontScope) {
         const ranges = [];
 
         if (scope?.letters !== false) {
@@ -167,7 +167,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
       * @param {string} str The family name
       * @returns {string} The escaped string
      */
-    _escapeCssString(str) {
+    _escapeCssString(str: string) {
         return String(str)
             .replace(/\\/g, '\\\\')
             .replace(/"/g, '\\"')
@@ -200,7 +200,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} fontFamily The raw (unescaped) monospace family name
      * @returns {string} The CSS text
      */
-    _buildCodeFontRules(fontFamily) {
+    _buildCodeFontRules(fontFamily: string) {
         const fontStack = `"${this._escapeCssString(fontFamily)}", monospace`;
         const PRIORITY_SCOPE = ':root body';
 
@@ -210,7 +210,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
          * @param {string[]} selectors Selectors without the scope prefix
          * @param {string} extraDeclarations Additional declarations
          */
-        const emitRule = (comment, selectors, extraDeclarations = '') => {
+        const emitRule = (comment: string, selectors: string[], extraDeclarations = '') => {
             let css = `/* ${comment} */\n`;
             css += selectors.map(selector => `${PRIORITY_SCOPE} ${selector}`).join(',\n') + ' {\n';
             css += `  font-family: ${fontStack} !important;\n`;
@@ -279,7 +279,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} uiFontFamily The CSS family list, already escaped and quoted
      * @returns {string} The CSS text
      */
-    _buildUiFontRules(uiFontFamily) {
+    _buildUiFontRules(uiFontFamily: string) {
         const UI_SELECTORS = [
             // Workspace chrome
             '.workspace',
@@ -637,7 +637,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param data - The settings file as read from disk
      * @returns The default preset
      */
-    _buildLegacyDefaultPreset(data): FontPreset {
+    _buildLegacyDefaultPreset(data: LegacyFontSettings): FontPreset {
         return {
             id: 'default-preset',
             name: 'Default',
@@ -671,7 +671,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             data.presets = [this._buildLegacyDefaultPreset(data)];
 
             this._log('[Local Font Loader] Legacy configuration migrated');
-        } else if (data && !data.presets.some(p => p.id === 'default-preset')) {
+        } else if (data && !data.presets.some((p: FontPreset) => p.id === 'default-preset')) {
             // Every device preset falls back to the global one, so it has to exist. Added rather
             // than substituted: the presets already there keep their names and their fonts.
             this._log('[Local Font Loader] Default preset missing, adding it back');
@@ -780,11 +780,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Create a new preset
      * @param {string} name - The preset name
      */
-    async createPreset(name) {
+    async createPreset(name: string) {
         // Get the global preset (default-preset) as a template
         const defaultPreset = this.settings.presets.find(p => p.id === 'default-preset');
 
-        const newPreset = {
+        const newPreset: FontPreset = {
             id: this._generateUUID(),
             name: name,
             targetDevices: [], // new presets start empty, awaiting device assignment
@@ -804,7 +804,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} presetId - The preset ID
      * @param {string} newName - The new name
      */
-    async renamePreset(presetId, newName) {
+    async renamePreset(presetId: string, newName: string) {
         const preset = this.settings.presets.find(p => p.id === presetId);
         if (preset) {
             preset.name = newName;
@@ -816,7 +816,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Delete a preset (with a warning modal and protection for the default preset)
      * @param {string} presetId - The preset ID
      */
-    async deletePreset(presetId) {
+    async deletePreset(presetId: string) {
         // NOTE: this used to shadow `t` with `this.getTranslation(key)`, a method that does not
         // exist on the plugin — deleting the default preset threw instead of showing its notice.
         // The module-level `t` from i18n is what every other method here uses.
@@ -842,7 +842,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @param {string} targetPresetId - The target preset ID
      */
-    async assignDeviceToPreset(deviceId, targetPresetId) {
+    async assignDeviceToPreset(deviceId: string, targetPresetId: string) {
         // Remove the device from all presets
         this.settings.presets.forEach(preset => {
             preset.targetDevices = preset.targetDevices.filter(id => id !== deviceId);
@@ -870,7 +870,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} sourcePresetId - The source preset ID
      * @param {string} newPresetName - The new preset name (usually "<original name>_Copy")
      */
-    async copyPresetForDevice(sourcePresetId, newPresetName) {
+    async copyPresetForDevice(sourcePresetId: string, newPresetName: string) {
         // Clone from the passed-in source preset (not the current device preset)
         const sourcePreset = this.settings.presets.find(p => p.id === sourcePresetId);
         if (!sourcePreset) return;
@@ -911,7 +911,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Remove a device from presets (used to clean up ghost devices)
      * @param {string} deviceId - The device ID to remove
      */
-    async removeDeviceFromPresets(deviceId) {
+    async removeDeviceFromPresets(deviceId: string) {
         // Remove the device from all presets' targetDevices
         this.settings.presets.forEach(preset => {
             preset.targetDevices = preset.targetDevices.filter(id => id !== deviceId);
@@ -946,7 +946,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             (preset.targetDevices || []).forEach(id => boundDeviceIds.add(id));
         });
 
-        const prunable = [];
+        const prunable: Array<{ id: string; name: string }> = [];
         Object.keys(this.settings.deviceNameMap || {}).forEach(deviceId => {
             if (deviceId === this.currentDeviceId) return;
             if (boundDeviceIds.has(deviceId)) return;
@@ -1087,7 +1087,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @returns {string} - The device name
      */
-    _getDeviceName(deviceId) {
+    _getDeviceName(deviceId: string) {
         // Look up from the device name map (unified management for all devices)
         if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
             return this.settings.deviceNameMap[deviceId];
@@ -1106,7 +1106,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @returns {string} - The platform type: 'mobile' or 'desktop', or 'unknown' if not found
      */
-    _getDevicePlatform(deviceId) {
+    _getDevicePlatform(deviceId: string) {
         const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
         if (meta && meta.platform) {
             return meta.platform;
@@ -1130,7 +1130,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @param {string} newName - The new name
      */
-    async updateDeviceName(deviceId, newName) {
+    async updateDeviceName(deviceId: string, newName: string) {
         const trimmedName = newName.trim();
         if (!trimmedName) return;
 
@@ -1228,7 +1228,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      *
      * @param {string} deviceId - The id to store
      */
-    async _persistLocalDeviceId(deviceId) {
+    async _persistLocalDeviceId(deviceId: string) {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
         try {
@@ -1286,7 +1286,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} value - The platform identifier, already prefixed with its platform
      * @returns {Promise<string|null>} The device id, or null when hashing is unavailable
      */
-    async _hashDeviceIdentifier(value) {
+    async _hashDeviceIdentifier(value: string) {
         if (!window.crypto || !window.crypto.subtle) {
             this._logError('[Local Font Loader] crypto.subtle is unavailable; cannot derive a device id');
             return null;
@@ -1307,7 +1307,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} fromId - The id the device held in storage
      * @param {string} toId - The id derived from the platform
      */
-    async _adoptDerivedDeviceId(fromId, toId) {
+    async _adoptDerivedDeviceId(fromId: string, toId: string) {
         const nameMap = this.settings.deviceNameMap || {};
         const meta = this.settings.deviceMeta || {};
 
@@ -1382,7 +1382,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The id to seal
      * @returns {boolean} True when the ledger was modified
      */
-    _sealLegacyEntries(deviceId) {
+    _sealLegacyEntries(deviceId: string) {
         const ledger = this.settings.deviceFingerprints;
         if (!ledger) {
             return false;
@@ -1557,7 +1557,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {object} [meta] The device's recorded metadata, when available
      * @returns {boolean} True when the name matches a generated default
      */
-    _isGeneratedDeviceName(name, meta) {
+    _isGeneratedDeviceName(name: string, meta: DeviceMeta) {
         return isGeneratedDeviceName(name, meta);
     }
 
@@ -1571,7 +1571,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {object} [deviceInfo] Pre-computed info from _detectDeviceInfo()
      * @returns {string} The default device name
      */
-    _getDefaultDeviceName(deviceInfo) {
+    _getDefaultDeviceName(deviceInfo?: DeviceMeta) {
         const info = deviceInfo || this._detectDeviceInfo();
 
         // What the device actually is: the hostname on a desktop, the model on a phone
@@ -1604,7 +1604,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @returns {string} One of 'android' | 'ios' | 'ipados' | 'windows' | 'macos' | 'linux' | 'unknown'
      */
-    _getDeviceOs(deviceId) {
+    _getDeviceOs(deviceId: string) {
         const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
         return (meta && meta.os) ? meta.os : 'unknown';
     }
@@ -1618,7 +1618,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @returns {string} The hostname, or an empty string
      */
-    _getDeviceHostname(deviceId) {
+    _getDeviceHostname(deviceId: string) {
         const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
         return (meta && meta.hostname) ? meta.hostname : '';
     }
@@ -1628,7 +1628,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID
      * @returns {string} The model, or an empty string
      */
-    _getDeviceModel(deviceId) {
+    _getDeviceModel(deviceId: string) {
         const meta = this.settings.deviceMeta && this.settings.deviceMeta[deviceId];
         return (meta && meta.model) ? meta.model : '';
     }
@@ -1664,7 +1664,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         ];
 
         // Simple hash function
-        const hash = (str) => {
+        const hash = (str: string) => {
             let h = 0;
             for (let i = 0; i < str.length; i++) {
                 h = ((h << 5) - h) + str.charCodeAt(i);
@@ -1754,7 +1754,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Import fonts from a file list
      * @param {FileList} files - The list of font files selected by the user
      */
-    async importFontsFromFiles(files) {
+    async importFontsFromFiles(files: FileList) {
         this._log(`[Local Font Loader] Starting to import ${files.length} font files...`);
         let imported = 0;
 
@@ -1850,9 +1850,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                 // Check if file exists (by attempting to read)
                                 await this.app.vault.adapter.readBinary(fontPath);
 
-                                const basename = filename;
+                                const basename = filename ?? '';
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
-                                const ext = basename.split('.').pop().toLowerCase();
+                                const ext = (basename.split('.').pop() || '').toLowerCase();
 
                                 const fontInfo = {
                                     name,
@@ -1889,9 +1889,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                         // Read all font file metadata in parallel
                         const scanPromises = fontFiles.map(async (fontPath) => {
                             try {
-                                const basename = fontPath.split('/').pop();
+                                const basename = fontPath.split('/').pop() || '';
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
-                                const ext = basename.split('.').pop().toLowerCase();
+                                const ext = (basename.split('.').pop() || '').toLowerCase();
 
                                 // Read font metadata to determine variant type
                                 const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
@@ -1924,8 +1924,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                         for (const result of scanResults) {
                             if (result.success) {
                                 // Deduplicate: avoid adding duplicate fonts
-                                if (!fontMap.has(result.fontInfo.name)) {
-                                    fontMap.set(result.fontInfo.name, result.fontInfo);
+                                const scannedFont = result.fontInfo;
+                                if (scannedFont && !fontMap.has(scannedFont.name)) {
+                                    fontMap.set(scannedFont.name, scannedFont);
                                 }
 
                                 // Mark variants owned by family
@@ -2003,7 +2004,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} familyName - The configured math font family
      * @returns {boolean} True when metrics were adopted
      */
-    async _adoptMathFontMetrics(familyName) {
+    async _adoptMathFontMetrics(familyName: string) {
         const mathJax = window.MathJax;
         if (!familyName || !mathJax || !mathJax.config || !mathJax.config.chtml) {
             return false;
@@ -2037,7 +2038,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
 
         const SIZE = 200;
-        const measure = (char) => {
+        const measure = (char: string) => {
             try {
                 ctx.font = `${SIZE}px "${familyName}"`;
                 const m = ctx.measureText(char);
@@ -2054,7 +2055,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // Start from the pristine table every time, so repeated runs cannot compound.
         this._restoreMathFontMetrics();
 
-        const snapshot = { chars: [], delimiters: [] };
+        const snapshot: MathFontMetricSnapshot = { chars: [], delimiters: [] };
         let adopted = 0;
 
         Object.keys(fontData.variant).forEach(variantName => {
@@ -2082,7 +2083,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     return;
                 }
 
-                snapshot.chars.push({ variantName, code, values: [entry[0], entry[1], entry[2]] });
+                snapshot.chars.push({ variantName, code, values: [Number(entry[0]), Number(entry[1]), Number(entry[2])] });
                 entry[0] = measured.h;
                 entry[1] = measured.d;
                 entry[2] = measured.w;
@@ -2239,7 +2240,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @returns {{status: string, deviations: Array, missing?: string[]}}
      *          status is 'ok' | 'mismatch' | 'notMathFont' | 'unavailable'
      */
-    _evaluateMathFont(familyName) {
+    _evaluateMathFont(familyName: string): MathFontVerdict {
         // Reference metrics of MathJax's own TeX fonts, in em
         const REFERENCE = {
             surdAbove: 0.8125,
@@ -2271,7 +2272,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
 
         const SIZE = 200;
-        const advanceOf = (char) => {
+        const advanceOf = (char: string) => {
             try {
                 ctx.font = `${SIZE}px "${familyName}"`;
                 return ctx.measureText(char).width / SIZE;
@@ -2279,7 +2280,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 return 0;
             }
         };
-        const inkOf = (char) => {
+        const inkOf = (char: string) => {
             try {
                 ctx.font = `${SIZE}px "${familyName}"`;
                 const metrics = ctx.measureText(char);
@@ -2303,15 +2304,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // A math font has to carry the math alphanumerics; without them MathJax renders every
         // variable from a fallback face and the layout drifts regardless of metrics.
-        const missing = [];
+        const missing: string[] = [];
         if (measured.mathItalicX <= 0) missing.push('\u{1D465}');
         if (measured.surdAbove <= 0) missing.push('√');
         if (missing.length > 0) {
             return { status: 'notMathFont', deviations: [], missing };
         }
 
-        const deviations = [];
-        Object.keys(REFERENCE).forEach(metric => {
+        const deviations: MathFontDeviation[] = [];
+        (Object.keys(REFERENCE) as Array<keyof MathFontReferenceMetrics>).forEach(metric => {
             const actual = measured[metric];
             if (!actual) return;
             const ratio = Math.abs(actual - REFERENCE[metric]) / REFERENCE[metric];
@@ -2336,7 +2337,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} fontName - The font name or family name
      * @returns {boolean} Whether the font exists
      */
-    isFontAvailable(fontName) {
+    isFontAvailable(fontName: string) {
         // Special options (use-text-font, use-ui-font) and empty strings are always valid
         if (!fontName || fontName === 'use-text-font' || fontName === 'use-ui-font') {
             return true;
@@ -2348,7 +2349,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     // Runtime cache of font source-file existence (memory only, not persisted; name -> boolean)
-    _fontExistsMap = {};
+    _fontExistsMap: Record<string, boolean> = {};
 
     /**
       * Checks at startup / after scanning whether each availableFonts entry's source file exists, writing results to the runtime cache.
@@ -2356,7 +2357,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      */
     async _refreshFontExistence() {
         const fonts = this.settings.availableFonts || [];
-        const map = {};
+        const map: Record<string, boolean> = {};
         await Promise.all(fonts.map(async (font) => {
             let exists = false;
             if (font.path) {
@@ -2377,7 +2378,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
       * @param {Object} font The font object
       * @returns {boolean} Whether the source file exists
      */
-    _getFontExists(font) {
+    _getFontExists(font: FontInfo) {
         return this._fontExistsMap[font.name] !== false;
     }
 
@@ -2489,7 +2490,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                             fontFaceCss += result.css + '\n';
                             loadedCount++;
                         } else {
-                            failedFonts.push(`${result.font.name} (读取失败: ${result.error.message})`);
+                            failedFonts.push(`${result.font.name} (读取失败: ${result.error?.message ?? 'unknown'})`);
                         }
                     }
 
@@ -2522,7 +2523,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // that is fatal rather than cosmetic: Obsidian's interface font sits in front of the
             // configured one, and since a CJK face carries Latin glyphs of its own, the Latin
             // font is never reached.
-            const cssVarsMap = {
+            const cssVarsMap: Partial<Record<FontCategoryKey, string[]>> = {
                 ui: ['--font-interface', '--font-interface-override'],
                 text: [
                     '--font-text',
@@ -2564,7 +2565,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 const separatesLatin = latinFontEnabled && fontsConfig.latin
                     && (key === 'text' || (key === 'ui' && this.settings.latinFontForUI));
 
-                if (separatesLatin) {
+                if (separatesLatin && fontsConfig.latin) {
                     return `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif`;
                 }
 
@@ -2574,7 +2575,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             };
 
             const fontDeclarations: string[] = [];
-            for (const [key, cssVars] of Object.entries(cssVarsMap)) {
+            for (const [key, cssVars] of Object.entries(cssVarsMap) as Array<[FontCategoryKey, string[]]>) {
                 if (!fontsConfig[key]) {
                     continue;
                 }
@@ -2815,7 +2816,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {Object} font The font object
      * @returns {string|null} the `url(...)` value, or null when no resource URL is available
      */
-    _getFontResourceSrc(font): string | null {
+    _getFontResourceSrc(font: FontInfo): string | null {
         try {
             // The adapter API expects a normalized vault path (`normalizePath`), and the value
             // here comes straight from settings, which a user can type.
@@ -2843,7 +2844,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
       * @param {string} srcValue Full `src:` value, e.g. `url("app://…")`
      * @returns {{css:string, fontFamily:string, variantType:string, fontWeight:number, fontStyle:string}}
      */
-    _buildFontFaceCss(font, ctx, srcValue) {
+    _buildFontFaceCss(font: FontInfo, ctx: { fontsConfig: PresetFonts; latinFontEnabled: boolean; latinFontScope: LatinFontScope }, srcValue: string) {
         const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
 
         const fontFamily = font.familyName || font.name;

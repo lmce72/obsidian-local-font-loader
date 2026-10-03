@@ -1022,20 +1022,34 @@ export const TRANSLATIONS = {
 };
 
 /**
+ * The same table, viewed as a plain string-keyed lookup.
+ *
+ * A locale is resolved at runtime (from Obsidian's language setting), so the lookup that picks one
+ * has to index by a string the compiler cannot narrow — which the literal-typed table refuses.
+ * Keeping the alias here means the table itself stays fully typed for direct reads like
+ * `TRANSLATIONS.en.pluginName`, and only the two dynamic lookups go through this view.
+ */
+const TRANSLATIONS_BY_LOCALE = TRANSLATIONS as unknown as Record<string, Record<string, string>>;
+
+/**
  * Get translation for a key
  * @param {string} key - Translation key
  * @param {string|Object} [localeOrParams] - Language code OR params object (auto-detect)
  * @param {Object} [params] - Parameters for string interpolation (when locale is provided)
  * @returns {string} Translated string
  */
-export function t(key, localeOrParams = null, params = {}) {
-    let locale = null;
+export function t(
+    key: string,
+    localeOrParams: string | Record<string, string | number> | null = null,
+    params: Record<string, string | number> = {}
+): string {
+    let locale: string | null = null;
 
-    // Smart detection: if second arg is an object, treat it as params
-    if (localeOrParams && typeof localeOrParams === 'object') {
+    // Smart detection: an object in the second position carries the interpolation values, a
+    // string names the locale outright, and neither means "work it out from the app".
+    if (typeof localeOrParams === 'object' && localeOrParams !== null) {
         params = localeOrParams;
-        locale = null;
-    } else {
+    } else if (typeof localeOrParams === 'string') {
         locale = localeOrParams;
     }
 
@@ -1044,7 +1058,7 @@ export function t(key, localeOrParams = null, params = {}) {
         const fullLocale = getLanguage() || 'en';
 
         // Prefer the full locale code (e.g., zh-TW)
-        if (TRANSLATIONS[fullLocale]) {
+        if (TRANSLATIONS_BY_LOCALE[fullLocale]) {
             locale = fullLocale;
         } else {
             // Fall back to the base locale code (e.g., zh)
@@ -1053,12 +1067,12 @@ export function t(key, localeOrParams = null, params = {}) {
     }
 
     // Fallback to English if locale not supported
-    const lang = TRANSLATIONS[locale] || TRANSLATIONS.en;
-    let text = lang[key] || TRANSLATIONS.en[key] || key;
+    const lang = TRANSLATIONS_BY_LOCALE[locale] || TRANSLATIONS_BY_LOCALE.en;
+    let text: string = lang[key] || TRANSLATIONS_BY_LOCALE.en[key] || key;
 
     // Replace parameters (e.g., {count} -> actual count)
     Object.keys(params).forEach(param => {
-        text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), params[param]);
+        text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), String(params[param]));
     });
 
     return text;

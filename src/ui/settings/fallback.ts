@@ -40,7 +40,7 @@ export function renderFallbackSection(tab: FontManagerSettingTab, containerEl: H
                     showConfirmDialog(
                         tab.plugin.app,
                         t('confirmDelete'),
-                        t('confirmDeleteUnusedFonts').replace('{count}', unusedFonts.length),
+                        t('confirmDeleteUnusedFonts').replace('{count}', String(unusedFonts.length)),
                         async () => {
                             await tab.deleteUnusedFonts();
                         },

@@ -1,11 +1,12 @@
 /**
  * Settings UI for font management, presets and device assignment.
  */
-import { Component, PluginSettingTab, Setting, Notice, MarkdownRenderer, TextComponent, setIcon } from 'obsidian';
+import { App, Component, PluginSettingTab, Setting, Notice, MarkdownRenderer, TextComponent, setIcon } from 'obsidian';
 
 import { t, isLatinScriptLocale } from '../i18n';
 import { showConfirmDialog } from './modals';
 import type LocalFontLoaderPlugin from '../plugin';
+import type { FontInfo, FontPreset, LatinFontScope } from '../types';
 import { renderDeviceAndPresetSection } from './settings/device-preset';
 import { renderDirectoryAndApplicationSection } from './settings/directory-application';
 import { renderFontStatusSection } from './settings/font-status';
@@ -48,7 +49,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** The preset-name input, while it is on screen. */
     _newPresetNameInput: TextComponent | null = null;
 
-    constructor(app, plugin) {
+    constructor(app: App, plugin: LocalFontLoaderPlugin) {
         super(app, plugin);
         this.plugin = plugin;
         this._eventListeners = [];
@@ -69,9 +70,13 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         );
     }
 
-    _addEventListener(element, event, handler, options?: AddEventListenerOptions) {
-        element.addEventListener(event, handler, options);
-        this._eventListeners.push({ element, event, handler, options });
+    _addEventListener<E extends Event>(element: HTMLElement, event: string, handler: (evt: E) => unknown, options?: AddEventListenerOptions) {
+        // The DOM only knows `EventListener`; the generic is what lets a call site name the event
+        // it is handed (DragEvent, MouseEvent) without an assertion at every one of them. The one
+        // cast the widening needs lives here, and the same reference is kept for removal.
+        const listener = handler as EventListener;
+        element.addEventListener(event, listener, options);
+        this._eventListeners.push({ element, event, handler: listener, options });
     }
 
     _cleanupEventListeners() {
@@ -116,7 +121,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
      * @param {string} fontName - The font family name
      * @returns {boolean} Whether it is a Latin font
      */
-    _isLatinFont(fontName) {
+    _isLatinFont(fontName: string) {
         const lowerName = fontName.toLowerCase();
 
         // Explicit non-Latin font keywords
@@ -211,7 +216,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     }
 
     // Add Latin font separation options
-    addLatinFontOptions(containerEl, activePreset) {
+    addLatinFontOptions(containerEl: HTMLElement, activePreset: FontPreset) {
         // Callout: Example - show different descriptions based on the user language
         const exampleCalloutEl = containerEl.createDiv({ cls: 'lfl-callout lfl-callout--lead' });
 
@@ -231,7 +236,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             .setName(t('latinFontEnabled'))
             .setDesc(t('latinFontEnabledDesc'))
             .addToggle(toggle => toggle
-                .setValue(activePreset.latinFontEnabled)
+                .setValue(activePreset.latinFontEnabled ?? false)
                 .onChange(async (value) => {
                     activePreset.latinFontEnabled = value;
                     await this.plugin.saveSettings();
@@ -290,7 +295,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                         });
                     }
 
-                    dropdown.setValue(activePreset.fonts.latin);
+                    dropdown.setValue(activePreset.fonts.latin ?? '');
                     dropdown.onChange(async (value) => {
                         activePreset.fonts.latin = value;
 
@@ -331,7 +336,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                 }
             }
 
-            const scopes = [
+            const scopes: Array<{ key: keyof LatinFontScope; name: string; desc: string }> = [
                 { key: 'letters', name: 'Letters', desc: 'A-Z, a-z' },
                 { key: 'numbers', name: 'Numbers', desc: '0-9' },
                 { key: 'punctuation', name: 'Punctuation', desc: t('punctuationDesc') },
@@ -369,7 +374,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     }
 
     // Add the file title option
-    addFileTitleOption(containerEl, activePreset) {
+    addFileTitleOption(containerEl: HTMLElement, activePreset: FontPreset) {
         // Check the current heading font setting; hide this option if 'use-text-font'
         const headingFontValue = activePreset.fonts.heading;
 
@@ -391,7 +396,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     }
 
     // Render font families (collapsible)
-    renderFontFamilies(containerEl, filter = 'all') {
+    renderFontFamilies(containerEl: HTMLElement, filter = 'all') {
         // Group by family
         const familiesMap = new Map();
 
@@ -409,10 +414,10 @@ export default class FontManagerSettingTab extends PluginSettingTab {
                 return true; // show all
             } else if (filter === 'available') {
                 // Usable: the source file is there, so the rule renders it
-                return fonts.some(f => this.plugin._getFontExists(f));
+                return fonts.some((f: FontInfo) => this.plugin._getFontExists(f));
             } else if (filter === 'notExist') {
                 // At least one variant's source file is missing
-                return fonts.some(f => !this.plugin._getFontExists(f));
+                return fonts.some((f: FontInfo) => !this.plugin._getFontExists(f));
             }
             return true;
         });
@@ -462,7 +467,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             });
 
             // Render the variant list
-            fonts.forEach(font => {
+            fonts.forEach((font: FontInfo) => {
                 const variantEl = variantsEl.createDiv({ cls: 'font-variant-item' });
 
                 const infoEl = variantEl.createDiv({ cls: 'font-variant-info' });
@@ -528,7 +533,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     }
 
     // Delete a single font
-    async deleteSingleFont(font) {
+    async deleteSingleFont(font: FontInfo) {
         try {
             // Delete the source file
             try {

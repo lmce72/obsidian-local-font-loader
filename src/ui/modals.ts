@@ -2,7 +2,7 @@
  * Modal components — they replace the browser-native prompt/confirm, which would
  * steal window focus from Obsidian.
  */
-import { Modal, ConfirmationModal, setIcon } from 'obsidian';
+import { App, Modal, ConfirmationModal, setIcon } from 'obsidian';
 
 import { t } from '../i18n';
 
@@ -18,7 +18,7 @@ export class TextInputModal extends Modal {
     defaultValue: string;
     onSubmit: (value: string) => void;
 
-    constructor(app, title, placeholder, defaultValue, onSubmit) {
+    constructor(app: App, title: string, placeholder: string, defaultValue: string, onSubmit: (value: string) => void) {
         super(app);
         this.titleText = title;
         this.placeholder = placeholder;
@@ -104,7 +104,7 @@ export class FontImportModal extends Modal {
     plugin: { settings: { fontSourceDir: string }; saveSettings: () => Promise<void> };
     onImport: (files: FileList) => void | Promise<void>;
 
-    constructor(app, plugin, onImport) {
+    constructor(app: App, plugin: { settings: { fontSourceDir: string }; saveSettings: () => Promise<void> }, onImport: (files: FileList) => void | Promise<void>) {
         super(app);
         this.plugin = plugin;
         this.onImport = onImport;
@@ -161,8 +161,11 @@ export class FontImportModal extends Modal {
             e.preventDefault();
             dropZone.removeClass('is-dragover');
 
-            const files = e.dataTransfer.files;
-            if (!files || files.length === 0) return;
+            const transfer = e.dataTransfer;
+            if (!transfer) return;
+
+            const files = transfer.files;
+            if (files.length === 0) return;
 
             this.close();
             await this.onImport(files);
@@ -183,7 +186,13 @@ export class FontImportModal extends Modal {
  * @param {Function} onConfirm - The confirmation callback
  * @param {boolean} isDangerous - Whether this is a dangerous operation (applies warning styling)
  */
-export function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) {
+export function showConfirmDialog(
+    app: App,
+    title: string,
+    message: string,
+    onConfirm: () => void | Promise<void>,
+    isDangerous = false
+) {
     const modal = new ConfirmationModal(app);
     modal.setTitle(title);
 

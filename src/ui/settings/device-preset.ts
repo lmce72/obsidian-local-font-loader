@@ -45,7 +45,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 btn.setIcon('plus');
                 btn.setTooltip(t('addPreset'));
                 btn.onClick(async () => {
-                    const presetName = tab._newPresetNameInput.getValue().trim();
+                    const presetName = (tab._newPresetNameInput?.getValue() ?? '').trim();
                     if (!presetName) {
                         new Notice(t('presetNameRequired'), 3000);
                         return;
@@ -169,7 +169,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 devicesContainer.addClass('global-preset-zone');
             }
 
-            tab._addEventListener(devicesContainer, 'dragover', (e) => {
+            tab._addEventListener(devicesContainer, 'dragover', (e: DragEvent) => {
                 e.preventDefault();
                 devicesContainer.classList.add('drag-over');
             });
@@ -178,22 +178,22 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 devicesContainer.classList.remove('drag-over');
             });
 
-            tab._addEventListener(devicesContainer, 'drop', async (e) => {
+            tab._addEventListener(devicesContainer, 'drop', async (e: DragEvent) => {
                 e.preventDefault();
                 devicesContainer.classList.remove('drag-over');
 
-                const deviceId = e.dataTransfer.getData('text/plain');
-                const targetPresetId = devicesContainer.dataset.presetId;
+                const deviceId = e.dataTransfer?.getData('text/plain') ?? '';
+                const targetPresetId = devicesContainer.dataset.presetId ?? '';
 
                 await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
                 tab.display();
             });
 
             // Get the device list to display
-            let devicesToShow = [];
+            let devicesToShow: string[] = [];
             if (preset.id === 'default-preset' && preset.targetDevices.length === 0) {
                 // Default global preset: show all unassigned devices
-                const allDeviceIds = new Set();
+                const allDeviceIds = new Set<string>();
 
                 // Collect all known devices (from deviceNameMap)
                 if (tab.plugin.settings.deviceNameMap) {
@@ -203,7 +203,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 }
 
                 // Find unassigned devices (not in any custom preset's targetDevices)
-                const assignedDevices = new Set();
+                const assignedDevices = new Set<string>();
                 tab.plugin.settings.presets.forEach(p => {
                     if (p.targetDevices.length > 0) {
                         p.targetDevices.forEach(id => assignedDevices.add(id));
@@ -247,7 +247,8 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                         ipados: 'os-ipados',
                         windows: 'os-windows',
                         macos: 'os-macos',
-                        linux: 'os-linux'
+                        linux: 'os-linux',
+                        unknown: 'os-default'
                     };
                     const detectedOs = tab.plugin._getDeviceOs(deviceId);
                     osIcon.addClass(osIconClasses[detectedOs] || 'os-default');
@@ -284,7 +285,8 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                         ipados: 'iPadOS',
                         windows: 'Windows',
                         macos: 'macOS',
-                        linux: 'Linux'
+                        linux: 'Linux',
+                        unknown: ''
                     };
                     const osText = osLabels[detectedOs];
 
@@ -403,8 +405,8 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     }
 
                     deviceItem.draggable = true;
-                    tab._addEventListener(deviceItem, 'dragstart', (e) => {
-                        e.dataTransfer.setData('text/plain', deviceId);
+                    tab._addEventListener(deviceItem, 'dragstart', (e: DragEvent) => {
+                        e.dataTransfer?.setData('text/plain', deviceId);
                         deviceItem.classList.add('dragging');
                     });
 
@@ -489,6 +491,9 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                 btn.setButtonText(t('copyPresetCopy'));
                 btn.onClick(async () => {
                     const devicePreset = tab.plugin._getDevicePreset();
+                    if (!devicePreset) {
+                        return;
+                    }
                     const copyName = `${devicePreset.name}${t('copySuffix')}`;
                     await tab.plugin.copyPresetForDevice(devicePreset.id, copyName);
                     new Notice(`✓ ${t('presetCopied')}: ${copyName}`, 2000);

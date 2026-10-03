@@ -1,13 +1,14 @@
 /**
  * OpenType / TrueType name-table reader.
  */
+import type { FontMetadata, FontVariantType } from './types';
 
 /**
  * Parse font file metadata (read OpenType/TrueType name table)
  * @param {ArrayBuffer} arrayBuffer - Binary data of the font file
  * @returns {Object|null} Font metadata or null if parsing fails
  */
-export function parseFontMetadata(arrayBuffer) {
+export function parseFontMetadata(arrayBuffer: ArrayBuffer): FontMetadata | null {
     try {
         const dataView = new DataView(arrayBuffer);
 
@@ -56,7 +57,9 @@ export function parseFontMetadata(arrayBuffer) {
         }
 
         // Extract key information
-        const metadata = {
+        // The four names the name table can carry, filled in as records are read. Null until then,
+        // so a file that omits one is distinguishable from one that names it as an empty string.
+        const metadata: Record<'familyName' | 'subfamilyName' | 'fullName' | 'postScriptName', string | null> = {
             familyName: null,
             subfamilyName: null,
             fullName: null,
@@ -109,7 +112,7 @@ export function parseFontMetadata(arrayBuffer) {
         const isBold = subfamily.includes('bold') || subfamily.includes('heavy') || subfamily.includes('black');
 
         // Determine variant type: regular, italic, bold, bolditalic
-        let variantType = 'regular';
+        let variantType: FontVariantType = 'regular';
         if (isBold && isItalic) {
             variantType = 'bolditalic';
         } else if (isBold) {
@@ -139,10 +142,10 @@ export function parseFontMetadata(arrayBuffer) {
         }
 
         return {
-            familyName: metadata.familyName,
-            subfamilyName: metadata.subfamilyName,
-            fullName: metadata.fullName,
-            postScriptName: metadata.postScriptName,
+            familyName: metadata.familyName || '',
+            subfamilyName: metadata.subfamilyName || '',
+            fullName: metadata.fullName || '',
+            postScriptName: metadata.postScriptName || '',
             variantType,  // 'regular', 'italic', 'bold', 'bolditalic'
             style: {
                 isItalic,

@@ -42,7 +42,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
             { filter: 'notExist', icon: 'help-circle', label: t('legendNotExist') }
         ];
 
-        const filterButtonElements = [];
+        const filterButtonElements: Array<{ btn: HTMLElement; filter: string }> = [];
         filterButtons.forEach(btnConfig => {
             const isActive = tab._fontFilter === btnConfig.filter;
             const btn = filterGroup.createEl('button', {

@@ -137,11 +137,16 @@ export function describeDeviceGroupHistory(
     // An entry with no recorded history belongs to an install not opened since this version began
     // recording, so nothing is known about when it was last alive. That is the state of every
     // entry immediately after an upgrade.
-    if (spans.some(span => span.first === null || span.last === null)) {
+    // Narrowed structurally rather than by assertion: with strict null checks on, the entries that
+    // survive this filter are the only ones the arithmetic below is defined for.
+    const usableSpans = spans.filter(
+        (span): span is { first: number; last: number } => span.first !== null && span.last !== null
+    );
+    if (usableSpans.length !== spans.length) {
         return 'unknown';
     }
 
-    const ordered = spans.slice().sort((a, b) => a.first - b.first);
+    const ordered = usableSpans.slice().sort((a, b) => a.first - b.first);
 
     const newest = ordered[ordered.length - 1];
     if (!Number.isFinite(now) || now - newest.last > DEVICE_STALE_MS) {

@@ -23,11 +23,10 @@
     // `require('os')` for the desktop hostname (guarded, and absent on mobile).
     "types": ["node", "obsidian"],
 
-    // The sources began as untyped JavaScript. The data model in types.ts is fully typed and
-    // checked; the surrounding UI code is being tightened incrementally, so the implicit-any and
-    // strict-null families stay off until each file is annotated. Turning them on now would bury
-    // the real errors under hundreds of annotations that carry no information yet.
-    "strict": false,
+    // The sources began as untyped JavaScript and were annotated file by file until the whole
+    // tree passed here with strict on; keep it on. `useUnknownInCatchVariables` stays off because
+    // the catch blocks hand their error straight to _logError, which already takes `unknown`.
+    "strict": true,
     "useUnknownInCatchVariables": false
   },
   "include": ["src/**/*.ts"]

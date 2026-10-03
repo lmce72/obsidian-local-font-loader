@@ -66,6 +66,14 @@ export interface LatinFontScope {
     symbols: boolean;
 }
 
+/** The top-level font fields versions before presets wrote, read once while migrating them. */
+export interface LegacyFontSettings {
+    fonts?: PresetFonts;
+    latinFontEnabled?: boolean;
+    latinFontScope?: LatinFontScope;
+    headingApplyToFileTitle?: boolean;
+}
+
 /** The fonts a preset assigns to each category. Empty string means "unset". */
 export interface PresetFonts {
     ui: string;

@@ -851,26 +851,26 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     confirmRemoveDevice: '從所有預設中移除裝置"{0}"？此操作無法復原。'
   }
 };
+var TRANSLATIONS_BY_LOCALE = TRANSLATIONS;
 function t(key, localeOrParams = null, params = {}) {
   let locale = null;
-  if (localeOrParams && typeof localeOrParams === "object") {
+  if (typeof localeOrParams === "object" && localeOrParams !== null) {
     params = localeOrParams;
-    locale = null;
-  } else {
+  } else if (typeof localeOrParams === "string") {
     locale = localeOrParams;
   }
   if (!locale) {
     const fullLocale = import_obsidian.getLanguage() || "en";
-    if (TRANSLATIONS[fullLocale]) {
+    if (TRANSLATIONS_BY_LOCALE[fullLocale]) {
       locale = fullLocale;
     } else {
       locale = fullLocale.split("-")[0];
     }
   }
-  const lang = TRANSLATIONS[locale] || TRANSLATIONS.en;
-  let text = lang[key] || TRANSLATIONS.en[key] || key;
+  const lang = TRANSLATIONS_BY_LOCALE[locale] || TRANSLATIONS_BY_LOCALE.en;
+  let text = lang[key] || TRANSLATIONS_BY_LOCALE.en[key] || key;
   Object.keys(params).forEach((param) => {
-    text = text.replace(new RegExp(`\\{${param}\\}`, "g"), params[param]);
+    text = text.replace(new RegExp(`\\{${param}\\}`, "g"), String(params[param]));
   });
   return text;
 }
@@ -990,10 +990,10 @@ function parseFontMetadata(arrayBuffer) {
       weight = 900;
     }
     return {
-      familyName: metadata.familyName,
-      subfamilyName: metadata.subfamilyName,
-      fullName: metadata.fullName,
-      postScriptName: metadata.postScriptName,
+      familyName: metadata.familyName || "",
+      subfamilyName: metadata.subfamilyName || "",
+      fullName: metadata.fullName || "",
+      postScriptName: metadata.postScriptName || "",
       variantType,
       style: {
         isItalic,
@@ -1075,10 +1075,11 @@ function describeDeviceGroupHistory(ids, meta, now) {
       }
     }
   }
-  if (spans.some((span) => span.first === null || span.last === null)) {
+  const usableSpans = spans.filter((span) => span.first !== null && span.last !== null);
+  if (usableSpans.length !== spans.length) {
     return "unknown";
   }
-  const ordered = spans.slice().sort((a, b) => a.first - b.first);
+  const ordered = usableSpans.slice().sort((a, b) => a.first - b.first);
   const newest = ordered[ordered.length - 1];
   if (!Number.isFinite(now) || now - newest.last > DEVICE_STALE_MS) {
     return "unknown";
@@ -1357,8 +1358,11 @@ class FontImportModal extends import_obsidian2.Modal {
     dropZone.ondrop = async (e) => {
       e.preventDefault();
       dropZone.removeClass("is-dragover");
-      const files = e.dataTransfer.files;
-      if (!files || files.length === 0)
+      const transfer = e.dataTransfer;
+      if (!transfer)
+        return;
+      const files = transfer.files;
+      if (files.length === 0)
         return;
       this.close();
       await this.onImport(files);
@@ -1408,7 +1412,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     btn.setIcon("plus");
     btn.setTooltip(t("addPreset"));
     btn.onClick(async () => {
-      const presetName = tab._newPresetNameInput.getValue().trim();
+      const presetName = (tab._newPresetNameInput?.getValue() ?? "").trim();
       if (!presetName) {
         new import_obsidian3.Notice(t("presetNameRequired"), 3000);
         return;
@@ -1499,8 +1503,8 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     tab._addEventListener(devicesContainer, "drop", async (e) => {
       e.preventDefault();
       devicesContainer.classList.remove("drag-over");
-      const deviceId = e.dataTransfer.getData("text/plain");
-      const targetPresetId = devicesContainer.dataset.presetId;
+      const deviceId = e.dataTransfer?.getData("text/plain") ?? "";
+      const targetPresetId = devicesContainer.dataset.presetId ?? "";
       await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
       tab.display();
     });
@@ -1544,7 +1548,8 @@ function renderDeviceAndPresetSection(tab, containerEl) {
           ipados: "os-ipados",
           windows: "os-windows",
           macos: "os-macos",
-          linux: "os-linux"
+          linux: "os-linux",
+          unknown: "os-default"
         };
         const detectedOs = tab.plugin._getDeviceOs(deviceId);
         osIcon.addClass(osIconClasses[detectedOs] || "os-default");
@@ -1564,7 +1569,8 @@ function renderDeviceAndPresetSection(tab, containerEl) {
           ipados: "iPadOS",
           windows: "Windows",
           macos: "macOS",
-          linux: "Linux"
+          linux: "Linux",
+          unknown: ""
         };
         const osText = osLabels[detectedOs];
         if (osText && osText !== identifier) {
@@ -1649,7 +1655,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         }
         deviceItem.draggable = true;
         tab._addEventListener(deviceItem, "dragstart", (e) => {
-          e.dataTransfer.setData("text/plain", deviceId);
+          e.dataTransfer?.setData("text/plain", deviceId);
           deviceItem.classList.add("dragging");
         });
         tab._addEventListener(deviceItem, "dragend", () => {
@@ -1700,6 +1706,9 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     btn.setButtonText(t("copyPresetCopy"));
     btn.onClick(async () => {
       const devicePreset2 = tab.plugin._getDevicePreset();
+      if (!devicePreset2) {
+        return;
+      }
       const copyName = `${devicePreset2.name}${t("copySuffix")}`;
       await tab.plugin.copyPresetForDevice(devicePreset2.id, copyName);
       new import_obsidian3.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
@@ -2131,7 +2140,7 @@ function renderFallbackSection(tab, containerEl) {
       new import_obsidian8.Notice(t("noUnusedFonts"));
       return;
     }
-    showConfirmDialog(tab.plugin.app, t("confirmDelete"), t("confirmDeleteUnusedFonts").replace("{count}", unusedFonts.length), async () => {
+    showConfirmDialog(tab.plugin.app, t("confirmDelete"), t("confirmDeleteUnusedFonts").replace("{count}", String(unusedFonts.length)), async () => {
       await tab.deleteUnusedFonts();
     }, true);
   }));
@@ -2168,8 +2177,9 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
     this.plugin.registerEvent(this.plugin.app.workspace.on("local-font-loader:settings-changed", this._settingsChangedHandler));
   }
   _addEventListener(element, event, handler, options) {
-    element.addEventListener(event, handler, options);
-    this._eventListeners.push({ element, event, handler, options });
+    const listener = handler;
+    element.addEventListener(event, listener, options);
+    this._eventListeners.push({ element, event, handler: listener, options });
   }
   _cleanupEventListeners() {
     this._eventListeners.forEach(({ element, event, handler, options }) => {
@@ -2299,7 +2309,7 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
 > ${t("latinFontInfoDescForLatinUsers")}`;
     }
     this._renderMarkdown(exampleCalloutEl, exampleMarkdown);
-    new import_obsidian9.Setting(containerEl).setName(t("latinFontEnabled")).setDesc(t("latinFontEnabledDesc")).addToggle((toggle) => toggle.setValue(activePreset.latinFontEnabled).onChange(async (value) => {
+    new import_obsidian9.Setting(containerEl).setName(t("latinFontEnabled")).setDesc(t("latinFontEnabledDesc")).addToggle((toggle) => toggle.setValue(activePreset.latinFontEnabled ?? false).onChange(async (value) => {
       activePreset.latinFontEnabled = value;
       await this.plugin.saveSettings();
       await this.plugin.applyFonts();
@@ -2336,7 +2346,7 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
             dropdown.addOption(familyName, label);
           });
         }
-        dropdown.setValue(activePreset.fonts.latin);
+        dropdown.setValue(activePreset.fonts.latin ?? "");
         dropdown.onChange(async (value) => {
           activePreset.fonts.latin = value;
           await this.plugin.saveSettings();
@@ -3565,9 +3575,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
               const fontPath = `${fontDir}/${filename}`;
               try {
                 await this.app.vault.adapter.readBinary(fontPath);
-                const basename = filename;
+                const basename = filename ?? "";
                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, "");
-                const ext = basename.split(".").pop().toLowerCase();
+                const ext = (basename.split(".").pop() || "").toLowerCase();
                 const fontInfo = {
                   name,
                   path: fontPath,
@@ -3598,9 +3608,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
             this._log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
             const scanPromises = fontFiles.map(async (fontPath) => {
               try {
-                const basename = fontPath.split("/").pop();
+                const basename = fontPath.split("/").pop() || "";
                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, "");
-                const ext = basename.split(".").pop().toLowerCase();
+                const ext = (basename.split(".").pop() || "").toLowerCase();
                 const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
                 const fontMetadata = parseFontMetadata(arrayBuffer);
                 const realFamilyName = fontMetadata?.familyName || family.familyName;
@@ -3623,8 +3633,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
             const scanResults = await Promise.all(scanPromises);
             for (const result of scanResults) {
               if (result.success) {
-                if (!fontMap.has(result.fontInfo.name)) {
-                  fontMap.set(result.fontInfo.name, result.fontInfo);
+                const scannedFont = result.fontInfo;
+                if (scannedFont && !fontMap.has(scannedFont.name)) {
+                  fontMap.set(scannedFont.name, scannedFont);
                 }
                 if (result.variantType === "regular")
                   family.hasRegular = true;
@@ -3731,7 +3742,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         if (!measured || measured.w === 0 && measured.h === 0) {
           return;
         }
-        snapshot.chars.push({ variantName, code, values: [entry[0], entry[1], entry[2]] });
+        snapshot.chars.push({ variantName, code, values: [Number(entry[0]), Number(entry[1]), Number(entry[2])] });
         entry[0] = measured.h;
         entry[1] = measured.d;
         entry[2] = measured.w;
@@ -4006,7 +4017,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
 `;
               loadedCount++;
             } else {
-              failedFonts.push(`${result.font.name} (读取失败: ${result.error.message})`);
+              failedFonts.push(`${result.font.name} (读取失败: ${result.error?.message ?? "unknown"})`);
             }
           }
         } catch (error) {
@@ -4042,7 +4053,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       };
       const buildFontStack = (key, fontFamily) => {
         const separatesLatin = latinFontEnabled && fontsConfig.latin && (key === "text" || key === "ui" && this.settings.latinFontForUI);
-        if (separatesLatin) {
+        if (separatesLatin && fontsConfig.latin) {
           return `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontFamily)}", sans-serif`;
         }
         const fallback = key === "monospace" ? "monospace" : "sans-serif";

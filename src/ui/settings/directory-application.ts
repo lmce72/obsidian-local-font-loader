@@ -8,7 +8,7 @@
 import { Notice, Setting, setIcon } from 'obsidian';
 
 import { t } from '../../i18n';
-import type { PresetFonts } from '../../types';
+import type { FontCategoryKey, PresetFonts } from '../../types';
 import type FontManagerSettingTab from '../settings-tab';
 import { addFolderPathInput } from './folder-input';
 
@@ -125,7 +125,14 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             }
         }
 
-        const fontTypes = [
+        const fontTypes: Array<{
+            key: FontCategoryKey;
+            name: string;
+            desc: string;
+            supportsLatin?: boolean;
+            supportsFileTitle?: boolean;
+            specialOptions?: string[];
+        }> = [
             { key: 'ui', name: t('uiFontName'), desc: t('uiFontDesc') },
             {
                 key: 'text',

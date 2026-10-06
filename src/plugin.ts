@@ -52,6 +52,18 @@ const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
  */
 const FONT_CSS_SNIPPET = 'local-font-loader';
 
+/** The id the `@font-face` rules are generated under — the half of the snippet that holds URLs. */
+const FONT_FACES_ID = 'local-font-loader-faces';
+
+/**
+ * How long after parking the snippet the live form is put back.
+ *
+ * Only ever reached when a quit is called off — see `_parkSnippetForNextStart`. It sits beyond
+ * the few seconds the main process lets a window hold up a close, so a quit that is really going
+ * through ends before this could undo the parking.
+ */
+const SNIPPET_PARK_RECOVERY_MS = 5000;
+
 export default class LocalFontLoaderPlugin extends Plugin {
 
     /**
@@ -514,6 +526,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // A snippet being toggled fires css-change, and that toggle may have been this plugin's
         // snippet — see `_ensureSnippetEnabled`.
         this.registerEvent(this.app.workspace.on('css-change', () => this._ensureSnippetEnabled()));
+
+        // Leaving the snippet live on disk is what makes the next start log a burst of
+        // `net::ERR_FILE_NOT_FOUND`: the resource URLs it holds expire when the process does, and
+        // Obsidian reads the file before any plugin is loaded. Quitting is the one moment late
+        // enough to still see the live CSS and early enough for an awaited write to land — see
+        // `_parkSnippetForNextStart`.
+        this.registerEvent(this.app.workspace.on('quit', (tasks) => {
+            tasks.add(() => this._parkSnippetForNextStart());
+        }));
 
         // Listen for data.json changes (for multi-device sync)
         this.registerEvent(
@@ -2503,7 +2524,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this._log(`[Local Font Loader] @font-face CSS total size: ${(fontFaceCss.length / 1024 / 1024).toFixed(2)} MB`);
 
             // Apply @font-face CSS
-            this.applyCss(fontFaceCss, 'local-font-loader-faces');
+            this.applyCss(fontFaceCss, FONT_FACES_ID);
 
             // Apply CSS variables
             let varsCss = '/* Local Font Loader - Variables */\n\n';
@@ -3014,7 +3035,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        const css = Array.from(this._snippetCss.values()).join('\n');
+        const css = this._renderSnippetCss(false);
 
         // Read the snippet's live state rather than trusting `_snippetEnabled`.
         //
@@ -3054,9 +3075,71 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
     }
 
+    /**
+     * The snippet's text, in the form the file has to be left in.
+     *
+     * `parked` is the whole difference between "the app is running" and "the app is about to
+     * stop". Every `@font-face` URL is resolved from the running app — the host in it is a token
+     * Obsidian's main process mints afresh on each launch — so a `src` written to disk is dead by
+     * the next start. Obsidian reads the snippet and injects its `<style>` element before any
+     * plugin's `onload` runs, so that dead copy is always the one parsed first, and each font in
+     * it is then requested from a host that no longer exists: the startup burst of
+     * `net::ERR_FILE_NOT_FOUND` that parking exists to prevent.
+     *
+     * Scoping the rules to print media leaves the copy inert on screen — an inert rule is never
+     * fetched — while Export to PDF, which renders the cloned `<style>` elements in print media,
+     * still finds them. The rest of the snippet carries no URL and is left alone, so the fonts
+     * keep their configuration either way, and the first apply of the next session writes the live
+     * form back over the parked one.
+     *
+     * @param parked - Whether the text is being left behind for the next start
+     * @returns the CSS to write
+     */
+    _renderSnippetCss(parked: boolean): string {
+        return Array.from(this._snippetCss.entries())
+            .map(([cssId, css]) => parked && cssId === FONT_FACES_ID ? `@media print {\n${css}}\n` : css)
+            .join('\n');
+    }
+
+    /**
+     * Leaves the snippet in the form that is safe to be read at startup.
+     *
+     * The write happens through Obsidian's quit task list, which is what makes it land before the
+     * process goes away. `onunload` cannot do it: the work it queues is asynchronous, the app does
+     * not wait for it, and a snippet switched off there was still enabled — and still holding live
+     * URLs — at the next start.
+     *
+     * A quit can be called off, and this plugin is not told when it is, so the live form is put
+     * back on a timer as well. If the app really is going away the timer never runs; if it is not,
+     * the fonts come back instead of staying parked for the rest of the session.
+     */
+    async _parkSnippetForNextStart(): Promise<void> {
+        try {
+            const customCss = this.app.customCss;
+            if (!customCss || this._snippetCss.size === 0) {
+                return;
+            }
+
+            const css = this._renderSnippetCss(true);
+            const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+            await this.app.vault.adapter.write(snippetPath, css);
+            this._log(`[Local Font Loader] Snippet parked for the next start (${(css.length / 1024).toFixed(1)} KB).`);
+
+            // The recovery apply generates the same CSS text, so it would be skipped as a no-op
+            // while the file on disk holds the parked form: the record of what was applied is
+            // dropped to make it run again.
+            this._appliedCss.delete(FONT_FACES_ID);
+            window.setTimeout(() => {
+                void this.applyFonts();
+            }, SNIPPET_PARK_RECOVERY_MS);
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not park the snippet for the next start:', error);
+        }
+    }
+
 
     removeFontStyles() {
-        this._removeGeneratedStyles('local-font-loader-faces');
+        this._removeGeneratedStyles(FONT_FACES_ID);
         this._removeGeneratedStyles('local-font-loader-vars');
 
         // Hand MathJax its own metrics back. They live on a global object shared with every other

@@ -2,6 +2,7 @@
  * The plugin class: font scanning, conversion, device identity and CSS generation.
  */
 import { Component, Plugin, Notice, MarkdownRenderer, Platform, normalizePath } from 'obsidian';
+import type { DataAdapter } from 'obsidian';
 
 import { t } from './i18n';
 import { parseFontMetadata } from './font-metadata';
@@ -54,6 +55,18 @@ const FONT_CSS_SNIPPET = 'local-font-loader';
 
 /** The id the `@font-face` rules are generated under — the half of the snippet that holds URLs. */
 const FONT_FACES_ID = 'local-font-loader-faces';
+
+/**
+ * The part of Obsidian's desktop adapter that can write without waiting.
+ *
+ * `fs` and `getFullPath` are how the file-system adapter is built; neither is in the public API,
+ * so both are optional here and the caller falls back to `adapter.write` when they are absent
+ * (which is the case on mobile, where there is nothing to park for anyway).
+ */
+interface AdapterWithSyncWrite {
+    fs?: { writeFileSync(path: string, data: string): void };
+    getFullPath?(path: string): string;
+}
 
 /**
  * How long after parking the snippet the live form is put back.
@@ -529,12 +542,20 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // Leaving the snippet live on disk is what makes the next start log a burst of
         // `net::ERR_FILE_NOT_FOUND`: the resource URLs it holds expire when the process does, and
-        // Obsidian reads the file before any plugin is loaded. Quitting is the one moment late
-        // enough to still see the live CSS and early enough for an awaited write to land — see
-        // `_parkSnippetForNextStart`.
-        this.registerEvent(this.app.workspace.on('quit', (tasks) => {
-            tasks.add(() => this._parkSnippetForNextStart());
-        }));
+        // Obsidian reads the file before any plugin is loaded.
+        //
+        // Parking waits for the document to go away (`pagehide`/`unload`), not for the earlier
+        // events that merely suggest it might. Both `quit` and `beforeunload` fire on a close that
+        // is then *deferred* — close-reflect defers it to ask whether to leave, and Obsidian
+        // re-issues the close if the answer is "stay" — and parking there pulls the fonts out from
+        // under a prompt that is still on screen, since the parked rules are inert and the parked
+        // write makes Obsidian re-read them. Measured in a test vault with both plugins loaded: the
+        // deferred close fired `beforeunload` only, and `pagehide`/`unload` never came. Those two
+        // therefore mean the app is really leaving: late enough to keep the fonts until then, and
+        // still early enough for the write to land — see `_parkSnippetForNextStart`.
+        for (const event of ['pagehide', 'unload'] as const) {
+            this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
+        }
 
         // Listen for data.json changes (for multi-device sync)
         this.registerEvent(
@@ -3067,12 +3088,37 @@ export default class LocalFontLoaderPlugin extends Plugin {
         await this._ensureFolder(snippetPath.split('/').slice(0, -1).join('/'));
 
         await this.app.vault.adapter.write(snippetPath, css);
+        this._forceSnippetReload(snippetPath);
         if (!isSnippetEnabled) {
             this._snippetEnabled = true;
             customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
             this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
         }
         this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
+    }
+
+    /**
+     * Makes Obsidian read the snippet from disk instead of from its own cache.
+     *
+     * Rewriting the file is *not* enough on its own. Obsidian caches a snippet's text by path and
+     * drops the entry only when its file watcher reports a change — and that watcher is armed
+     * lazily, so it is not watching yet when the first apply of a session rewrites the file. The
+     * document then keeps what the previous session left behind: the parked rules at the start of
+     * a normal session, or the previous session's dead URLs before that. Nothing on screen
+     * recovers from that, and only a later apply — once the watcher happens to be watching — puts
+     * the fonts back, which is the "apply the fonts again and they work" this plugin used to
+     * require after every start.
+     *
+     * @param snippetPath - The vault path the snippet was just written to
+     */
+    _forceSnippetReload(snippetPath: string): void {
+        try {
+            const customCss = this.app.customCss;
+            customCss?.csscache?.delete(snippetPath);
+            customCss?.requestLoadSnippets?.();
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not ask Obsidian to re-read the snippet:', error);
+        }
     }
 
     /**
@@ -3104,16 +3150,19 @@ export default class LocalFontLoaderPlugin extends Plugin {
     /**
      * Leaves the snippet in the form that is safe to be read at startup.
      *
-     * The write happens through Obsidian's quit task list, which is what makes it land before the
-     * process goes away. `onunload` cannot do it: the work it queues is asynchronous, the app does
-     * not wait for it, and a snippet switched off there was still enabled — and still holding live
-     * URLs — at the next start.
+     * Runs from the window's `beforeunload`, which is the last moment the renderer gets: the
+     * unload handler cannot await anything, and the renderer may be torn down before a promise
+     * resolves, so the write is issued synchronously where the platform allows it — the desktop
+     * adapter holds Node's `fs`, and a few kilobytes land long before the process goes. Mobile has
+     * no such adapter (and no unload event to speak of), so it keeps the asynchronous path, which
+     * is what the rest of the plugin uses anyway.
      *
-     * A quit can be called off, and this plugin is not told when it is, so the live form is put
-     * back on a timer as well. If the app really is going away the timer never runs; if it is not,
-     * the fonts come back instead of staying parked for the rest of the session.
+     * If the unload is called off — something else can hold the close up the way this plugin's own
+     * prompt-holding neighbours do — the session keeps running with a parked file, and the screen
+     * faces, which came from the live rules, are gone. The apply put back on a timer is what
+     * covers that; when the app really is leaving, the timer dies with it.
      */
-    async _parkSnippetForNextStart(): Promise<void> {
+    _parkSnippetForNextStart(): void {
         try {
             const customCss = this.app.customCss;
             if (!customCss || this._snippetCss.size === 0) {
@@ -3122,8 +3171,14 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             const css = this._renderSnippetCss(true);
             const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
-            await this.app.vault.adapter.write(snippetPath, css);
-            this._log(`[Local Font Loader] Snippet parked for the next start (${(css.length / 1024).toFixed(1)} KB).`);
+            const adapter = this.app.vault.adapter as DataAdapter & AdapterWithSyncWrite;
+
+            if (adapter.fs?.writeFileSync && adapter.getFullPath) {
+                adapter.fs.writeFileSync(adapter.getFullPath(snippetPath), css);
+                this._log(`[Local Font Loader] Snippet parked for the next start (${(css.length / 1024).toFixed(1)} KB).`);
+            } else {
+                void adapter.write(snippetPath, css);
+            }
 
             // The recovery apply generates the same CSS text, so it would be skipped as a no-op
             // while the file on disk holds the parked form: the record of what was applied is

@@ -31,6 +31,17 @@ declare module 'obsidian' {
             getSnippetPath(name: string): string;
             /** Turns a snippet on or off and reloads snippets. */
             setCssEnabledStatus(name: string, enabled: boolean): void;
+            /**
+             * Snippet text, keyed by vault path.
+             *
+             * Obsidian reads a snippet through this cache and only drops an entry when its own
+             * file watcher reports the file as changed — and that watcher is armed lazily, so it
+             * is not watching yet when the first apply of a session rewrites the snippet. Dropping
+             * the entry by hand is what makes the next read come from disk.
+             */
+            csscache?: Map<string, string>;
+            /** Asks for the enabled snippets to be re-read and re-injected, debounced. */
+            requestLoadSnippets?(): void;
         };
     }
 

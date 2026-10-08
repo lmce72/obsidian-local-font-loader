@@ -78,6 +78,9 @@ interface AdapterWithSyncWrite {
  */
 const SNIPPET_PARK_RECOVERY_MS = 5000;
 
+/** Shortest gap between two attempts at adopting the math metrics. */
+const MATH_ADOPTION_RETRY_MS = 5000;
+
 export default class LocalFontLoaderPlugin extends Plugin {
 
     /**
@@ -94,6 +97,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * every device believe it is the same one. It lives in device-local storage instead.
      */
     currentDeviceId!: string;
+
+    /** When the math metric adoption was last attempted, so the retry below cannot thrash. */
+    _mathAdoptionAttemptAt = 0;
 
     /** MathJax's original glyph metrics, kept so adoption can be undone. */
     _mathFontSnapshot: MathFontMetricSnapshot | null = null;
@@ -562,6 +568,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
             }
         }
+
+        // Adopting the math font's metrics needs MathJax's font table, and that only exists
+        // once a formula has been typeset — which on a cold start is after the apply that would
+        // have adopted it. So a later attempt is the normal case rather than an edge one.
+        this.registerEvent(this.app.workspace.on('layout-change', () => {
+            void this._retryMathMetricAdoption();
+        }));
 
         // Listen for data.json changes (for multi-device sync)
         this.registerEvent(
@@ -2083,30 +2096,107 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
     }
 
+    /**
+     * Waits for MathJax to build the font table maths is laid out from.
+     *
+     * The table does not exist until MathJax initialises, and MathJax initialises when the first
+     * formula is typeset — not when the app starts. The apply that follows a font change runs in
+     * the first second of a session, so asking once means asking too early.
+     *
+     * @returns the table, or null when it never appeared within the budget
+     */
+    async _waitForMathFontData(attempts = 24, delayMs = 250): Promise<MathJaxFontData | null> {
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            const fontData = this._getMathFontData();
+            if (fontData) {
+                return fontData;
+            }
+            await new Promise(resolve => window.setTimeout(resolve, delayMs));
+        }
+
+        return null;
+    }
+
+    /**
+     * Waits for the math font to be usable, up to a few seconds.
+     *
+     * `document.fonts.load()` resolves immediately — with nothing — when no declared face matches
+     * the request yet, which is exactly the state of a cold start: the faces arrive with the CSS
+     * snippet, and Obsidian re-reads that a moment after it is written. One attempt is therefore
+     * not enough to tell "this font is missing" from "this font is not there yet".
+     *
+     * @param familyName - The configured math font family
+     * @returns whether the font is available for measuring
+     */
+    async _waitForMathFont(familyName: string, attempts = 12, delayMs = 250): Promise<boolean> {
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            try {
+                await document.fonts.load(`16px "${familyName}"`);
+            } catch (error) {
+                this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
+            }
+
+            if (document.fonts.check(`16px "${familyName}"`)) {
+                return true;
+            }
+
+            await new Promise(resolve => window.setTimeout(resolve, delayMs));
+        }
+
+        return false;
+    }
+
+    /**
+     * Adopts the math font's metrics once MathJax is ready, if the apply was too early.
+     */
+    async _retryMathMetricAdoption(): Promise<void> {
+        try {
+            const preset = this._getDevicePreset();
+            const familyName = preset && preset.fonts ? preset.fonts.math : '';
+            if (!familyName || this._mathFontSnapshot) {
+                return;
+            }
+            const now = Date.now();
+            if (now - this._mathAdoptionAttemptAt < MATH_ADOPTION_RETRY_MS) {
+                return;
+            }
+            this._mathAdoptionAttemptAt = now;
+
+            const adopted = await this._adoptMathFontMetrics(familyName);
+            if (adopted) {
+                await this._rebuildMathJaxStyles();
+                this._refreshMathViews();
+                this._log('[Local Font Loader] Math font metrics adopted on a later attempt');
+            }
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not adopt the math font metrics:', error);
+        }
+    }
+
     async _adoptMathFontMetrics(familyName: string) {
         const mathJax = window.MathJax;
         if (!familyName || !mathJax || !document.fonts) {
             return false;
         }
 
-        const fontData = this._getMathFontData();
+        // Both halves of the precondition arrive late, and both have to be waited for.
+        //
+        // The font arrives with the snippet Obsidian re-reads a moment after it is written, and
+        // MathJax only builds its font table once it has been initialised — which happens when the
+        // first formula is typeset, not when the app starts. Checking once and giving up covered
+        // neither: the apply runs in the first second of a session, when the face may not be
+        // registered yet and the table may not exist at all. Adoption then silently did nothing,
+        // and maths kept being laid out with MathJax's own TeX metrics while the CSS drew the
+        // user's font — the mismatch shows up as glyphs whose ink does not fit the box MathJax
+        // sized for them, i.e. digits that look cut off.
+        const fontData = await this._waitForMathFontData();
         if (!fontData) {
-            this._log('[Local Font Loader] MathJax\'s font table is not available; metrics not adopted');
+            this._log('[Local Font Loader] MathJax\'s font table never became available; metrics not adopted');
             return false;
         }
 
-        // A declared @font-face is not fetched until something actually draws with it, and until
-        // then fonts.check() reports false. Measured before the load, every glyph would fall back
-        // to some other face and the table would be filled with the wrong metrics — so the load
-        // is forced first, and the check afterwards confirms it really landed.
-        try {
-            await document.fonts.load(`16px "${familyName}"`);
-        } catch (error) {
-            this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
-        }
-
-        if (!document.fonts.check(`16px "${familyName}"`)) {
-            this._log(`[Local Font Loader] Math font "${familyName}" is not loaded; metrics not adopted`);
+        if (!(await this._waitForMathFont(familyName))) {
+            this._log(`[Local Font Loader] Math font "${familyName}" did not become available; metrics not adopted`);
             return false;
         }
 

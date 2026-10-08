@@ -2592,9 +2592,11 @@ var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 var FONT_CSS_SNIPPET = "local-font-loader";
 var FONT_FACES_ID = "local-font-loader-faces";
 var SNIPPET_PARK_RECOVERY_MS = 5000;
+var MATH_ADOPTION_RETRY_MS = 5000;
 
 class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   currentDeviceId;
+  _mathAdoptionAttemptAt = 0;
   _mathFontSnapshot = null;
   _appliedCss = new Map;
   _snippetCss = new Map;
@@ -2864,6 +2866,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
       }
     }
+    this.registerEvent(this.app.workspace.on("layout-change", () => {
+      this._retryMathMetricAdoption();
+    }));
     this.registerEvent(this.app.vault.on("modify", (file) => {
       if (file.path === `${this.manifest.dir}/data.json`) {
         this._log("[Local Font Loader] data.json modified, checking for content changes...");
@@ -3721,23 +3726,64 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       return null;
     }
   }
+  async _waitForMathFontData(attempts = 24, delayMs = 250) {
+    for (let attempt = 0;attempt < attempts; attempt++) {
+      const fontData = this._getMathFontData();
+      if (fontData) {
+        return fontData;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    }
+    return null;
+  }
+  async _waitForMathFont(familyName, attempts = 12, delayMs = 250) {
+    for (let attempt = 0;attempt < attempts; attempt++) {
+      try {
+        await document.fonts.load(`16px "${familyName}"`);
+      } catch (error) {
+        this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
+      }
+      if (document.fonts.check(`16px "${familyName}"`)) {
+        return true;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    }
+    return false;
+  }
+  async _retryMathMetricAdoption() {
+    try {
+      const preset = this._getDevicePreset();
+      const familyName = preset && preset.fonts ? preset.fonts.math : "";
+      if (!familyName || this._mathFontSnapshot) {
+        return;
+      }
+      const now = Date.now();
+      if (now - this._mathAdoptionAttemptAt < MATH_ADOPTION_RETRY_MS) {
+        return;
+      }
+      this._mathAdoptionAttemptAt = now;
+      const adopted = await this._adoptMathFontMetrics(familyName);
+      if (adopted) {
+        await this._rebuildMathJaxStyles();
+        this._refreshMathViews();
+        this._log("[Local Font Loader] Math font metrics adopted on a later attempt");
+      }
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not adopt the math font metrics:", error);
+    }
+  }
   async _adoptMathFontMetrics(familyName) {
     const mathJax = window.MathJax;
     if (!familyName || !mathJax || !document.fonts) {
       return false;
     }
-    const fontData = this._getMathFontData();
+    const fontData = await this._waitForMathFontData();
     if (!fontData) {
-      this._log("[Local Font Loader] MathJax's font table is not available; metrics not adopted");
+      this._log("[Local Font Loader] MathJax's font table never became available; metrics not adopted");
       return false;
     }
-    try {
-      await document.fonts.load(`16px "${familyName}"`);
-    } catch (error) {
-      this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
-    }
-    if (!document.fonts.check(`16px "${familyName}"`)) {
-      this._log(`[Local Font Loader] Math font "${familyName}" is not loaded; metrics not adopted`);
+    if (!await this._waitForMathFont(familyName)) {
+      this._log(`[Local Font Loader] Math font "${familyName}" did not become available; metrics not adopted`);
       return false;
     }
     const canvas = createEl("canvas");

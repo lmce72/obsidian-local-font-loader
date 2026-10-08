@@ -2859,8 +2859,10 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     });
     this.addSettingTab(new FontManagerSettingTab(this.app, this));
     this.registerEvent(this.app.workspace.on("css-change", () => this._ensureSnippetEnabled()));
-    for (const event of ["pagehide", "unload"]) {
-      this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
+    if (import_obsidian10.Platform.isDesktopApp) {
+      for (const event of ["pagehide", "unload"]) {
+        this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
+      }
     }
     this.registerEvent(this.app.vault.on("modify", (file) => {
       if (file.path === `${this.manifest.dir}/data.json`) {
@@ -4387,6 +4389,15 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       return;
     }
     const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+    const onDisk = await this._readSnippet(snippetPath);
+    if (onDisk === css) {
+      if (!isSnippetEnabled) {
+        this._snippetEnabled = true;
+        customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
+        this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off; switching it back on.`);
+      }
+      return;
+    }
     await this._ensureFolder(snippetPath.split("/").slice(0, -1).join("/"));
     await this.app.vault.adapter.write(snippetPath, css);
     this._forceSnippetReload(snippetPath);
@@ -4396,6 +4407,18 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
     }
     this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
+  }
+  async _readSnippet(snippetPath) {
+    try {
+      const adapter = this.app.vault.adapter;
+      if (!await adapter.exists(snippetPath)) {
+        return null;
+      }
+      return await adapter.read(snippetPath);
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not read the snippet back before writing it:", error);
+      return null;
+    }
   }
   _forceSnippetReload(snippetPath) {
     try {

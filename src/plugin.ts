@@ -544,17 +544,22 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // `net::ERR_FILE_NOT_FOUND`: the resource URLs it holds expire when the process does, and
         // Obsidian reads the file before any plugin is loaded.
         //
+        // Only the desktop has that problem. There the URL is `app://<token>/…`, and the token is
+        // minted afresh by the main process on every launch; on mobile the adapter resolves a file
+        // through the platform's own URI helper (`fs.getUri`), which contains no such token and is
+        // still valid at the next start. Parking there would buy nothing and cost the fonts: the
+        // parked rules are inert, so the screen would wait for the next apply before showing them
+        // again — and on a phone that wait is the font files being read and parsed all over.
+        //
         // Parking waits for the document to go away (`pagehide`/`unload`), not for the earlier
-        // events that merely suggest it might. Both `quit` and `beforeunload` fire on a close that
-        // is then *deferred* — close-reflect defers it to ask whether to leave, and Obsidian
-        // re-issues the close if the answer is "stay" — and parking there pulls the fonts out from
-        // under a prompt that is still on screen, since the parked rules are inert and the parked
-        // write makes Obsidian re-read them. Measured in a test vault with both plugins loaded: the
-        // deferred close fired `beforeunload` only, and `pagehide`/`unload` never came. Those two
-        // therefore mean the app is really leaving: late enough to keep the fonts until then, and
-        // still early enough for the write to land — see `_parkSnippetForNextStart`.
-        for (const event of ['pagehide', 'unload'] as const) {
-            this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
+        // events that merely suggest it might: both `quit` and `beforeunload` fire on a close that
+        // is then deferred and possibly called off, and parking there pulls the fonts out from
+        // under a prompt that is still on screen. Measured in a test vault: a deferred close fired
+        // `beforeunload` only, and `pagehide`/`unload` never came.
+        if (Platform.isDesktopApp) {
+            for (const event of ['pagehide', 'unload'] as const) {
+                this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
+            }
         }
 
         // Listen for data.json changes (for multi-device sync)
@@ -3085,6 +3090,23 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // ever carried, and the queued sync swallowed the error behind the log switch — so the
         // fonts simply never applied, with nothing said.
         const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+        const onDisk = await this._readSnippet(snippetPath);
+
+        // A file that already holds exactly this CSS needs neither the write nor the reload that
+        // follows it. The reload is not free: Obsidian re-reads every enabled snippet and the
+        // document rebuilds its rules, which on a phone means the font files being read and parsed
+        // again. This is the ordinary case at the start of a mobile session, where the file left
+        // behind already holds the current session's URLs (the platform's own file URI carries no
+        // per-launch token), so the startup apply has nothing to change.
+        if (onDisk === css) {
+            if (!isSnippetEnabled) {
+                this._snippetEnabled = true;
+                customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
+                this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off; switching it back on.`);
+            }
+            return;
+        }
+
         await this._ensureFolder(snippetPath.split('/').slice(0, -1).join('/'));
 
         await this.app.vault.adapter.write(snippetPath, css);
@@ -3095,6 +3117,26 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
         }
         this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
+    }
+
+    /**
+     * The snippet's text as it is on disk, or null when there is no readable file.
+     *
+     * @param snippetPath - The vault-relative path of the snippet
+     */
+    async _readSnippet(snippetPath: string): Promise<string | null> {
+        try {
+            const adapter = this.app.vault.adapter;
+            if (!(await adapter.exists(snippetPath))) {
+                return null;
+            }
+            return await adapter.read(snippetPath);
+        } catch (error) {
+            // Unreadable is treated as "not the same", which is the safe direction: the write and
+            // the reload that follow it are what the caller would have done anyway.
+            this._logError('[Local Font Loader] Could not read the snippet back before writing it:', error);
+            return null;
+        }
     }
 
     /**

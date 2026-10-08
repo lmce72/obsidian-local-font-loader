@@ -88,6 +88,11 @@ declare global {
          * the same place, so the two paths below cover both.
          */
         MathJax?: {
+            /**
+             * Typesets the given elements (the whole body when asked for it), returning once the
+             * output is in place. Optional because only the plugin's fallback path needs it.
+             */
+            typesetPromise?(elements?: unknown[]): Promise<void>;
             config: {
                 chtml: {
                     /** The name of the configured font, e.g. `"mathjax-tex"` — not the metrics table. */

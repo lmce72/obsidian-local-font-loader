@@ -3873,45 +3873,54 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     this._log(`[Local Font Loader] Math font metrics restored (${snapshot.chars.length} glyphs)`);
     this._mathFontSnapshot = null;
   }
-  async _rebuildMathJaxStyles() {
-    const mathJax = window.MathJax;
-    if (!mathJax || !mathJax.startup || !mathJax.startup.output) {
-      return false;
-    }
-    const output = mathJax.startup.output;
+  _buildMathGlyphRules() {
     try {
-      if (output.options) {
-        output.options.adaptiveCSS = false;
+      const fontData = this._getMathFontData();
+      if (!fontData || !fontData.variant) {
+        return "";
       }
-      output.clearCache();
-      const existing = document.getElementById("MJX-CHTML-styles");
-      if (existing) {
-        existing.remove();
-      }
-      const scratch = createEl("div");
-      scratch.addClass("lfl-render-scratch");
-      document.body.appendChild(scratch);
-      const typesetComponent = new import_obsidian10.Component;
-      typesetComponent.load();
-      try {
-        await import_obsidian10.MarkdownRenderer.render(this.app, "$x$", scratch, "", typesetComponent);
-      } finally {
-        typesetComponent.unload();
-      }
-      scratch.remove();
-      return !!document.getElementById("MJX-CHTML-styles");
-    } catch (error) {
-      this._logError("[Local Font Loader] Failed to rebuild MathJax styles:", error);
-      return false;
-    } finally {
-      try {
-        if (output.options) {
-          output.options.adaptiveCSS = true;
+      const guards = {
+        normal: "",
+        bold: ".TEX-B",
+        italic: ".TEX-I",
+        "bold-italic": ".TEX-BI"
+      };
+      let css = `/* Per-glyph advances - kept here so the display does not depend on MathJax's stylesheet */
+`;
+      let count = 0;
+      for (const variantName of Object.keys(guards)) {
+        const variant = fontData.variant[variantName];
+        const chars = variant && variant.chars;
+        if (!chars) {
+          continue;
         }
-      } catch (error) {
-        this._logError("[Local Font Loader] Failed to restore adaptive CSS mode:", error);
+        const guard = guards[variantName];
+        for (const code of Object.keys(chars)) {
+          const entry = chars[code];
+          if (!Array.isArray(entry) || entry.length < 3) {
+            continue;
+          }
+          const height = Number(entry[0]);
+          const depth = Number(entry[1]);
+          const width = Number(entry[2]);
+          if (!Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(width)) {
+            continue;
+          }
+          const glyphClass = "mjx-c" + Number(code).toString(16).toUpperCase();
+          css += `body mjx-c.${glyphClass}${guard} { padding: ${height.toFixed(4)}em ${width.toFixed(4)}em ${depth.toFixed(4)}em 0 !important; }
+`;
+          count++;
+        }
       }
+      return count ? css + `
+` : "";
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not generate the per-glyph rules:", error);
+      return "";
     }
+  }
+  async _rebuildMathJaxStyles() {
+    return !!document.getElementById("MJX-CHTML-styles");
   }
   _refreshMathViews() {
     try {
@@ -4304,6 +4313,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         varsCss += `body mjx-c { clip-path: none !important; }
 
 `;
+        varsCss += this._buildMathGlyphRules();
         varsCss += `/* Container */
 `;
         varsCss += `body mjx-container,

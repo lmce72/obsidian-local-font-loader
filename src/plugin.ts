@@ -2329,56 +2329,72 @@ export default class LocalFontLoaderPlugin extends Plugin {
      *
      * @returns {Promise<boolean>} True when the stylesheet was rebuilt
      */
-    async _rebuildMathJaxStyles() {
-        const mathJax = window.MathJax;
-        if (!mathJax || !mathJax.startup || !mathJax.startup.output) {
-            return false;
-        }
-
-        const output = mathJax.startup.output;
+    /**
+     * Per-glyph rules carrying height, depth and advance, generated for the whole table.
+     *
+     * The variant is part of the selector: MathJax marks the maths it lays out with a `TEX-*`
+     * class, so the unguarded rules cover the plain variant and the guarded ones override them
+     * for bold, italic and bold-italic, which share the same glyph classes.
+     *
+     * @returns the CSS block, or an empty string when there is no table to read
+     */
+    _buildMathGlyphRules(): string {
         try {
-            if (output.options) {
-                output.options.adaptiveCSS = false;
-            }
-            output.clearCache();
-
-            const existing = document.getElementById('MJX-CHTML-styles');
-            if (existing) {
-                existing.remove();
+            const fontData = this._getMathFontData();
+            if (!fontData || !fontData.variant) {
+                return '';
             }
 
-            // Forces MathJax to lay out a formula, which is what regenerates the stylesheet.
-            const scratch = createEl('div');
-            scratch.addClass('lfl-render-scratch');
-            document.body.appendChild(scratch);
-            // A throwaway Component: the plugin outlives every render and must not be used
-            // as one, or each render would leak into the plugin's own lifecycle.
-            const typesetComponent = new Component();
-            typesetComponent.load();
-            try {
-                await MarkdownRenderer.render(this.app, '$x$', scratch, '', typesetComponent);
-            } finally {
-                typesetComponent.unload();
-            }
-            scratch.remove();
+            const guards: Record<string, string> = {
+                normal: '',
+                bold: '.TEX-B',
+                italic: '.TEX-I',
+                'bold-italic': '.TEX-BI',
+            };
 
-            return !!document.getElementById('MJX-CHTML-styles');
-        } catch (error) {
-            this._logError('[Local Font Loader] Failed to rebuild MathJax styles:', error);
-            return false;
-        } finally {
-            // Always restore adaptive mode, even if the rebuild failed — leaving it off would
-            // inflate the stylesheet on every subsequent render.
-            try {
-                if (output.options) {
-                    output.options.adaptiveCSS = true;
+            let css = '/* Per-glyph advances - kept here so the display does not depend on MathJax\'s stylesheet */\n';
+            let count = 0;
+            for (const variantName of Object.keys(guards)) {
+                const variant = fontData.variant[variantName];
+                const chars = variant && variant.chars;
+                if (!chars) {
+                    continue;
                 }
-            } catch (error) {
-                this._logError('[Local Font Loader] Failed to restore adaptive CSS mode:', error);
+                const guard = guards[variantName];
+                for (const code of Object.keys(chars)) {
+                    const entry = chars[code];
+                    if (!Array.isArray(entry) || entry.length < 3) {
+                        continue;
+                    }
+                    const height = Number(entry[0]);
+                    const depth = Number(entry[1]);
+                    const width = Number(entry[2]);
+                    if (!Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(width)) {
+                        continue;
+                    }
+                    const glyphClass = 'mjx-c' + Number(code).toString(16).toUpperCase();
+                    css += `body mjx-c.${glyphClass}${guard} { padding: ${height.toFixed(4)}em ${width.toFixed(4)}em ${depth.toFixed(4)}em 0 !important; }\n`;
+                    count++;
+                }
             }
+
+            return count ? css + '\n' : '';
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not generate the per-glyph rules:', error);
+            return '';
         }
     }
 
+    async _rebuildMathJaxStyles() {
+        // Kept as a hook, deliberately doing nothing.
+        //
+        // This used to delete MathJax's stylesheet and typeset a scratch formula to make it emit
+        // a fresh one. MathJax only emits a glyph's rule while it lays that glyph out, so the
+        // rebuilt sheet covered the scratch formula alone and every other glyph lost its
+        // advance — the maths collapsed into overlapping ink. The advances are emitted as CSS by
+        // `_buildMathGlyphRules` now, which is what makes the display stable.
+        return !!document.getElementById('MJX-CHTML-styles');
+    }
     /**
      * Re-renders open reading views so the rebuilt stylesheet reaches them.
      */
@@ -2934,6 +2950,16 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 // assembly pieces below keep their own clip.
                 varsCss += `/* Glyphs are clipped to their box by MathJax; that net is for its own fonts */\n`;
                 varsCss += `body mjx-c { clip-path: none !important; }\n\n`;
+
+                // Every glyph's advance is written here instead of being left to MathJax.
+                //
+                // MathJax keeps a glyph's advance in a per-glyph rule it emits as formulas are
+                // laid out, so a glyph the sheet does not happen to cover has no advance at all:
+                // it collapses onto its neighbour and the formula turns into overlapping ink.
+                // Emitting the rules from the metrics table — which is already patched with the
+                // configured font's own numbers — makes the display independent of what
+                // MathJax's stylesheet happens to contain, and of whether it has been rebuilt.
+                varsCss += this._buildMathGlyphRules();
 
                 varsCss += `/* Container */\n`;
                 varsCss += `body mjx-container,\n`;

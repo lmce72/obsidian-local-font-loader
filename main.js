@@ -3702,13 +3702,33 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._isScanning = false;
     }
   }
+  _getMathFontData() {
+    try {
+      const mathJax = window.MathJax;
+      const candidates = [
+        mathJax?.startup?.output?.font,
+        mathJax?.startup?.document?.outputJax?.font
+      ];
+      for (const candidate of candidates) {
+        const variant = candidate?.variant;
+        if (variant && typeof variant === "object") {
+          return candidate;
+        }
+      }
+      return null;
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not reach MathJax's font table:", error);
+      return null;
+    }
+  }
   async _adoptMathFontMetrics(familyName) {
     const mathJax = window.MathJax;
-    if (!familyName || !mathJax || !mathJax.config || !mathJax.config.chtml) {
+    if (!familyName || !mathJax || !document.fonts) {
       return false;
     }
-    const fontData = mathJax.config.chtml.font;
-    if (!fontData || !fontData.variant || !document.fonts) {
+    const fontData = this._getMathFontData();
+    if (!fontData) {
+      this._log("[Local Font Loader] MathJax's font table is not available; metrics not adopted");
       return false;
     }
     try {
@@ -3783,12 +3803,14 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   _restoreMathFontMetrics() {
     const snapshot = this._mathFontSnapshot;
-    const mathJax = window.MathJax;
-    if (!snapshot || !mathJax || !mathJax.config || !mathJax.config.chtml) {
+    if (!snapshot) {
+      return;
+    }
+    const fontData = this._getMathFontData();
+    if (!fontData) {
       this._mathFontSnapshot = null;
       return;
     }
-    const fontData = mathJax.config.chtml.font;
     snapshot.chars.forEach(({ variantName, code, values }) => {
       const chars = fontData.variant[variantName] && fontData.variant[variantName].chars;
       if (chars && chars[code]) {
@@ -4201,6 +4223,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         const sizeVariantGuard = [1, 2, 3, 4].map((n) => `:not(.TEX-S${n})`).join("");
         varsCss += `/* Italic variables */
 `;
+        varsCss += `body mjx-c.TEX-I${sizeVariantGuard},
+`;
         varsCss += `body mjx-c.TEX-I${sizeVariantGuard}::before {
 `;
         varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXTEX-I, MJXZERO, serif !important;
@@ -4212,9 +4236,15 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
 `;
         varsCss += `/* Numbers and operators */
 `;
+        varsCss += `body mjx-mn mjx-c${sizeVariantGuard},
+`;
         varsCss += `body mjx-mn mjx-c${sizeVariantGuard}::before,
 `;
+        varsCss += `body mjx-mo mjx-c${sizeVariantGuard},
+`;
         varsCss += `body mjx-mo mjx-c${sizeVariantGuard}::before,
+`;
+        varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard},
 `;
         varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard}::before {
 `;
@@ -4243,6 +4273,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
           "mjx-stretchy-v mjx-ext mjx-c"
         ];
         stretchyScopes.forEach((scope, index) => {
+          varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard},
+`;
           varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard}::before`;
           varsCss += index === stretchyScopes.length - 1 ? ` {
 ` : `,

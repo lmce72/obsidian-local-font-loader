@@ -82,12 +82,16 @@ declare global {
          * MathJax's runtime, present only once Obsidian has typeset something on this platform.
          *
          * Left loosely typed on purpose: only the small surface the plugin actually touches is
-         * declared, and the shapes below are documented against MathJax 3.2.
+         * declared. The metrics table is reached through the output jax — verified on MathJax 4.1.3,
+         * the build Obsidian 1.14 ships, where `config.chtml.font` is the font *name* and the table
+         * with `variant`/`delimiters` sits on `startup.output.font`. MathJax 3.2 keeps its table in
+         * the same place, so the two paths below cover both.
          */
         MathJax?: {
             config: {
                 chtml: {
-                    font: MathJaxFontData;
+                    /** The name of the configured font, e.g. `"mathjax-tex"` — not the metrics table. */
+                    font?: string;
                 };
             };
             startup: {
@@ -95,6 +99,11 @@ declare global {
                     options?: { adaptiveCSS?: boolean };
                     clearCache(): void;
                     adaptor: { document: unknown };
+                    /** The CHTML font table maths is laid out from. */
+                    font?: MathJaxFontData;
+                };
+                document?: {
+                    outputJax?: { font?: MathJaxFontData };
                 };
             };
         };

@@ -3,6 +3,7 @@
  */
 import { Component, Plugin, Notice, MarkdownRenderer, Platform, normalizePath } from 'obsidian';
 import type { DataAdapter } from 'obsidian';
+import type { MathJaxFontData } from './obsidian-extras';
 
 import { t } from './i18n';
 import { parseFontMetadata } from './font-metadata';
@@ -2051,13 +2052,46 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} familyName - The configured math font family
      * @returns {boolean} True when metrics were adopted
      */
+    /**
+     * MathJax's CHTML font table — the metrics maths is laid out from.
+     *
+     * Reached through the output jax, not through the config. `config.chtml.font` holds the font
+     * *name* (`"mathjax-tex"` on MathJax 4.1.3, the build Obsidian 1.14 ships), and reading the
+     * table there is what made this whole step a silent no-op: the shape guard failed, adoption
+     * returned before measuring anything, and maths kept rendering in the user's font while being
+     * laid out with MathJax's own metrics.
+     *
+     * @returns the table, or null when MathJax is not up or nothing carries one yet
+     */
+    _getMathFontData(): MathJaxFontData | null {
+        try {
+            const mathJax = window.MathJax;
+            const candidates = [
+                mathJax?.startup?.output?.font,
+                mathJax?.startup?.document?.outputJax?.font,
+            ];
+            for (const candidate of candidates) {
+                const variant = (candidate as { variant?: unknown } | undefined)?.variant;
+                if (variant && typeof variant === 'object') {
+                    return candidate as MathJaxFontData;
+                }
+            }
+            return null;
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not reach MathJax\'s font table:', error);
+            return null;
+        }
+    }
+
     async _adoptMathFontMetrics(familyName: string) {
         const mathJax = window.MathJax;
-        if (!familyName || !mathJax || !mathJax.config || !mathJax.config.chtml) {
+        if (!familyName || !mathJax || !document.fonts) {
             return false;
         }
-        const fontData = mathJax.config.chtml.font;
-        if (!fontData || !fontData.variant || !document.fonts) {
+
+        const fontData = this._getMathFontData();
+        if (!fontData) {
+            this._log('[Local Font Loader] MathJax\'s font table is not available; metrics not adopted');
             return false;
         }
 
@@ -2161,13 +2195,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
      */
     _restoreMathFontMetrics() {
         const snapshot = this._mathFontSnapshot;
-        const mathJax = window.MathJax;
-        if (!snapshot || !mathJax || !mathJax.config || !mathJax.config.chtml) {
-            this._mathFontSnapshot = null;
+        if (!snapshot) {
             return;
         }
 
-        const fontData = mathJax.config.chtml.font;
+        const fontData = this._getMathFontData();
+        if (!fontData) {
+            this._mathFontSnapshot = null;
+            return;
+        }
 
         snapshot.chars.forEach(({ variantName, code, values }) => {
             const chars = fontData.variant[variantName] && fontData.variant[variantName].chars;
@@ -2774,14 +2810,27 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 // swap resolves both.
                 const sizeVariantGuard = [1, 2, 3, 4].map(n => `:not(.TEX-S${n})`).join('');
 
+                // Every rule below is emitted at two levels: the glyph element, and its ::before.
+                //
+                // Which of the two carries the character depends on MathJax. Version 3 draws a
+                // glyph with `::before { content: "…" }`, so the font belongs to the pseudo-element.
+                // Version 4 — the build Obsidian 1.14 ships — puts the character in the element's
+                // own text (`<mjx-c class="mjx-c36">6</mjx-c>`, whose `::before` has no content at
+                // all), so a `::before`-only rule matches nothing and every glyph keeps MathJax's
+                // TeX faces: the container showed the configured font while the symbols did not.
+                // Emitting both keeps one stylesheet correct on either version.
                 varsCss += `/* Italic variables */\n`;
+                varsCss += `body mjx-c.TEX-I${sizeVariantGuard},\n`;
                 varsCss += `body mjx-c.TEX-I${sizeVariantGuard}::before {\n`;
                 varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXTEX-I, MJXZERO, serif !important;\n`;
                 varsCss += `  font-style: normal !important;\n`;
                 varsCss += `}\n\n`;
                 varsCss += `/* Numbers and operators */\n`;
+                varsCss += `body mjx-mn mjx-c${sizeVariantGuard},\n`;
                 varsCss += `body mjx-mn mjx-c${sizeVariantGuard}::before,\n`;
+                varsCss += `body mjx-mo mjx-c${sizeVariantGuard},\n`;
                 varsCss += `body mjx-mo mjx-c${sizeVariantGuard}::before,\n`;
+                varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard},\n`;
                 varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard}::before {\n`;
                 varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
                 varsCss += `}\n\n`;
@@ -2812,6 +2861,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     'mjx-stretchy-v mjx-ext mjx-c'
                 ];
                 stretchyScopes.forEach((scope, index) => {
+                    varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard},\n`;
                     varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard}::before`;
                     varsCss += (index === stretchyScopes.length - 1) ? ' {\n' : ',\n';
                 });

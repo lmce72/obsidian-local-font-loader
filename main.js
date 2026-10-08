@@ -4299,6 +4299,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         varsCss += `}
 
 `;
+        varsCss += `/* Glyphs are clipped to their box by MathJax; that net is for its own fonts */
+`;
+        varsCss += `body mjx-c { clip-path: none !important; }
+
+`;
         varsCss += `/* Container */
 `;
         varsCss += `body mjx-container,

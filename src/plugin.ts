@@ -2924,6 +2924,17 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard}::before {\n`;
                 varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
                 varsCss += `}\n\n`;
+                // MathJax 4 clips every glyph to its own padding box plus two pixels, a safety
+                // net built for its own fonts: their ink fits the boxes its metrics lay out. A
+                // font the user supplies has its own ink and its own baseline, so that net cuts
+                // the bottom off descenders, subscripts and the like — every formula missing a
+                // slice at the bottom, which is what applying a custom math font to MathJax 4
+                // produced. MathJax 3 drew glyphs through ::before and had no such rule, so the
+                // net is dropped here for the glyphs the plugin takes over, while the stretchy
+                // assembly pieces below keep their own clip.
+                varsCss += `/* Glyphs are clipped to their box by MathJax; that net is for its own fonts */\n`;
+                varsCss += `body mjx-c { clip-path: none !important; }\n\n`;
+
                 varsCss += `/* Container */\n`;
                 varsCss += `body mjx-container,\n`;
                 varsCss += `body.is-mobile mjx-container {\n`;

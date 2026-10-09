@@ -1,7 +1,7 @@
 /**
  * Local Font Loader — plugin entry point.
  *
- * @version 1.6.3
+ * @version 1.7.0
  * @license MIT
  *
  * This file is the build input. The plugin Obsidian loads is the bundled `main.js` at the

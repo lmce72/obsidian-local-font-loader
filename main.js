@@ -94,6 +94,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     missingVariantTitle: "Missing Font Variants",
     missingVariantBody: "{latinFont} is missing the following variants: {missingList}. Missing styles will use browser synthesis (lower quality).",
     fontMissingWarning: "Font file is missing, fallback to system default",
+    noAvailableFonts: "No fonts found yet. Use Rescan to look for them.",
+    fontStatusTitle: "Font status",
+    fontStatusIntro: "Which font each category uses, and where its numbers come from.",
+    fontStatusFont: "Font",
+    fontStatusFiles: "Files",
+    fontStatusHow: "How the numbers are obtained",
+    fontStatusSource: "Source",
+    fontStatusGaps: "Not covered",
+    fontStatusNone: "None",
+    fontStatusPending: "Waiting for the font to be resolved",
+    fontStatusClose: "Close",
     variantsSuffix: "variants",
     variantsWithCheckmark: "{familyName} ✓ ({variantCount} variants)",
     variantsWithoutCheckmark: "{familyName} ({variantCount} variants)",
@@ -258,6 +269,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     applyNowDesc: "应用当前字体配置",
     applyFonts: "应用字体",
     fontMissingWarning: "当前字体文件缺失，已回退至系统设置",
+    noAvailableFonts: "尚未发现任何字体。请使用「重新扫描」查找。",
+    fontStatusTitle: "字体状态",
+    fontStatusIntro: "每一类用的是哪个字体，以及它的度量从哪里来。",
+    fontStatusFont: "字体",
+    fontStatusFiles: "文件",
+    fontStatusHow: "度量是怎么得到的",
+    fontStatusSource: "来源",
+    fontStatusGaps: "未覆盖",
+    fontStatusNone: "未设置",
+    fontStatusPending: "字体尚未解析完成",
+    fontStatusClose: "关闭",
     variantWarningTitle: "字体变体警告",
     variantWarningBody: `所选字体 "{fontFamily}" 仅有 {variantCount} 个变体（{variantList}）。
 
@@ -454,6 +476,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     applyNowDesc: "現在のフォント設定を適用",
     applyFonts: "フォントを適用",
     fontMissingWarning: "フォントファイルが見つかりません。システムデフォルトにフォールバックしました",
+    noAvailableFonts: "まだフォントが見つかりません。「再スキャン」で探してください。",
+    fontStatusTitle: "フォントの状態",
+    fontStatusIntro: "各カテゴリが使うフォントと、その数値の出所。",
+    fontStatusFont: "フォント",
+    fontStatusFiles: "ファイル",
+    fontStatusHow: "数値の取得方法",
+    fontStatusSource: "出所",
+    fontStatusGaps: "未対応",
+    fontStatusNone: "未設定",
+    fontStatusPending: "フォントの解決待ち",
+    fontStatusClose: "閉じる",
     variantWarningTitle: "フォントバリアント警告",
     variantWarningBody: `選択したフォント "{fontFamily}" には {variantCount} 個のバリアント（{variantList}）しかありません。
 
@@ -548,6 +581,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     applyNowDesc: "현재 폰트 설정 적용",
     applyFonts: "폰트 적용",
     fontMissingWarning: "폰트 파일이 없습니다. 시스템 기본값으로 대체되었습니다",
+    noAvailableFonts: "아직 글꼴이 없습니다. 다시 스캔하여 찾아보세요.",
+    fontStatusTitle: "글꼴 상태",
+    fontStatusIntro: "각 범주가 쓰는 글꼴과 수치의 출처입니다.",
+    fontStatusFont: "글꼴",
+    fontStatusFiles: "파일",
+    fontStatusHow: "수치를 얻는 방식",
+    fontStatusSource: "출처",
+    fontStatusGaps: "미지원",
+    fontStatusNone: "없음",
+    fontStatusPending: "글꼴 확인 대기 중",
+    fontStatusClose: "닫기",
     variantWarningTitle: "폰트 변형 경고",
     variantWarningBody: `선택한 폰트 "{fontFamily}"에는 {variantCount}개의 변형（{variantList}）만 있습니다.
 
@@ -636,6 +680,17 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     applyNowDesc: "Aplicar la configuración de fuentes actual",
     applyFonts: "Aplicar Fuentes",
     fontMissingWarning: "Archivo de fuente faltante, usando predeterminado del sistema",
+    noAvailableFonts: "Aún no hay fuentes. Use «Volver a buscar» para encontrarlas.",
+    fontStatusTitle: "Estado de las fuentes",
+    fontStatusIntro: "Qué fuente usa cada categoría y de dónde salen sus números.",
+    fontStatusFont: "Fuente",
+    fontStatusFiles: "Archivos",
+    fontStatusHow: "Cómo se obtienen los números",
+    fontStatusSource: "Origen",
+    fontStatusGaps: "Sin cubrir",
+    fontStatusNone: "Ninguna",
+    fontStatusPending: "Esperando a resolver la fuente",
+    fontStatusClose: "Cerrar",
     variantWarningTitle: "Advertencia de Variantes de Fuente",
     variantWarningBody: `La fuente seleccionada "{fontFamily}" solo tiene {variantCount} variante(s) ({variantList}).
 
@@ -1392,6 +1447,72 @@ function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) 
   });
   modal.addCancelButton(t("cancel"));
   modal.open();
+}
+
+class FontStatusModal extends import_obsidian2.Modal {
+  rows;
+  constructor(app, rows) {
+    super(app);
+    this.rows = rows;
+  }
+  onOpen() {
+    const { contentEl, titleEl } = this;
+    titleEl.setText(t("fontStatusTitle") || "Font status");
+    contentEl.addClass("lfl-font-status");
+    contentEl.createEl("p", {
+      cls: "lfl-font-status-intro",
+      text: t("fontStatusIntro") || "Which font each category uses, and where its metrics come from."
+    });
+    for (const row of this.rows) {
+      contentEl.appendChild(this.renderRow(row));
+    }
+    const footer = contentEl.createDiv({ cls: "lfl-font-status-footer" });
+    const closeEl = footer.createEl("button", { cls: "mod-cta", text: t("fontStatusClose") || "Close" });
+    closeEl.addEventListener("click", () => this.close());
+  }
+  renderRow(row) {
+    const card = createDiv({ cls: "lfl-font-status-card" });
+    card.createDiv({ cls: "lfl-font-status-category", text: row.category });
+    const fontEl = card.createDiv({ cls: "lfl-font-status-font" });
+    fontEl.createSpan({ cls: "lfl-font-status-label", text: t("fontStatusFont") || "Font" });
+    fontEl.createSpan({
+      cls: "lfl-font-status-value lfl-font-status-value-strong",
+      text: row.family || (t("fontStatusNone") || "None")
+    });
+    if (row.files) {
+      const filesEl = card.createDiv({ cls: "lfl-font-status-field" });
+      filesEl.createSpan({ cls: "lfl-font-status-label", text: t("fontStatusFiles") || "Files" });
+      filesEl.createSpan({ cls: "lfl-font-status-value", text: row.files });
+    }
+    if (row.family) {
+      const howEl = card.createDiv({ cls: "lfl-font-status-field lfl-font-status-field-stack" });
+      howEl.createSpan({
+        cls: "lfl-font-status-label",
+        text: t("fontStatusHow") || "How the metrics are obtained"
+      });
+      const list = howEl.createEl("ol", { cls: "lfl-font-status-steps" });
+      const steps = row.adaptation.length > 0 ? row.adaptation : [t("fontStatusPending") || "Waiting for the font to be resolved"];
+      for (const step of steps) {
+        list.createEl("li", { cls: "lfl-font-status-step", text: step });
+      }
+      if (row.source) {
+        const sourceEl = card.createDiv({ cls: "lfl-font-status-field" });
+        sourceEl.createSpan({ cls: "lfl-font-status-label", text: t("fontStatusSource") || "Source" });
+        sourceEl.createSpan({ cls: "lfl-font-status-value", text: row.source });
+      }
+      if (row.gaps.length > 0) {
+        const gapsEl = card.createDiv({ cls: "lfl-font-status-field lfl-font-status-field-stack" });
+        gapsEl.createSpan({ cls: "lfl-font-status-label", text: t("fontStatusGaps") || "Not covered" });
+        for (const gap of row.gaps) {
+          gapsEl.createDiv({ cls: "lfl-font-status-gap", text: gap });
+        }
+      }
+    }
+    return card;
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
 }
 
 // src/ui/settings/device-preset.ts
@@ -2585,12 +2706,4193 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
   }
 }
 
+// src/math-standards/types.ts
+function matchByFamilyName(adapter, familyName) {
+  const want = familyName.trim().toLowerCase();
+  return adapter.families.some((f) => f.trim().toLowerCase() === want);
+}
+
+// src/math-standards/opentype-math.ts
+function makeReader(bytes) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return {
+    u16: (o) => dv.getUint16(o),
+    i16: (o) => dv.getInt16(o),
+    u32: (o) => dv.getUint32(o),
+    bytes
+  };
+}
+function findTable(dv, tag) {
+  const numTables = dv.getUint16(4);
+  for (let i = 0;i < numTables; i++) {
+    const rec = 12 + i * 16;
+    const t2 = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+    if (t2 === tag) {
+      return { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) };
+    }
+  }
+  return null;
+}
+function isCollection(dv) {
+  const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  return tag === "ttcf";
+}
+function readOpenTypeMathTable(binary) {
+  try {
+    const bytes = new Uint8Array(binary);
+    const dv = new DataView(binary);
+    if (binary.byteLength < 12)
+      return null;
+    let base = 0;
+    if (isCollection(dv)) {
+      const numFonts = dv.getUint32(8);
+      if (numFonts < 1)
+        return null;
+      base = dv.getUint32(12);
+    }
+    const header = findTable(new DataView(binary, base), "MATH");
+    if (!header)
+      return null;
+    const mathOff = base + header.offset;
+    if (mathOff + 10 > binary.byteLength)
+      return null;
+    const version = dv.getUint16(mathOff);
+    if (version !== 1)
+      return null;
+    const constantsOff = mathOff + dv.getUint16(mathOff + 4);
+    const glyphInfoOff = mathOff + dv.getUint16(mathOff + 6);
+    const variantsOff = mathOff + dv.getUint16(mathOff + 8);
+    const unitsPerEm = readUnitsPerEm(dv, base) || 1000;
+    const toEm = (design) => design / unitsPerEm;
+    const r = makeReader(bytes.subarray(mathOff));
+    const constants = readConstants(r, constantsOff - mathOff, toEm);
+    const info = readGlyphInfo(r, glyphInfoOff - mathOff, toEm);
+    const variants = readVariants(r, variantsOff - mathOff, toEm);
+    return {
+      unitsPerEm,
+      constants,
+      italicCorrection: info.italicCorrection,
+      extendedShapes: info.extendedShapes,
+      vertVariants: variants.vert,
+      horizVariants: variants.horiz,
+      minConnectorOverlap: variants.minConnectorOverlap
+    };
+  } catch {
+    return null;
+  }
+}
+function readUnitsPerEm(dv, base) {
+  try {
+    const head = findTable(new DataView(dv.buffer, dv.byteOffset + base), "head");
+    if (!head)
+      return 0;
+    return dv.getUint16(base + head.offset + 18);
+  } catch {
+    return 0;
+  }
+}
+function valueRecord(r, at, toEm) {
+  return toEm(r.i16(at));
+}
+function readConstants(r, at, toEm) {
+  const out = {};
+  try {
+    let p = at;
+    out.scriptPercentScaleDown = r.u16(p) / 100;
+    p += 2;
+    out.scriptScriptPercentScaleDown = r.u16(p) / 100;
+    p += 2;
+    p += 2;
+    p += 2;
+    p += 4;
+    out.axisHeight = valueRecord(r, p, toEm);
+    p += 4;
+    p += 31 * 4;
+    out.fractionRuleThickness = valueRecord(r, p, toEm);
+    p += 4;
+    p += 6 * 4;
+    out.overbarExtraAscender = valueRecord(r, p, toEm);
+    p += 4;
+    p += 2 * 4;
+    out.underbarExtraDescender = valueRecord(r, p, toEm);
+    p += 4;
+    p += 2 * 4;
+    out.radicalRuleThickness = valueRecord(r, p, toEm);
+  } catch {}
+  return out;
+}
+function readCoverage(r, at) {
+  try {
+    const format = r.u16(at);
+    const ids = [];
+    if (format === 1) {
+      const count = r.u16(at + 2);
+      for (let i = 0;i < count; i++)
+        ids.push(r.u16(at + 4 + i * 2));
+    } else if (format === 2) {
+      const ranges = r.u16(at + 2);
+      for (let i = 0;i < ranges; i++) {
+        const rec = at + 4 + i * 6;
+        const start = r.u16(rec);
+        const end = r.u16(rec + 2);
+        for (let g = start;g <= end; g++)
+          ids.push(g);
+      }
+    }
+    return ids;
+  } catch {
+    return [];
+  }
+}
+function readGlyphInfo(r, at, toEm) {
+  const italicCorrection = {};
+  const extendedShapes = new Set;
+  try {
+    const italicsOff = at + r.u16(at);
+    const topAccentOff = at + r.u16(at + 2);
+    const extShapeOff = at + r.u16(at + 4);
+    if (italicsOff > at) {
+      const covOff = italicsOff + r.u16(italicsOff);
+      const count = r.u16(italicsOff + 2);
+      const ids = readCoverage(r, covOff);
+      for (let i = 0;i < Math.min(count, ids.length); i++) {
+        italicCorrection[String(ids[i])] = valueRecord(r, italicsOff + 4 + i * 4, toEm);
+      }
+    }
+    if (extShapeOff > at) {
+      const ids = readCoverage(r, extShapeOff);
+      for (const id of ids)
+        extendedShapes.add(id);
+    }
+  } catch {}
+  return { italicCorrection, extendedShapes };
+}
+function readVariants(r, at, toEm) {
+  const vert = {};
+  const horiz = {};
+  let minConnectorOverlap = 0;
+  try {
+    minConnectorOverlap = toEm(r.u16(at));
+    const vertCovOff = at + r.u16(at + 2);
+    const horizCovOff = at + r.u16(at + 4);
+    const vertCount = r.u16(at + 6);
+    const horizCount = r.u16(at + 8);
+    const vertArrOff = at + 10;
+    const horizArrOff = vertArrOff + vertCount * 2;
+    const readSet = (covOff, arrOff, count, into) => {
+      const ids = readCoverage(r, covOff);
+      for (let i = 0;i < Math.min(count, ids.length); i++) {
+        const constructionOff = at + r.u16(arrOff + i * 2);
+        into[String(ids[i])] = readConstruction(r, constructionOff, toEm);
+      }
+    };
+    if (vertCount > 0)
+      readSet(vertCovOff, vertArrOff, vertCount, vert);
+    if (horizCount > 0)
+      readSet(horizCovOff, horizArrOff, horizCount, horiz);
+  } catch {}
+  return { vert, horiz, minConnectorOverlap };
+}
+function readConstruction(r, at, toEm) {
+  const variants = [];
+  let assembly = null;
+  try {
+    const assemblyOff = r.u16(at);
+    const variantCount = r.u16(at + 2);
+    for (let i = 0;i < variantCount; i++) {
+      const rec = at + 4 + i * 4;
+      variants.push({ glyphId: r.u16(rec), advance: toEm(r.u16(rec + 2)) });
+    }
+    if (assemblyOff > 0) {
+      const a = at + assemblyOff;
+      const italic = valueRecord(r, a, toEm);
+      const partCount = r.u16(a + 4);
+      const parts = [];
+      for (let i = 0;i < partCount; i++) {
+        const rec = a + 6 + i * 8;
+        parts.push({
+          glyphId: r.u16(rec),
+          startConnectorLength: toEm(r.u16(rec + 2)),
+          endConnectorLength: toEm(r.u16(rec + 4)),
+          fullAdvance: toEm(r.u16(rec + 6)),
+          isExtender: (r.u16(rec + 8) & 1) === 1
+        });
+      }
+      assembly = { italicCorrection: italic, parts };
+    }
+  } catch {}
+  return { variants, assembly };
+}
+
+// src/math-standards/adapters/xits-math.ts
+var XITS_FAMILIES = ["XITS Math", "XITS Math Two", "XITS"];
+var REPORT_RANGES = [
+  [32, 126],
+  [160, 255],
+  [256, 591],
+  [880, 1023],
+  [1024, 1279],
+  [8192, 8303],
+  [8304, 8351],
+  [8352, 8383],
+  [8448, 8527],
+  [8592, 8703],
+  [8704, 8959],
+  [8960, 9215],
+  [9632, 9727],
+  [9728, 9983],
+  [10176, 10223],
+  [10624, 10751],
+  [10752, 11007],
+  [119808, 120831]
+];
+function isControl(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function isPrivateUse(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function inReportedRange(code) {
+  for (const [from, to] of REPORT_RANGES) {
+    if (code >= from && code <= to)
+      return true;
+  }
+  return false;
+}
+function findTable2(dv, base, tag) {
+  try {
+    const numTables = dv.getUint16(base + 4);
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      const t2 = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+      if (t2 === tag) {
+        return { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) };
+      }
+    }
+  } catch {}
+  return null;
+}
+function fontBase(dv, byteLength) {
+  try {
+    if (byteLength < 12)
+      return -1;
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    if (tag === "ttcf") {
+      const numFonts = dv.getUint32(8);
+      if (numFonts < 1)
+        return -1;
+      return dv.getUint32(12);
+    }
+    return 0;
+  } catch {
+    return -1;
+  }
+}
+function readCmapSubtable(dv, tableStart, subOffset, into) {
+  try {
+    const o = tableStart + subOffset;
+    const format = dv.getUint16(o);
+    if (format === 4) {
+      const segCountX2 = dv.getUint16(o + 6);
+      const segCount = segCountX2 >>> 1;
+      if (segCount === 0)
+        return false;
+      const endBase = o + 14;
+      const startBase = endBase + segCount * 2 + 2;
+      const deltaBase = startBase + segCount * 2;
+      const rangeBase = deltaBase + segCount * 2;
+      for (let i = 0;i < segCount; i++) {
+        const end = dv.getUint16(endBase + i * 2);
+        const start = dv.getUint16(startBase + i * 2);
+        const delta = dv.getInt16(deltaBase + i * 2);
+        const rangeOffset = dv.getUint16(rangeBase + i * 2);
+        if (start > end)
+          continue;
+        const last = Math.min(end, 65534);
+        for (let cp = start;cp <= last; cp++) {
+          let gid;
+          if (rangeOffset === 0) {
+            gid = cp + delta & 65535;
+          } else {
+            const addr = rangeBase + i * 2 + rangeOffset + (cp - start) * 2;
+            gid = dv.getUint16(addr);
+            if (gid !== 0)
+              gid = gid + delta & 65535;
+          }
+          if (gid !== 0)
+            into.set(cp, gid);
+        }
+      }
+      return true;
+    }
+    if (format === 12) {
+      const nGroups = dv.getUint32(o + 12);
+      for (let g = 0;g < nGroups; g++) {
+        const rec = o + 16 + g * 12;
+        const startCp = dv.getUint32(rec);
+        const endCp = dv.getUint32(rec + 4);
+        const startGid = dv.getUint32(rec + 8);
+        if (startCp > endCp || endCp > 1114111)
+          continue;
+        for (let cp = startCp;cp <= endCp; cp++) {
+          const gid = startGid + (cp - startCp);
+          if (gid !== 0)
+            into.set(cp, gid);
+        }
+      }
+      return true;
+    }
+  } catch {}
+  return false;
+}
+function readCmap(dv, table, notes) {
+  try {
+    const numTables = dv.getUint16(table.offset + 2);
+    const candidates = [];
+    for (let i = 0;i < numTables; i++) {
+      const rec = table.offset + 4 + i * 8;
+      const plat = dv.getUint16(rec);
+      const enc = dv.getUint16(rec + 2);
+      const off = dv.getUint32(rec + 4);
+      let rank = 9;
+      if (plat === 3 && enc === 10)
+        rank = 0;
+      else if (plat === 0)
+        rank = 1;
+      else if (plat === 3 && enc === 1)
+        rank = 2;
+      else if (plat === 3 && enc === 0)
+        rank = 3;
+      candidates.push({ plat, enc, off, rank });
+    }
+    candidates.sort((a, b) => a.rank - b.rank);
+    const into = new Map;
+    for (const c of candidates) {
+      into.clear();
+      if (readCmapSubtable(dv, table.offset, c.off, into) && into.size > 0) {
+        notes.push(`cmap subtable platform ${c.plat} encoding ${c.enc} gave ${into.size} codepoints. ` + `cmap 子表 platform ${c.plat} / encoding ${c.enc} 解析出 ${into.size} 个码位。`);
+        return into;
+      }
+    }
+    notes.push("No usable cmap subtable (only formats 4 and 12 are read); chars stay empty. " + "无可用 cmap 子表（仅解析格式 4 与 12），chars 留空。");
+  } catch {
+    notes.push("cmap could not be parsed; chars stay empty. " + "cmap 解析失败，chars 留空。");
+  }
+  return null;
+}
+function readSfntInfo(binary, notes) {
+  try {
+    const dv = new DataView(binary);
+    const base = fontBase(dv, binary.byteLength);
+    if (base < 0) {
+      notes.push("Font header is unreadable; only MATH constants can be reported. " + "字体头不可读，仅能上报 MATH 常量。");
+      return null;
+    }
+    let unitsPerEm = 1000;
+    const head = findTable2(dv, base, "head");
+    if (head && head.offset + 20 <= binary.byteLength) {
+      const upem = dv.getUint16(head.offset + 18);
+      if (upem > 0)
+        unitsPerEm = upem;
+    }
+    let numGlyphs = 0;
+    const maxp = findTable2(dv, base, "maxp");
+    if (maxp && maxp.offset + 6 <= binary.byteLength) {
+      numGlyphs = dv.getUint16(maxp.offset + 4);
+    }
+    let hheaAsc = 0;
+    let hheaDesc = 0;
+    let numberOfHMetrics = 0;
+    const hhea = findTable2(dv, base, "hhea");
+    if (hhea && hhea.offset + 36 <= binary.byteLength) {
+      hheaAsc = dv.getInt16(hhea.offset + 4);
+      hheaDesc = dv.getInt16(hhea.offset + 6);
+      numberOfHMetrics = dv.getUint16(hhea.offset + 34);
+    }
+    let typoAsc = 0;
+    let typoDesc = 0;
+    const os2 = findTable2(dv, base, "OS/2");
+    if (os2 && os2.offset + 72 <= binary.byteLength) {
+      typoAsc = dv.getInt16(os2.offset + 68);
+      typoDesc = dv.getInt16(os2.offset + 70);
+    }
+    let ascender = 0;
+    let descender = 0;
+    let verticalSource = "none";
+    const sane = (a, d) => a > 0 && d < 0 && a <= unitsPerEm * 2 && -d <= unitsPerEm;
+    if (sane(typoAsc, typoDesc)) {
+      ascender = typoAsc;
+      descender = typoDesc;
+      verticalSource = "os2-typo";
+    } else if (sane(hheaAsc, hheaDesc)) {
+      ascender = hheaAsc;
+      descender = hheaDesc;
+      verticalSource = "hhea";
+    } else {
+      notes.push("Neither OS/2 sTypo nor hhea gave sane verticals; height/depth fall back to 0.8/0.2 em. " + "OS/2 sTypo 与 hhea 均无合法垂直度量，高度/深度退化为 0.8/0.2 em。");
+      ascender = Math.round(unitsPerEm * 0.8);
+      descender = -Math.round(unitsPerEm * 0.2);
+      verticalSource = "none";
+    }
+    let advances = null;
+    const hmtx = findTable2(dv, base, "hmtx");
+    if (hmtx && numGlyphs > 0 && numberOfHMetrics > 0) {
+      const usable = Math.min(numberOfHMetrics, numGlyphs);
+      if (hmtx.offset + usable * 4 <= binary.byteLength) {
+        advances = new Uint16Array(numGlyphs);
+        let last = 0;
+        for (let g = 0;g < usable; g++) {
+          last = dv.getUint16(hmtx.offset + g * 4);
+          advances[g] = last;
+        }
+        for (let g = usable;g < numGlyphs; g++)
+          advances[g] = last;
+      }
+    }
+    if (!advances) {
+      notes.push("hmtx was unusable; glyph widths stay at MathJax values. " + "hmtx 不可用，字形宽度保留 MathJax 原值。");
+    }
+    let cmap = null;
+    const cmapTable = findTable2(dv, base, "cmap");
+    if (cmapTable) {
+      cmap = readCmap(dv, cmapTable, notes);
+    } else {
+      notes.push("No cmap table; chars stay empty. " + "缺少 cmap 表，chars 留空。");
+    }
+    return { unitsPerEm, ascender, descender, numGlyphs, advances, cmap, verticalSource };
+  } catch (err) {
+    notes.push(`sfnt metric tables could not be read: ${err instanceof Error ? err.message : String(err)}. ` + `sfnt 度量表读取失败：${err instanceof Error ? err.message : String(err)}。`);
+    return null;
+  }
+}
+var xitsMathAdapter = {
+  id: "xits-math",
+  name: "XITS Math",
+  families: XITS_FAMILIES,
+  priority: 10,
+  matches(familyName) {
+    return matchByFamilyName({ families: XITS_FAMILIES }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    const math = readOpenTypeMathTable(binary);
+    if (!math) {
+      return null;
+    }
+    try {
+      const info = readSfntInfo(binary, notes);
+      const constants = math.constants;
+      if (typeof constants.axisHeight === "number") {
+        notes.push(`MATH constants adopted (axisHeight ${constants.axisHeight.toFixed(4)} em).` + ` 已采用 MATH 常量（axisHeight ${constants.axisHeight.toFixed(4)} em）。`);
+      } else {
+        notes.push("MATH constants were partially readable; missing fields stay undefined. " + "MATH 常量只读到部分字段，缺失项保持 undefined。");
+      }
+      notes.push("Stretchy delimiter sizes were left to MathJax: this font does not own the assembly in MathJax output. " + "可伸缩定界符尺寸保留 MathJax 原值：在 MathJax 输出中拼装并不由本字体承担。");
+      const italicCount = Object.keys(math.italicCorrection).length;
+      const extCount = math.extendedShapes.size;
+      notes.push(`MATH also reports ${italicCount} italic corrections and ${extCount} extended shapes; ` + `MathFontMetrics has no fields for them and they are not applied here. ` + `MATH 另含 ${italicCount} 条斜体校正与 ${extCount} 个 extended shape；` + `MathFontMetrics 无对应字段，此处未套用。`);
+      notes.push("XITS is a two-width design (text weight plus bold); these metrics describe the supplied face only. " + "XITS 为双宽度设计（常规+粗体）；本组度量仅描述传入的这一副字面。");
+      const chars = {};
+      if (!info) {
+        notes.push("Glyph boxes could not be built; only constants are reported. " + "无法构建字形盒，仅上报常量。");
+        return {
+          source: "opentype-math",
+          chars,
+          delimiters: undefined,
+          constants,
+          ownsStretchyAssembly: false,
+          notes
+        };
+      }
+      const upem = info.unitsPerEm > 0 ? info.unitsPerEm : 1000;
+      const height = info.ascender / upem;
+      const depth = -info.descender / upem;
+      if (ctx.unitsPerEm && ctx.unitsPerEm !== upem) {
+        notes.push(`Caller reported unitsPerEm ${ctx.unitsPerEm}, font says ${upem}; the font wins. ` + `调用方报告 unitsPerEm ${ctx.unitsPerEm}，字体为 ${upem}；以字体为准。`);
+      }
+      notes.push(`Glyph boxes: width per-glyph from hmtx, height ${height.toFixed(4)} em / depth ${depth.toFixed(4)} em ` + `uniformly from ${info.verticalSource} (per-glyph verticals are approximated by these font-wide values). ` + `字形盒：宽度逐字形取自 hmtx，高度 ${height.toFixed(4)} em / 深度 ${depth.toFixed(4)} em ` + `统一取自 ${info.verticalSource}（逐字形垂直度量以此全字体值近似）。`);
+      if (info.cmap && info.advances) {
+        let mapped = 0;
+        let zeroAdvance = 0;
+        for (const [code, gid] of info.cmap) {
+          if (!inReportedRange(code) || isControl(code) || isPrivateUse(code))
+            continue;
+          if (gid <= 0 || gid >= info.numGlyphs)
+            continue;
+          const width = (info.advances[gid] ?? 0) / upem;
+          if (width === 0)
+            zeroAdvance++;
+          chars[String(code)] = [height, depth, width];
+          mapped++;
+        }
+        notes.push(`Built ${mapped} glyph boxes from cmap+hmtx.` + ` 由 cmap+hmtx 构建 ${mapped} 个字形盒。`);
+        if (zeroAdvance > 0) {
+          notes.push(`${zeroAdvance} zero-advance glyphs kept at width 0 (combining marks).` + ` 有 ${zeroAdvance} 个零步进字形保留宽度 0（组合记号）。`);
+        }
+        if (mapped === 0) {
+          notes.push("cmap produced no reported codepoints; constants remain the useful output. " + "cmap 未给出任何上报码位，常量仍是有效产出。");
+        }
+      }
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (err) {
+      notes.push(`xits-math build failed: ${err instanceof Error ? err.message : String(err)}. ` + `xits-math 构建失败：${err instanceof Error ? err.message : String(err)}。`);
+      return {
+        source: "opentype-math",
+        chars: {},
+        delimiters: undefined,
+        constants: math.constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    }
+  }
+};
+
+// src/math-standards/adapters/stix-two-math.ts
+var FAMILIES = ["STIX Two Math", "STIX Math", "STIXGeneral"];
+var PROBE_RANGES = [
+  [32, 126],
+  [160, 255],
+  [880, 1023],
+  [8192, 8303],
+  [8304, 8351],
+  [8352, 8383],
+  [8448, 8527],
+  [8592, 8703],
+  [8704, 8959],
+  [8960, 9215],
+  [9632, 9727],
+  [9728, 9983],
+  [10176, 10223],
+  [10624, 10751],
+  [10752, 11007],
+  [119808, 120831]
+];
+function isPrivateUse2(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isControl2(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function buildWantedSet() {
+  const want = new Set;
+  for (const [from, to] of PROBE_RANGES) {
+    for (let code = from;code <= to; code++) {
+      if (!isPrivateUse2(code) && !isControl2(code)) {
+        want.add(code);
+      }
+    }
+  }
+  return want;
+}
+function errText(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+function readTableDirectory(dv) {
+  try {
+    if (dv.byteLength < 12)
+      return null;
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    let base = 0;
+    if (tag === "ttcf") {
+      const numFonts = dv.getUint32(8);
+      if (numFonts < 1)
+        return null;
+      base = dv.getUint32(12);
+    }
+    if (base + 12 > dv.byteLength)
+      return null;
+    const numTables = dv.getUint16(base + 4);
+    const tables = new Map;
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      if (rec + 16 > dv.byteLength)
+        break;
+      const name = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+      tables.set(name, { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) });
+    }
+    return tables;
+  } catch {
+    return null;
+  }
+}
+function parseCmapFormat4(dv, at, want, into) {
+  const segCount = dv.getUint16(at + 6) / 2;
+  const endCodesAt = at + 14;
+  const startCodesAt = endCodesAt + segCount * 2 + 2;
+  const idDeltaAt = startCodesAt + segCount * 2;
+  const idRangeOffsetAt = idDeltaAt + segCount * 2;
+  for (let s = 0;s < segCount; s++) {
+    const end = dv.getUint16(endCodesAt + s * 2);
+    const start = dv.getUint16(startCodesAt + s * 2);
+    const idDelta = dv.getInt16(idDeltaAt + s * 2);
+    const idRangeOffset = dv.getUint16(idRangeOffsetAt + s * 2);
+    if (start > end || start === 65535)
+      continue;
+    for (let code = start;code <= end; code++) {
+      if (!want.has(code))
+        continue;
+      let gid = 0;
+      try {
+        if (idRangeOffset === 0) {
+          gid = code + idDelta & 65535;
+        } else {
+          const addr = idRangeOffsetAt + s * 2 + idRangeOffset + (code - start) * 2;
+          if (addr + 2 > dv.byteLength)
+            continue;
+          const raw = dv.getUint16(addr);
+          gid = raw === 0 ? 0 : raw + idDelta & 65535;
+        }
+      } catch {
+        continue;
+      }
+      if (gid !== 0)
+        into.set(String(code), gid);
+    }
+  }
+}
+function parseCmapFormat12(dv, at, want, into) {
+  const numGroups = dv.getUint32(at + 12);
+  for (let g = 0;g < numGroups; g++) {
+    const rec = at + 16 + g * 12;
+    if (rec + 12 > dv.byteLength)
+      break;
+    const start = dv.getUint32(rec);
+    const end = dv.getUint32(rec + 4);
+    const startGid = dv.getUint32(rec + 8);
+    if (start > end)
+      continue;
+    for (let code = start;code <= end; code++) {
+      if (!want.has(code))
+        continue;
+      const gid = startGid + (code - start);
+      if (gid !== 0)
+        into.set(String(code), gid);
+    }
+  }
+}
+function readCmap2(dv, rec, want) {
+  const into = new Map;
+  try {
+    const numSubtables = dv.getUint16(rec.offset + 2);
+    let bestScore = -1;
+    let bestOffset = -1;
+    for (let i = 0;i < numSubtables; i++) {
+      const r = rec.offset + 4 + i * 8;
+      if (r + 8 > dv.byteLength)
+        break;
+      const platform = dv.getUint16(r);
+      const encoding = dv.getUint16(r + 2);
+      const sub = rec.offset + dv.getUint32(r + 4);
+      if (sub + 2 > dv.byteLength)
+        continue;
+      const format2 = dv.getUint16(sub);
+      let score = -1;
+      if (format2 === 12) {
+        score = platform === 3 && encoding === 10 ? 4 : platform === 0 ? 3 : 2;
+      } else if (format2 === 4) {
+        score = platform === 3 && encoding === 1 ? 3 : platform === 0 ? 2 : 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestOffset = sub;
+      }
+    }
+    if (bestOffset < 0)
+      return into;
+    const format = dv.getUint16(bestOffset);
+    if (format === 12) {
+      parseCmapFormat12(dv, bestOffset, want, into);
+    } else if (format === 4) {
+      parseCmapFormat4(dv, bestOffset, want, into);
+    }
+  } catch {}
+  return into;
+}
+function readAdvances(dv, rec, numberOfHMetrics, numGlyphs) {
+  try {
+    if (numGlyphs < 1 || numberOfHMetrics < 1)
+      return null;
+    const advances = new Uint16Array(numGlyphs);
+    const full = Math.min(numberOfHMetrics, numGlyphs);
+    for (let g = 0;g < full; g++) {
+      const off = rec.offset + g * 4;
+      if (off + 2 > dv.byteLength)
+        return null;
+      advances[g] = dv.getUint16(off);
+    }
+    const last = advances[full - 1];
+    for (let g = full;g < numGlyphs; g++) {
+      advances[g] = last;
+    }
+    return advances;
+  } catch {
+    return null;
+  }
+}
+function readGlyphYBounds(dv, glyf, loca, indexToLocFormat, gid) {
+  try {
+    let start;
+    let end;
+    if (indexToLocFormat === 0) {
+      const a = loca.offset + gid * 2;
+      const b = loca.offset + (gid + 1) * 2;
+      if (b + 2 > dv.byteLength)
+        return null;
+      start = dv.getUint16(a) * 2;
+      end = dv.getUint16(b) * 2;
+    } else {
+      const a = loca.offset + gid * 4;
+      const b = loca.offset + (gid + 1) * 4;
+      if (b + 4 > dv.byteLength)
+        return null;
+      start = dv.getUint32(a);
+      end = dv.getUint32(b);
+    }
+    if (end <= start) {
+      return { yMin: 0, yMax: 0 };
+    }
+    const goff = glyf.offset + start;
+    if (goff + 10 > dv.byteLength)
+      return null;
+    return { yMin: dv.getInt16(goff + 6), yMax: dv.getInt16(goff + 8) };
+  } catch {
+    return null;
+  }
+}
+function readSfntInfo2(dv, want, notes) {
+  const tables = readTableDirectory(dv);
+  if (!tables) {
+    notes.push("STIX: SFNT table directory could not be read; no glyph metrics produced.");
+    return null;
+  }
+  let unitsPerEm = 0;
+  let indexToLocFormat = 1;
+  const head = tables.get("head");
+  if (head && head.length >= 54) {
+    unitsPerEm = dv.getUint16(head.offset + 18);
+    indexToLocFormat = dv.getInt16(head.offset + 50);
+  }
+  let hheaAscender = 0;
+  let hheaDescender = 0;
+  let numberOfHMetrics = 0;
+  const hhea = tables.get("hhea");
+  if (hhea && hhea.length >= 36) {
+    hheaAscender = dv.getInt16(hhea.offset + 4);
+    hheaDescender = dv.getInt16(hhea.offset + 6);
+    numberOfHMetrics = dv.getUint16(hhea.offset + 34);
+  }
+  let typoAscender = 0;
+  let typoDescender = 0;
+  let usedTypoMetrics = false;
+  let usedHheaMetrics = false;
+  const os2 = tables.get("OS/2");
+  if (os2 && os2.length >= 72) {
+    typoAscender = dv.getInt16(os2.offset + 68);
+    typoDescender = dv.getInt16(os2.offset + 70);
+    usedTypoMetrics = true;
+  } else if (hhea && hhea.length >= 36) {
+    typoAscender = hheaAscender;
+    typoDescender = hheaDescender;
+    usedHheaMetrics = true;
+  } else {
+    notes.push("STIX: neither OS/2 sTypoAscender nor hhea ascent is readable; font-wide vertical defaults are unavailable.");
+  }
+  let numGlyphs = 0;
+  const maxp = tables.get("maxp");
+  if (maxp && maxp.length >= 6) {
+    numGlyphs = dv.getUint16(maxp.offset + 4);
+  }
+  if (numGlyphs < 1) {
+    notes.push("STIX: maxp reports no glyphs; no per-glyph metrics produced.");
+    return null;
+  }
+  let advances = null;
+  const hmtx = tables.get("hmtx");
+  if (hmtx) {
+    advances = readAdvances(dv, hmtx, numberOfHMetrics, numGlyphs);
+  }
+  if (!advances) {
+    notes.push("STIX: hmtx advance widths unreadable; no per-glyph metrics produced.");
+    return null;
+  }
+  let cmap = new Map;
+  const cmapRec = tables.get("cmap");
+  if (cmapRec) {
+    cmap = readCmap2(dv, cmapRec, want);
+  }
+  if (cmap.size === 0) {
+    notes.push("STIX: cmap has no readable Unicode subtable for the probed codepoints; no per-glyph metrics produced.");
+    return null;
+  }
+  const glyfRec = tables.get("glyf") || null;
+  const locaRec = tables.get("loca") || null;
+  const glyf = glyfRec && glyfRec.length > 0 ? glyfRec : null;
+  const loca = locaRec && locaRec.length > 0 ? locaRec : null;
+  return {
+    unitsPerEm,
+    indexToLocFormat,
+    typoAscender,
+    typoDescender,
+    advances,
+    cmap,
+    glyf,
+    loca,
+    usedTypoMetrics,
+    usedHheaMetrics
+  };
+}
+function finish(constants, chars, notes) {
+  return {
+    source: "opentype-math",
+    chars,
+    delimiters: undefined,
+    constants,
+    ownsStretchyAssembly: false,
+    notes
+  };
+}
+var stixTwoMathAdapter = {
+  id: "stix-two-math",
+  name: "STIX Two Math",
+  families: FAMILIES,
+  priority: 20,
+  matches(familyName) {
+    return matchByFamilyName(stixTwoMathAdapter, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    let math = null;
+    try {
+      math = readOpenTypeMathTable(binary);
+    } catch (err) {
+      notes.push(`STIX: MATH table read failed: ${errText(err)}`);
+      math = null;
+    }
+    if (!math) {
+      return null;
+    }
+    const chars = {};
+    try {
+      const dv = new DataView(binary);
+      const want = buildWantedSet();
+      const info = readSfntInfo2(dv, want, notes);
+      if (!info) {
+        notes.push("STIX: returning MATH constants only; MathJax keeps its own per-glyph metrics.");
+        return finish(math.constants, chars, notes);
+      }
+      let unitsPerEm = info.unitsPerEm;
+      if (!(unitsPerEm > 0)) {
+        unitsPerEm = math.unitsPerEm;
+      }
+      if (!(unitsPerEm > 0) && ctx.unitsPerEm && ctx.unitsPerEm > 0) {
+        unitsPerEm = ctx.unitsPerEm;
+      }
+      if (!(unitsPerEm > 0)) {
+        unitsPerEm = 1000;
+        notes.push("STIX: unitsPerEm unreadable in head/MATH; assumed 1000.");
+      }
+      const fontHeight = Math.max(0, info.typoAscender) / unitsPerEm;
+      const fontDepth = Math.max(0, -info.typoDescender) / unitsPerEm;
+      if (info.usedTypoMetrics) {
+        notes.push("STIX: font-wide verticals from OS/2 sTypoAscender/sTypoDescender.");
+      } else if (info.usedHheaMetrics) {
+        notes.push("STIX: OS/2 typographic metrics absent; font-wide verticals from hhea ascent/descent.");
+      }
+      const glyf = info.glyf;
+      const loca = info.loca;
+      const hasGlyf = glyf !== null && loca !== null;
+      if (!hasGlyf) {
+        notes.push("STIX: no glyf/loca tables (CFF outlines); per-glyph height/depth approximated by the font-wide ascender/descender.");
+      }
+      let built = 0;
+      let missingGlyph = 0;
+      let zeroAdvance = 0;
+      let approximated = 0;
+      for (const code of want) {
+        const key = String(code);
+        const gid = info.cmap.get(key);
+        if (gid === undefined || gid === 0 || gid >= info.advances.length) {
+          missingGlyph++;
+          continue;
+        }
+        const widthUnits = info.advances[gid];
+        if (!(widthUnits > 0)) {
+          zeroAdvance++;
+          continue;
+        }
+        let height;
+        let depth;
+        if (hasGlyf && glyf && loca) {
+          const box = readGlyphYBounds(dv, glyf, loca, info.indexToLocFormat, gid);
+          if (box) {
+            height = Math.max(0, box.yMax) / unitsPerEm;
+            depth = Math.max(0, -box.yMin) / unitsPerEm;
+          } else {
+            height = fontHeight;
+            depth = fontDepth;
+            approximated++;
+          }
+        } else {
+          height = fontHeight;
+          depth = fontDepth;
+          approximated++;
+        }
+        const metrics = [height, depth, widthUnits / unitsPerEm];
+        chars[key] = metrics;
+        built++;
+      }
+      notes.push(`STIX: built ${built} glyph layout boxes from cmap/hmtx/glyf; kept MathJax metrics for ${missingGlyph} absent glyphs and ${zeroAdvance} zero-advance glyphs.`);
+      if (approximated > 0) {
+        notes.push(`STIX: ${approximated} glyphs have no readable outline box; their height/depth use the font-wide ascender/descender (typographic approximation).`);
+      }
+    } catch (err) {
+      notes.push(`STIX: glyph metric parse failed: ${errText(err)}; returning MATH constants with partial chars.`);
+    }
+    notes.push("STIX: MATH italic corrections read but not exported (no field on MathFontMetrics); axis and rule values come from the MATH constants.");
+    notes.push("STIX: delimiters omitted on purpose — MathJax assembles stretchy delimiters from its own faces, so its target sizes must stay.");
+    return finish(math.constants, chars, notes);
+  }
+};
+
+// src/math-standards/opentype-font.ts
+function tableDirectory(dv, base) {
+  const out = new Map;
+  const numTables = dv.getUint16(base + 4);
+  for (let i = 0;i < numTables; i++) {
+    const rec = base + 12 + i * 16;
+    const tag = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+    out.set(tag, { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) });
+  }
+  return out;
+}
+function fontBase2(dv) {
+  const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  if (tag === "ttcf") {
+    return dv.getUint32(12);
+  }
+  return 0;
+}
+function readOpenTypeFontInfo(binary) {
+  try {
+    if (binary.byteLength < 12) {
+      return null;
+    }
+    const dv = new DataView(binary);
+    const base = fontBase2(dv);
+    const tables = tableDirectory(dv, base);
+    if (tables.size === 0) {
+      return null;
+    }
+    const head = tables.get("head");
+    const maxp = tables.get("maxp");
+    const hhea = tables.get("hhea");
+    const hmtx = tables.get("hmtx");
+    const os2 = tables.get("OS/2");
+    if (!head || !maxp || !hhea || !hmtx) {
+      return null;
+    }
+    const unitsPerEm = dv.getUint16(head.offset + 18) || 1000;
+    const toEm = (design) => design / unitsPerEm;
+    const numGlyphs = dv.getUint16(maxp.offset + 4);
+    const hheaAscent = dv.getInt16(hhea.offset + 4);
+    const hheaDescent = dv.getInt16(hhea.offset + 6);
+    const hheaLineGap = dv.getInt16(hhea.offset + 8);
+    const numberOfHMetrics = dv.getUint16(hhea.offset + 34);
+    const advanceWidths = new Uint16Array(numGlyphs);
+    for (let i = 0;i < numGlyphs; i++) {
+      const rec = i < numberOfHMetrics ? i : numberOfHMetrics - 1;
+      advanceWidths[i] = dv.getUint16(hmtx.offset + rec * 4);
+    }
+    let ascent = toEm(hheaAscent);
+    let descent = toEm(Math.abs(hheaDescent));
+    let capHeight;
+    let xHeight;
+    let weightClass = 400;
+    if (os2 && os2.length >= 72) {
+      weightClass = dv.getUint16(os2.offset + 4) || 400;
+      const typoAscender = dv.getInt16(os2.offset + 68);
+      const typoDescender = dv.getInt16(os2.offset + 70);
+      if (typoAscender !== 0) {
+        ascent = toEm(typoAscender);
+        descent = toEm(Math.abs(typoDescender));
+      }
+      const version = dv.getUint16(os2.offset);
+      if (version >= 2 && os2.length >= 90) {
+        const sx = dv.getInt16(os2.offset + 86);
+        const sc = dv.getInt16(os2.offset + 88);
+        if (sx > 0)
+          xHeight = toEm(sx);
+        if (sc > 0)
+          capHeight = toEm(sc);
+      }
+    }
+    const cmap = readCmap3(dv, tables.get("cmap"));
+    return {
+      unitsPerEm,
+      numGlyphs,
+      verticals: { ascent, descent, capHeight, xHeight, weightClass },
+      advanceWidths,
+      cmap,
+      hhea: { ascent: toEm(hheaAscent), descent: toEm(Math.abs(hheaDescent)), lineGap: toEm(hheaLineGap) }
+    };
+  } catch {
+    return null;
+  }
+}
+function readCmap3(dv, table) {
+  const out = {};
+  if (!table) {
+    return out;
+  }
+  try {
+    const base = table.offset;
+    const numTables = dv.getUint16(base + 2);
+    let chosen = -1;
+    let chosenScore = -1;
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 4 + i * 8;
+      const platformId = dv.getUint16(rec);
+      const encodingId = dv.getUint16(rec + 2);
+      const offset = dv.getUint32(rec + 4);
+      const format2 = dv.getUint16(base + offset);
+      let score = -1;
+      if (format2 === 12)
+        score = 3;
+      else if (format2 === 4)
+        score = 2;
+      if (platformId === 3 && encodingId === 10 && score > 0)
+        score += 1;
+      if (score > chosenScore) {
+        chosenScore = score;
+        chosen = base + offset;
+      }
+    }
+    if (chosen < 0) {
+      return out;
+    }
+    const format = dv.getUint16(chosen);
+    if (format === 4) {
+      const segCountX2 = dv.getUint16(chosen + 6);
+      const segCount = segCountX2 / 2;
+      const endCodes = chosen + 14;
+      const startCodes = endCodes + segCountX2 + 2;
+      const idDeltas = startCodes + segCountX2;
+      const idRangeOffsets = idDeltas + segCountX2;
+      for (let s = 0;s < segCount; s++) {
+        const end = dv.getUint16(endCodes + s * 2);
+        const start = dv.getUint16(startCodes + s * 2);
+        const delta = dv.getInt16(idDeltas + s * 2);
+        const rangeOffset = dv.getUint16(idRangeOffsets + s * 2);
+        for (let c = start;c <= end && c !== 65535; c++) {
+          let glyph;
+          if (rangeOffset === 0) {
+            glyph = c + delta & 65535;
+          } else {
+            const at = idRangeOffsets + s * 2 + rangeOffset + (c - start) * 2;
+            if (at + 2 > dv.byteLength)
+              continue;
+            glyph = dv.getUint16(at);
+            if (glyph !== 0)
+              glyph = glyph + delta & 65535;
+          }
+          if (glyph !== 0) {
+            out[String(c)] = glyph;
+          }
+        }
+      }
+    } else if (format === 12) {
+      const nGroups = dv.getUint32(chosen + 12);
+      for (let g = 0;g < nGroups; g++) {
+        const rec = chosen + 16 + g * 12;
+        const startChar = dv.getUint32(rec);
+        const endChar = dv.getUint32(rec + 4);
+        const startGlyph = dv.getUint32(rec + 8);
+        for (let c = startChar;c <= endChar; c++) {
+          out[String(c)] = startGlyph + (c - startChar);
+        }
+      }
+    }
+  } catch {}
+  return out;
+}
+function glyphLayoutBox(font, glyphId) {
+  if (glyphId < 0 || glyphId >= font.numGlyphs) {
+    return null;
+  }
+  const advance = font.advanceWidths[glyphId];
+  if (!advance) {
+    return null;
+  }
+  return {
+    height: font.verticals.ascent,
+    depth: font.verticals.descent,
+    width: advance / font.unitsPerEm
+  };
+}
+function glyphForCodepoint(font, codepoint) {
+  const id = font.cmap[String(codepoint)];
+  return typeof id === "number" && id > 0 ? id : null;
+}
+var MAPPED_CODEPOINT_RANGES = [
+  [32, 126],
+  [160, 255],
+  [8192, 8303],
+  [8304, 8351],
+  [8352, 8383],
+  [8448, 8527],
+  [8592, 8703],
+  [8704, 8959],
+  [8960, 9215],
+  [9632, 9727],
+  [9728, 9983],
+  [10176, 10223],
+  [10624, 10751],
+  [10752, 11007],
+  [119808, 120831]
+];
+function buildCharsFromFont(font, gaps = [], ranges = MAPPED_CODEPOINT_RANGES) {
+  const out = {
+    chars: {},
+    mapped: 0,
+    skippedGap: 0,
+    skippedAbsent: 0,
+    gapsHit: []
+  };
+  for (const [from, to] of ranges) {
+    for (let code = from;code <= to; code++) {
+      const gap = gaps.find((g) => code >= g.from && code <= g.to);
+      if (gap) {
+        out.skippedGap++;
+        if (!out.gapsHit.includes(gap.name)) {
+          out.gapsHit.push(gap.name);
+        }
+        continue;
+      }
+      const glyphId = glyphForCodepoint(font, code);
+      if (glyphId === null) {
+        out.skippedAbsent++;
+        continue;
+      }
+      const box = glyphLayoutBox(font, glyphId);
+      if (!box) {
+        out.skippedAbsent++;
+        continue;
+      }
+      out.chars[String(code)] = [box.height, box.depth, box.width];
+      out.mapped++;
+    }
+  }
+  return out;
+}
+
+// src/math-standards/adapters/latin-modern-math.ts
+var KNOWN_GAPS = [
+  { name: "lowercase Script", from: 119990, to: 120015 }
+];
+var latinModernMathAdapter = {
+  id: "latin-modern-math",
+  name: "Latin Modern Math",
+  families: ["Latin Modern Math", "Latin Modern", "LM Math", "Latin Modern Math Regular"],
+  priority: 30,
+  matches(familyName) {
+    return matchByFamilyName(this, familyName);
+  },
+  build(binary, _ctx) {
+    const font = readOpenTypeFontInfo(binary);
+    if (!font) {
+      return null;
+    }
+    const math = readOpenTypeMathTable(binary);
+    const built = buildCharsFromFont(font, KNOWN_GAPS);
+    if (built.mapped === 0) {
+      return null;
+    }
+    const notes = [
+      "Computer Modern lineage: metric skeleton follows the TeX design constants.",
+      math ? "Read from the font's OpenType MATH table; nothing was measured." : "No MATH table found — boxes come from the font's own hmtx/OS-2 metrics.",
+      `Mapped ${built.mapped} glyphs; left ${built.skippedAbsent} uncovered ones to MathJax.`
+    ];
+    for (const gap of built.gapsHit) {
+      notes.push(`Gap left to MathJax: ${gap}.`);
+    }
+    if (math && math.extendedShapes.size > 0) {
+      notes.push(`${math.extendedShapes.size} glyphs are extended shapes.`);
+    }
+    return {
+      source: math ? "opentype-math" : "tex-tfm",
+      gaps: built.gapsHit.map((g) => `${g} — those letters come from MathJax`),
+      chars: built.chars,
+      delimiters: undefined,
+      ownsStretchyAssembly: false,
+      constants: math ? math.constants : undefined,
+      notes
+    };
+  }
+};
+
+// src/math-standards/adapters/tex-gyre-termes-math.ts
+var FAMILIES2 = ["TeX Gyre Termes Math", "TeX Gyre Termes"];
+var PROBE_RANGES2 = [
+  [32, 126],
+  [160, 255],
+  [880, 1023],
+  [8192, 8303],
+  [8304, 8351],
+  [8352, 8383],
+  [8448, 8527],
+  [8592, 8703],
+  [8704, 8959],
+  [8960, 9215],
+  [9632, 9727],
+  [9728, 9983],
+  [10176, 10223],
+  [10624, 10751],
+  [10752, 11007],
+  [119808, 120831]
+];
+function indexTables(binary) {
+  try {
+    if (binary.byteLength < 12) {
+      return null;
+    }
+    const dv = new DataView(binary);
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    const base = tag === "ttcf" ? dv.getUint32(12) : 0;
+    if (base < 0 || base + 12 > binary.byteLength) {
+      return null;
+    }
+    const numTables = dv.getUint16(base + 4);
+    const tables = new Map;
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      if (rec + 16 > binary.byteLength) {
+        break;
+      }
+      const name = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+      const offset = dv.getUint32(rec + 8);
+      const length = dv.getUint32(rec + 12);
+      if (offset >= 0 && length >= 0 && offset + length <= binary.byteLength) {
+        tables.set(name, { offset, length });
+      }
+    }
+    return { dv, totalBytes: binary.byteLength, tables };
+  } catch {
+    return null;
+  }
+}
+function readUnitsPerEm2(sfnt, notes) {
+  try {
+    const head = sfnt.tables.get("head");
+    if (!head || head.offset + 20 > sfnt.totalBytes) {
+      notes.push("head table missing or truncated; assuming unitsPerEm 1000.");
+      return 1000;
+    }
+    const upem = sfnt.dv.getUint16(head.offset + 18);
+    if (!(upem > 0)) {
+      notes.push("head.unitsPerEm was zero; assuming 1000.");
+      return 1000;
+    }
+    return upem;
+  } catch {
+    notes.push("head table unreadable; assuming unitsPerEm 1000.");
+    return 1000;
+  }
+}
+function readVerticalMetrics(sfnt, upem, notes) {
+  let ascent = 0;
+  let descent = 0;
+  let source = "";
+  try {
+    const hhea = sfnt.tables.get("hhea");
+    if (hhea && hhea.offset + 36 <= sfnt.totalBytes) {
+      ascent = sfnt.dv.getInt16(hhea.offset + 4);
+      descent = sfnt.dv.getInt16(hhea.offset + 6);
+      source = "hhea";
+    }
+    const os2 = sfnt.tables.get("OS/2");
+    if (os2 && os2.offset + 76 <= sfnt.totalBytes) {
+      const fsSelection = sfnt.dv.getUint16(os2.offset + 62);
+      const typoAscender = sfnt.dv.getInt16(os2.offset + 68);
+      const typoDescender = sfnt.dv.getInt16(os2.offset + 70);
+      const useTypo = (fsSelection & 128) !== 0;
+      if ((useTypo || !source) && typoAscender > 0) {
+        ascent = typoAscender;
+        descent = typoDescender;
+        source = useTypo ? "OS/2 sTypo (USE_TYPO_METRICS)" : "OS/2 sTypo (hhea absent)";
+      }
+    }
+  } catch {
+    notes.push("Vertical metrics tables were partially unreadable; using whatever was already read.");
+  }
+  if (!source || ascent <= 0) {
+    notes.push("No usable font-wide ascender/descender; degraded to the 0.8em / 0.2em generic line box.");
+    return { height: 0.8, depth: 0.2 };
+  }
+  notes.push(`Font-wide vertical metrics taken from ${source} (${ascent}/${descent} design units).`);
+  return { height: Math.max(0, ascent) / upem, depth: Math.max(0, -descent) / upem };
+}
+function buildCmapLookup(sfnt, notes) {
+  try {
+    const cmap = sfnt.tables.get("cmap");
+    if (!cmap || cmap.offset + 4 > sfnt.totalBytes) {
+      notes.push("cmap table missing; no codepoint could be mapped to a glyph.");
+      return null;
+    }
+    const dv = sfnt.dv;
+    const numSubtables = dv.getUint16(cmap.offset + 2);
+    let bestOffset = -1;
+    let bestFormat = -1;
+    let bestScore = -1;
+    for (let i = 0;i < numSubtables; i++) {
+      const rec = cmap.offset + 4 + i * 8;
+      if (rec + 8 > sfnt.totalBytes) {
+        break;
+      }
+      const platformId = dv.getUint16(rec);
+      const encodingId = dv.getUint16(rec + 2);
+      const subOffset = cmap.offset + dv.getUint32(rec + 4);
+      if (subOffset + 4 > sfnt.totalBytes) {
+        continue;
+      }
+      const format = dv.getUint16(subOffset);
+      let score = -1;
+      if (format === 12 && platformId === 3 && encodingId === 10)
+        score = 5;
+      else if (format === 12 && platformId === 0)
+        score = 4;
+      else if (format === 4 && platformId === 3 && encodingId === 1)
+        score = 3;
+      else if (format === 4 && platformId === 0)
+        score = 2;
+      else if (format === 6)
+        score = 1;
+      if (score > bestScore) {
+        bestScore = score;
+        bestOffset = subOffset;
+        bestFormat = format;
+      }
+    }
+    if (bestOffset < 0 || bestFormat < 0) {
+      notes.push("cmap contained no usable subtable (formats 4/6/12); no codepoint could be mapped.");
+      return null;
+    }
+    if (bestFormat === 12) {
+      const groupCount = dv.getUint32(bestOffset + 12);
+      return (code) => {
+        try {
+          let lo = 0;
+          let hi = groupCount - 1;
+          while (lo <= hi) {
+            const mid = lo + hi >> 1;
+            const rec = bestOffset + 16 + mid * 12;
+            const start = dv.getUint32(rec);
+            const end = dv.getUint32(rec + 4);
+            if (code < start)
+              hi = mid - 1;
+            else if (code > end)
+              lo = mid + 1;
+            else
+              return dv.getUint32(rec + 8) + (code - start);
+          }
+          return 0;
+        } catch {
+          return 0;
+        }
+      };
+    }
+    if (bestFormat === 4) {
+      const segCount = dv.getUint16(bestOffset + 6) / 2;
+      const endCodesAt = bestOffset + 14;
+      const startCodesAt = endCodesAt + segCount * 2 + 2;
+      const idDeltasAt = startCodesAt + segCount * 2;
+      const idRangeOffsetsAt = idDeltasAt + segCount * 2;
+      return (code) => {
+        try {
+          for (let i = 0;i < segCount; i++) {
+            const end = dv.getUint16(endCodesAt + i * 2);
+            if (code > end) {
+              continue;
+            }
+            const start = dv.getUint16(startCodesAt + i * 2);
+            if (code < start) {
+              return 0;
+            }
+            const idDelta = dv.getInt16(idDeltasAt + i * 2);
+            const idRangeOffset = dv.getUint16(idRangeOffsetsAt + i * 2);
+            if (idRangeOffset === 0) {
+              return code + idDelta & 65535;
+            }
+            const glyphAt = idRangeOffsetsAt + i * 2 + idRangeOffset + (code - start) * 2;
+            if (glyphAt + 2 > sfnt.totalBytes) {
+              return 0;
+            }
+            const raw = dv.getUint16(glyphAt);
+            return raw === 0 ? 0 : raw + idDelta & 65535;
+          }
+          return 0;
+        } catch {
+          return 0;
+        }
+      };
+    }
+    const firstCode = dv.getUint16(bestOffset + 6);
+    const entryCount = dv.getUint16(bestOffset + 8);
+    return (code) => {
+      try {
+        const index = code - firstCode;
+        if (index < 0 || index >= entryCount) {
+          return 0;
+        }
+        return dv.getUint16(bestOffset + 10 + index * 2);
+      } catch {
+        return 0;
+      }
+    };
+  } catch {
+    notes.push("cmap parsing failed; no codepoint could be mapped to a glyph.");
+    return null;
+  }
+}
+function readNumberOfHMetrics(sfnt, numGlyphs, notes) {
+  try {
+    const hhea = sfnt.tables.get("hhea");
+    if (!hhea || hhea.offset + 36 > sfnt.totalBytes) {
+      notes.push("hhea table missing; assuming numberOfHMetrics equals numGlyphs.");
+      return numGlyphs;
+    }
+    const n = sfnt.dv.getUint16(hhea.offset + 34);
+    return n > 0 ? n : numGlyphs;
+  } catch {
+    notes.push("hhea.numberOfHMetrics unreadable; assuming numberOfHMetrics equals numGlyphs.");
+    return numGlyphs;
+  }
+}
+function readNumGlyphs(sfnt, notes) {
+  try {
+    const maxp = sfnt.tables.get("maxp");
+    if (!maxp || maxp.offset + 6 > sfnt.totalBytes) {
+      notes.push("maxp table missing; glyph count unknown, hmtx reads will be best-effort.");
+      return 0;
+    }
+    return sfnt.dv.getUint16(maxp.offset + 4);
+  } catch {
+    notes.push("maxp.numGlyphs unreadable; hmtx reads will be best-effort.");
+    return 0;
+  }
+}
+function buildAdvanceReader(sfnt, numberOfHMetrics) {
+  const hmtx = sfnt.tables.get("hmtx");
+  return (gid) => {
+    try {
+      if (!hmtx || gid < 0) {
+        return 0;
+      }
+      const slot = gid < numberOfHMetrics ? gid : numberOfHMetrics - 1;
+      if (slot < 0) {
+        return 0;
+      }
+      const at = hmtx.offset + slot * 4;
+      if (at + 2 > sfnt.totalBytes) {
+        return 0;
+      }
+      return sfnt.dv.getUint16(at);
+    } catch {
+      return 0;
+    }
+  };
+}
+var texGyreTermesMathAdapter = {
+  id: "tex-gyre-termes-math",
+  name: "TeX Gyre Termes Math",
+  families: FAMILIES2,
+  priority: 40,
+  matches(familyName) {
+    return matchByFamilyName({ families: FAMILIES2 }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    const chars = {};
+    try {
+      const sfnt = indexTables(binary);
+      if (!sfnt) {
+        return null;
+      }
+      const upem = readUnitsPerEm2(sfnt, notes) || ctx.unitsPerEm || 1000;
+      const vertical = readVerticalMetrics(sfnt, upem, notes);
+      const numGlyphs = readNumGlyphs(sfnt, notes);
+      const numberOfHMetrics = readNumberOfHMetrics(sfnt, numGlyphs > 0 ? numGlyphs : 1, notes);
+      const lookupGid = buildCmapLookup(sfnt, notes);
+      const advanceOf = buildAdvanceReader(sfnt, numberOfHMetrics);
+      const math = readOpenTypeMathTable(binary);
+      if (!math) {
+        notes.push("No OpenType MATH table in this file: constants omitted, chars derived from hmtx/cmap only.");
+      }
+      if (!lookupGid) {
+        return null;
+      }
+      let mapped = 0;
+      let missing = 0;
+      let zeroAdvance = 0;
+      for (const [from, to] of PROBE_RANGES2) {
+        for (let code = from;code <= to; code++) {
+          const gid = lookupGid(code);
+          if (gid <= 0) {
+            missing++;
+            continue;
+          }
+          const advance = advanceOf(gid) / upem;
+          if (!(advance > 0)) {
+            zeroAdvance++;
+            continue;
+          }
+          chars[String(code)] = [vertical.height, vertical.depth, advance];
+          mapped++;
+        }
+      }
+      if (mapped === 0) {
+        notes.push("No probed codepoint mapped to a glyph with a usable advance; declining so the fallback may try.");
+        return null;
+      }
+      notes.push(`Per-glyph vertical extents are approximated by the font-wide ascender/descender ` + `(${vertical.height.toFixed(3)}em / ${vertical.depth.toFixed(3)}em) for all ${mapped} glyphs: ` + `CFF outlines expose no cheap per-glyph box and the MATH table states none.`);
+      notes.push(`Mapped ${mapped} codepoints; left ${missing} to MathJax; skipped ${zeroAdvance} with zero advance.`);
+      notes.push("Stretchy delimiter sizes were left to MathJax: this font does not own the assembly " + "(delimiters omitted, ownsStretchyAssembly false).");
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants: math ? math.constants : undefined,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      notes.push(`TeX Gyre Termes Math adapter failed mid-build: ${message}`);
+      const built = Object.keys(chars).length;
+      if (built > 0) {
+        notes.push(`Returning ${built} partially built glyph entries after the failure.`);
+        return {
+          source: "opentype-math",
+          chars,
+          delimiters: undefined,
+          ownsStretchyAssembly: false,
+          notes
+        };
+      }
+      return null;
+    }
+  }
+};
+
+// src/math-standards/adapters/tex-gyre-pagella-math.ts
+function findTableAt(dv, base, tag) {
+  try {
+    if (base + 12 > dv.byteLength)
+      return null;
+    const numTables = dv.getUint16(base + 4);
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      if (rec + 16 > dv.byteLength)
+        break;
+      const t2 = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+      if (t2 === tag) {
+        return { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) };
+      }
+    }
+  } catch {}
+  return null;
+}
+function fontBase3(dv) {
+  try {
+    if (dv.byteLength < 16)
+      return 0;
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    if (tag === "ttcf") {
+      const numFonts = dv.getUint32(8);
+      return numFonts >= 1 ? dv.getUint32(12) : 0;
+    }
+  } catch {}
+  return 0;
+}
+function resolveUnitsPerEm(dv, base, fromMath, fromCtx) {
+  try {
+    const head = findTableAt(dv, base, "head");
+    if (head && head.offset + 20 <= dv.byteLength) {
+      const upem = dv.getUint16(head.offset + 18);
+      if (upem > 0)
+        return upem;
+    }
+  } catch {}
+  if (fromMath > 0)
+    return fromMath;
+  if (fromCtx !== undefined && fromCtx > 0)
+    return fromCtx;
+  return 1000;
+}
+function readFontWideVerticals(dv, base, toEm, notes) {
+  let ascentDesign = 0;
+  let descentDesign = 0;
+  let source = "";
+  try {
+    const os2 = findTableAt(dv, base, "OS/2");
+    if (os2 && os2.offset + 72 <= dv.byteLength) {
+      const typoAsc = dv.getInt16(os2.offset + 68);
+      const typoDesc = dv.getInt16(os2.offset + 70);
+      if (typoAsc > 0) {
+        ascentDesign = typoAsc;
+        source = "OS/2 sTypoAscender";
+      }
+      if (typoDesc < 0) {
+        descentDesign = -typoDesc;
+        if (!source)
+          source = "OS/2 sTypoDescender";
+      }
+    }
+  } catch {}
+  try {
+    const hhea = findTableAt(dv, base, "hhea");
+    if (hhea && hhea.offset + 8 <= dv.byteLength) {
+      const hAsc = dv.getInt16(hhea.offset + 4);
+      const hDesc = dv.getInt16(hhea.offset + 6);
+      if (ascentDesign <= 0 && hAsc > 0) {
+        ascentDesign = hAsc;
+        source = "hhea ascender";
+      }
+      if (descentDesign <= 0 && hDesc < 0) {
+        descentDesign = -hDesc;
+        if (!source)
+          source = "hhea descender";
+      }
+    }
+  } catch {}
+  if (ascentDesign <= 0 || descentDesign <= 0) {
+    try {
+      const os2 = findTableAt(dv, base, "OS/2");
+      if (os2 && os2.offset + 78 <= dv.byteLength) {
+        const winAsc = dv.getUint16(os2.offset + 74);
+        const winDesc = dv.getUint16(os2.offset + 76);
+        if (ascentDesign <= 0 && winAsc > 0) {
+          ascentDesign = winAsc;
+          source = "OS/2 usWinAscent";
+        }
+        if (descentDesign <= 0 && winDesc > 0) {
+          descentDesign = winDesc;
+          if (!source)
+            source = "OS/2 usWinDescent";
+        }
+      }
+    } catch {}
+  }
+  if (ascentDesign <= 0 || descentDesign <= 0) {
+    notes.push("Font-wide ascender/descender unreadable (head, hhea and OS/2 all unusable); using 0.75/0.25 em defaults.");
+    return { ascent: 0.75, descent: 0.25 };
+  }
+  notes.push(`Font-wide layout verticals taken from ${source} (approximation: the font offers no per-glyph layout verticals).`);
+  return { ascent: toEm(ascentDesign), descent: toEm(descentDesign) };
+}
+function readAdvanceLookup(dv, base, toEm, notes) {
+  try {
+    const hhea = findTableAt(dv, base, "hhea");
+    const hmtx = findTableAt(dv, base, "hmtx");
+    if (!hhea || !hmtx || hhea.offset + 36 > dv.byteLength) {
+      notes.push("hhea/hmtx absent: advance widths were not adopted.");
+      return null;
+    }
+    let numberOfHMetrics = dv.getUint16(hhea.offset + 34);
+    if (numberOfHMetrics === 0) {
+      numberOfHMetrics = Math.max(1, Math.floor(hmtx.length / 4));
+    }
+    if (numberOfHMetrics <= 0 || hmtx.offset + numberOfHMetrics * 4 > dv.byteLength) {
+      notes.push("hmtx shorter than hhea.numberOfHMetrics: advance widths were not adopted.");
+      return null;
+    }
+    const lastAdvance = dv.getUint16(hmtx.offset + (numberOfHMetrics - 1) * 4);
+    return (gid) => {
+      if (!Number.isFinite(gid) || gid < 0)
+        return toEm(lastAdvance);
+      const metric = gid < numberOfHMetrics ? gid : numberOfHMetrics - 1;
+      return toEm(dv.getUint16(hmtx.offset + metric * 4));
+    };
+  } catch {
+    notes.push("hmtx read failed: advance widths were not adopted.");
+    return null;
+  }
+}
+function readCmapFormat4(dv, sub, out) {
+  try {
+    if (sub + 14 > dv.byteLength)
+      return false;
+    const segCountX2 = dv.getUint16(sub + 6);
+    const segCount = segCountX2 >> 1;
+    if (segCount === 0 || segCountX2 === 0)
+      return false;
+    const endBase = sub + 14;
+    const startBase = endBase + segCountX2 + 2;
+    const deltaBase = startBase + segCountX2;
+    const rangeBase = deltaBase + segCountX2;
+    if (rangeBase + segCountX2 > dv.byteLength)
+      return false;
+    for (let i = 0;i < segCount; i++) {
+      const end = dv.getUint16(endBase + i * 2);
+      const start = dv.getUint16(startBase + i * 2);
+      const delta = dv.getInt16(deltaBase + i * 2);
+      const rangeOffset = dv.getUint16(rangeBase + i * 2);
+      if (start > end)
+        continue;
+      for (let cp = start;cp <= end; cp++) {
+        if (cp === 65535)
+          continue;
+        let gid;
+        if (rangeOffset === 0) {
+          gid = cp + delta & 65535;
+        } else {
+          const at = rangeBase + i * 2 + rangeOffset + (cp - start) * 2;
+          if (at + 2 > dv.byteLength)
+            break;
+          gid = dv.getUint16(at);
+          if (gid !== 0)
+            gid = gid + delta & 65535;
+        }
+        if (gid !== 0)
+          out.set(cp, gid);
+      }
+    }
+    return out.size > 0;
+  } catch {
+    return false;
+  }
+}
+function readCmapFormat12or13(dv, sub, out, oneGlyph) {
+  try {
+    if (sub + 16 > dv.byteLength)
+      return false;
+    const numGroups = dv.getUint32(sub + 12);
+    const groupsBase = sub + 16;
+    const maxCp = 1114111;
+    for (let i = 0;i < numGroups; i++) {
+      const rec = groupsBase + i * 12;
+      if (rec + 12 > dv.byteLength)
+        break;
+      const start = dv.getUint32(rec);
+      const end = dv.getUint32(rec + 4);
+      const startGid = dv.getUint32(rec + 8);
+      if (start > end || start > maxCp)
+        continue;
+      const last = Math.min(end, maxCp);
+      for (let cp = start;cp <= last; cp++) {
+        const gid = oneGlyph ? startGid : startGid + (cp - start);
+        if (gid !== 0)
+          out.set(cp, gid);
+      }
+    }
+    return out.size > 0;
+  } catch {
+    return false;
+  }
+}
+function readCmap4(dv, base, notes) {
+  const out = new Map;
+  try {
+    const cmap = findTableAt(dv, base, "cmap");
+    if (!cmap || cmap.offset + 4 > dv.byteLength) {
+      notes.push("cmap absent: no per-codepoint glyphs were adopted.");
+      return out;
+    }
+    const cmapOff = cmap.offset;
+    const numTables = dv.getUint16(cmapOff + 2);
+    let bestOff = -1;
+    let bestScore = -1;
+    let bestFormat = -1;
+    for (let i = 0;i < numTables; i++) {
+      const rec = cmapOff + 4 + i * 8;
+      if (rec + 8 > dv.byteLength)
+        break;
+      const platform = dv.getUint16(rec);
+      const encoding = dv.getUint16(rec + 2);
+      const sub = cmapOff + dv.getUint32(rec + 4);
+      if (sub + 4 > dv.byteLength)
+        continue;
+      const format = dv.getUint16(sub);
+      let score = -1;
+      if (platform === 3 && encoding === 10 || platform === 0 && (encoding === 4 || encoding === 6)) {
+        score = format === 12 ? 400 : format === 13 ? 350 : format === 4 ? 200 : 100;
+      } else if (platform === 0) {
+        score = format === 12 ? 300 : format === 13 ? 250 : format === 4 ? 150 : 50;
+      } else if (platform === 3 && encoding === 1) {
+        score = format === 4 ? 100 : 50;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestOff = sub;
+        bestFormat = format;
+      }
+    }
+    if (bestOff < 0) {
+      notes.push("No usable cmap subtable (Unicode or Windows BMP); nothing was adopted.");
+      return out;
+    }
+    let ok = false;
+    if (bestFormat === 4) {
+      ok = readCmapFormat4(dv, bestOff, out);
+    } else if (bestFormat === 12) {
+      ok = readCmapFormat12or13(dv, bestOff, out, false);
+    } else if (bestFormat === 13) {
+      ok = readCmapFormat12or13(dv, bestOff, out, true);
+    }
+    if (!ok) {
+      notes.push(`cmap subtable format ${bestFormat} could not be read; nothing was adopted.`);
+      return out;
+    }
+    if (bestFormat === 4) {
+      notes.push("cmap format 4 covers the BMP only; plane-1 math alphanumerics keep MathJax metrics.");
+    }
+  } catch {
+    notes.push("cmap read failed; nothing was adopted.");
+  }
+  return out;
+}
+function isAdoptableCodepoint(cp) {
+  if (!Number.isFinite(cp) || cp < 32 || cp > 1114111)
+    return false;
+  if (cp >= 127 && cp <= 159)
+    return false;
+  if (cp >= 55296 && cp <= 57343)
+    return false;
+  if (cp >= 57344 && cp <= 63743)
+    return false;
+  if (cp >= 983040 && cp <= 1048573)
+    return false;
+  if (cp >= 1048576 && cp <= 1114109)
+    return false;
+  return true;
+}
+var texGyrePagellaMathAdapter = {
+  id: "tex-gyre-pagella-math",
+  name: "TeX Gyre Pagella Math",
+  families: ["TeX Gyre Pagella Math", "TeX Gyre Pagella"],
+  priority: 50,
+  matches(familyName) {
+    return matchByFamilyName(texGyrePagellaMathAdapter, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    let math;
+    try {
+      math = readOpenTypeMathTable(binary);
+    } catch (err) {
+      notes.push(`MATH table read threw: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+    if (!math) {
+      return null;
+    }
+    const chars = {};
+    try {
+      const dv = new DataView(binary);
+      const base = fontBase3(dv);
+      const upem = resolveUnitsPerEm(dv, base, math.unitsPerEm, ctx.unitsPerEm);
+      const toEm = (design) => design / upem;
+      const verticals = readFontWideVerticals(dv, base, toEm, notes);
+      const advanceOf = readAdvanceLookup(dv, base, toEm, notes);
+      if (advanceOf) {
+        const cmap = readCmap4(dv, base, notes);
+        let adopted = 0;
+        for (const [cp, gid] of cmap) {
+          if (!isAdoptableCodepoint(cp))
+            continue;
+          const width = advanceOf(gid);
+          if (!Number.isFinite(width) || width < 0)
+            continue;
+          chars[String(cp)] = [verticals.ascent, verticals.descent, width];
+          adopted++;
+        }
+        if (adopted > 0) {
+          notes.push(`Adopted ${adopted} glyphs from cmap/hmtx; height/depth are the font-wide layout box (${verticals.ascent.toFixed(4)}/${verticals.descent.toFixed(4)} em).`);
+          notes.push("Per-glyph vertical extents are approximated with the font-wide ascender/descender: MATH MathGlyphInfo carries no per-glyph layout verticals, and outline bounding boxes are not a layout box.");
+        }
+      }
+    } catch (err) {
+      notes.push(`Partial metrics only: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    notes.push("Constants (axis height, rule thickness, script scaling) are this font's own MATH values, not shared with TeX Gyre Termes Math.");
+    notes.push("Stretchy delimiter sizes were left to MathJax: this font does not own the assembly.");
+    return {
+      source: "opentype-math",
+      chars,
+      delimiters: undefined,
+      constants: math.constants,
+      ownsStretchyAssembly: false,
+      notes
+    };
+  }
+};
+
+// src/math-standards/adapters/libertinus-math.ts
+var CLAIMED_FAMILIES = ["Libertinus Math", "Libertinus"];
+function errorText(err) {
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  return String(err);
+}
+function isControlCode(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function isPrivateUseCode(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isNonDrawingCode(code) {
+  return code >= 55296 && code <= 57343 || code === 65534 || code === 65535;
+}
+function skipCode(code) {
+  return isControlCode(code) || isPrivateUseCode(code) || isNonDrawingCode(code);
+}
+function fontDirectoryBase(dv) {
+  try {
+    if (dv.byteLength < 12) {
+      return 0;
+    }
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    if (tag === "ttcf") {
+      const numFonts = dv.getUint32(8);
+      if (numFonts < 1) {
+        return 0;
+      }
+      return dv.getUint32(12);
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
+class OpenTypeReader {
+  dv;
+  dir;
+  unitsPerEm;
+  numGlyphs;
+  problems = [];
+  headRef;
+  hheaRef;
+  hmtxRef;
+  os2Ref;
+  cmapRef;
+  glyfRef;
+  locaRef;
+  constructor(binary) {
+    this.dv = new DataView(binary);
+    const base = fontDirectoryBase(this.dv);
+    this.dir = new DataView(binary, base);
+    this.headRef = this.findTable("head");
+    this.hheaRef = this.findTable("hhea");
+    const maxpRef = this.findTable("maxp");
+    this.hmtxRef = this.findTable("hmtx");
+    this.os2Ref = this.findTable("OS/2");
+    this.cmapRef = this.findTable("cmap");
+    this.glyfRef = this.findTable("glyf");
+    this.locaRef = this.findTable("loca");
+    this.unitsPerEm = this.readUnitsPerEm();
+    this.numGlyphs = this.readNumGlyphs(maxpRef);
+  }
+  findTable(tag) {
+    try {
+      const numTables = this.dir.getUint16(4);
+      for (let i = 0;i < numTables; i++) {
+        const rec = 12 + i * 16;
+        const t2 = String.fromCharCode(this.dir.getUint8(rec), this.dir.getUint8(rec + 1), this.dir.getUint8(rec + 2), this.dir.getUint8(rec + 3));
+        if (t2 === tag) {
+          return { offset: this.dir.getUint32(rec + 8), length: this.dir.getUint32(rec + 12) };
+        }
+      }
+    } catch (err) {
+      this.problems.push(`Table directory unreadable while looking up '${tag}' (${errorText(err)}).`);
+    }
+    return null;
+  }
+  readUnitsPerEm() {
+    try {
+      if (this.headRef && this.headRef.length >= 20) {
+        const upem = this.dv.getUint16(this.headRef.offset + 18);
+        if (upem > 0) {
+          return upem;
+        }
+      }
+    } catch (err) {
+      this.problems.push(`head.unitsPerEm unreadable (${errorText(err)}); assuming 1000.`);
+    }
+    return 1000;
+  }
+  readNumGlyphs(maxpRef) {
+    try {
+      if (maxpRef && maxpRef.length >= 6) {
+        return this.dv.getUint16(maxpRef.offset + 4);
+      }
+    } catch (err) {
+      this.problems.push(`maxp.numGlyphs unreadable (${errorText(err)}).`);
+    }
+    return 0;
+  }
+  readCmap() {
+    const out = new Map;
+    if (!this.cmapRef) {
+      this.problems.push("cmap table absent; per-glyph metrics left to MathJax.");
+      return out;
+    }
+    try {
+      const cmapStart = this.cmapRef.offset;
+      const numTables = this.dv.getUint16(cmapStart + 2);
+      const subs = [];
+      for (let i = 0;i < numTables; i++) {
+        const rec = cmapStart + 4 + i * 8;
+        if (rec + 8 > this.dv.byteLength) {
+          break;
+        }
+        const subOffset = cmapStart + this.dv.getUint32(rec + 4);
+        if (subOffset + 2 > this.dv.byteLength) {
+          continue;
+        }
+        const format = this.dv.getUint16(subOffset);
+        if (format === 12) {
+          subs.push({ offset: subOffset, score: 3 });
+        } else if (format === 4) {
+          subs.push({ offset: subOffset, score: 2 });
+        } else if (format === 6) {
+          subs.push({ offset: subOffset, score: 1 });
+        }
+      }
+      subs.sort((a, b) => b.score - a.score);
+      for (const sub of subs) {
+        const got = sub.score === 3 ? this.readCmap12(sub.offset) : sub.score === 2 ? this.readCmap4(sub.offset) : this.readCmap6(sub.offset);
+        for (const [code, gid] of got) {
+          if (!out.has(code)) {
+            out.set(code, gid);
+          }
+        }
+      }
+      if (out.size === 0) {
+        this.problems.push("cmap present but no usable subtable (format 4/6/12).");
+      }
+    } catch (err) {
+      this.problems.push(`cmap parse failed part-way (${errorText(err)}); using what was read.`);
+    }
+    return out;
+  }
+  readCmap4(at) {
+    const map = new Map;
+    const length = this.dv.getUint16(at + 2);
+    const hardEnd = this.dv.byteLength;
+    const segCountX2 = this.dv.getUint16(at + 6);
+    const segCount = segCountX2 >> 1;
+    if (segCount === 0 || segCountX2 > 65534) {
+      return map;
+    }
+    const endCodes = at + 14;
+    const startCodes = endCodes + segCountX2 + 2;
+    const deltas = startCodes + segCountX2;
+    const rangeOffsets = deltas + segCountX2;
+    for (let i = 0;i < segCount; i++) {
+      const endCode = this.dv.getUint16(endCodes + i * 2);
+      const startCode = this.dv.getUint16(startCodes + i * 2);
+      const delta = this.dv.getInt16(deltas + i * 2);
+      const rangeOffset = this.dv.getUint16(rangeOffsets + i * 2);
+      if (startCode > endCode || endCode - startCode > 65535) {
+        continue;
+      }
+      for (let code = startCode;code <= endCode; code++) {
+        if (code === 65535) {
+          continue;
+        }
+        let gid;
+        if (rangeOffset === 0) {
+          gid = code + delta & 65535;
+        } else {
+          const gidAddr = rangeOffsets + i * 2 + rangeOffset + (code - startCode) * 2;
+          if (gidAddr + 2 > hardEnd || gidAddr + 2 > at + length) {
+            continue;
+          }
+          gid = this.dv.getUint16(gidAddr);
+          if (gid !== 0) {
+            gid = gid + delta & 65535;
+          }
+        }
+        if (gid !== 0) {
+          map.set(code, gid);
+        }
+      }
+    }
+    return map;
+  }
+  readCmap6(at) {
+    const map = new Map;
+    const first = this.dv.getUint16(at + 6);
+    const count = this.dv.getUint16(at + 8);
+    if (count === 0 || count > 65536) {
+      return map;
+    }
+    for (let i = 0;i < count; i++) {
+      const addr = at + 10 + i * 2;
+      if (addr + 2 > this.dv.byteLength) {
+        break;
+      }
+      const gid = this.dv.getUint16(addr);
+      if (gid !== 0) {
+        map.set(first + i, gid);
+      }
+    }
+    return map;
+  }
+  readCmap12(at) {
+    const map = new Map;
+    const numGroups = this.dv.getUint32(at + 12);
+    if (numGroups === 0 || numGroups > 65536) {
+      return map;
+    }
+    for (let i = 0;i < numGroups; i++) {
+      const rec = at + 16 + i * 12;
+      if (rec + 12 > this.dv.byteLength) {
+        break;
+      }
+      const start = this.dv.getUint32(rec);
+      const end = this.dv.getUint32(rec + 4);
+      const startGid = this.dv.getUint32(rec + 8);
+      if (end < start || end > 1114111 || end - start > 65535) {
+        continue;
+      }
+      for (let code = start;code <= end; code++) {
+        const gid = startGid + (code - start);
+        if (gid !== 0) {
+          map.set(code, gid);
+        }
+      }
+    }
+    return map;
+  }
+  readAdvanceWidths() {
+    try {
+      if (!this.hmtxRef || !this.hheaRef || this.numGlyphs <= 0) {
+        this.problems.push("hmtx/hhea/maxp missing; advance widths unavailable.");
+        return new Uint16Array(0);
+      }
+      const numberOfHMetrics = Math.max(1, this.dv.getUint16(this.hheaRef.offset + 34));
+      const widths = new Uint16Array(this.numGlyphs);
+      for (let gid = 0;gid < this.numGlyphs; gid++) {
+        const rec = gid < numberOfHMetrics ? gid : numberOfHMetrics - 1;
+        widths[gid] = this.dv.getUint16(this.hmtxRef.offset + rec * 4);
+      }
+      return widths;
+    } catch (err) {
+      this.problems.push(`hmtx read failed (${errorText(err)}); advance widths unavailable.`);
+      return new Uint16Array(0);
+    }
+  }
+  readGlyphVerticals() {
+    try {
+      if (!this.glyfRef || !this.locaRef || !this.headRef || this.numGlyphs <= 0) {
+        return null;
+      }
+      const indexToLocFormat = this.dv.getInt16(this.headRef.offset + 50);
+      const entrySize = indexToLocFormat === 0 ? 2 : 4;
+      const locaNeed = this.locaRef.offset + (this.numGlyphs + 1) * entrySize;
+      if (locaNeed > this.dv.byteLength) {
+        this.problems.push("loca table truncated; falling back to font-wide verticals.");
+        return null;
+      }
+      const upem = this.unitsPerEm || 1000;
+      const map = new Map;
+      for (let gid = 0;gid < this.numGlyphs; gid++) {
+        let start;
+        let end;
+        if (indexToLocFormat === 0) {
+          start = this.dv.getUint16(this.locaRef.offset + gid * 2) * 2;
+          end = this.dv.getUint16(this.locaRef.offset + (gid + 1) * 2) * 2;
+        } else {
+          start = this.dv.getUint32(this.locaRef.offset + gid * 4);
+          end = this.dv.getUint32(this.locaRef.offset + (gid + 1) * 4);
+        }
+        if (end <= start) {
+          map.set(gid, { height: 0, depth: 0 });
+          continue;
+        }
+        if (start + 10 > this.dv.byteLength) {
+          continue;
+        }
+        const yMin = this.dv.getInt16(this.glyfRef.offset + start + 4);
+        const yMax = this.dv.getInt16(this.glyfRef.offset + start + 8);
+        map.set(gid, {
+          height: Math.max(0, yMax) / upem,
+          depth: Math.max(0, -yMin) / upem
+        });
+      }
+      return map;
+    } catch (err) {
+      this.problems.push(`glyf/loca read failed (${errorText(err)}); falling back to font-wide verticals.`);
+      return null;
+    }
+  }
+  readFontWideVerticals() {
+    try {
+      const upem = this.unitsPerEm || 1000;
+      if (this.os2Ref && this.os2Ref.length >= 74) {
+        const asc = this.dv.getInt16(this.os2Ref.offset + 68);
+        const desc = this.dv.getInt16(this.os2Ref.offset + 70);
+        if (asc > 0 || desc < 0) {
+          return { height: Math.max(0, asc) / upem, depth: Math.max(0, -desc) / upem };
+        }
+      }
+      if (this.hheaRef) {
+        const asc = this.dv.getInt16(this.hheaRef.offset + 4);
+        const desc = this.dv.getInt16(this.hheaRef.offset + 6);
+        return { height: Math.max(0, asc) / upem, depth: Math.max(0, -desc) / upem };
+      }
+    } catch (err) {
+      this.problems.push(`OS/2 and hhea verticals unreadable (${errorText(err)}).`);
+    }
+    return null;
+  }
+}
+function summarizeItalicCorrection(italicCorrection, notes) {
+  const values = Object.values(italicCorrection);
+  if (values.length === 0) {
+    notes.push("MATH table carries no italics-correction coverage.");
+    return;
+  }
+  let max = 0;
+  let sum = 0;
+  for (const v of values) {
+    sum += v;
+    if (v > max) {
+      max = v;
+    }
+  }
+  const mean = sum / values.length;
+  notes.push(`Libertinus Math states a generous italic correction (${values.length} glyphs; max ${max.toFixed(4)} em, mean ${mean.toFixed(4)} em). ` + `The plugin's italic override interacts with these values — prefer the font's own correction over synthetic slanting.`);
+}
+function buildChars(reader, notes) {
+  const chars = {};
+  const cmap = reader.readCmap();
+  if (cmap.size === 0) {
+    return chars;
+  }
+  const upem = reader.unitsPerEm || 1000;
+  const advances = reader.readAdvanceWidths();
+  const perGlyph = reader.readGlyphVerticals();
+  const wide = perGlyph ? null : reader.readFontWideVerticals();
+  let kept = 0;
+  let skippedNonDrawing = 0;
+  let skippedZeroWidth = 0;
+  let skippedNoVertical = 0;
+  for (const [code, gid] of cmap) {
+    if (skipCode(code)) {
+      skippedNonDrawing++;
+      continue;
+    }
+    const width = (gid >= 0 && gid < advances.length ? advances[gid] : 0) / upem;
+    if (!(width > 0)) {
+      skippedZeroWidth++;
+      continue;
+    }
+    let box = perGlyph ? perGlyph.get(gid) : wide ?? undefined;
+    if (!box) {
+      skippedNoVertical++;
+      continue;
+    }
+    chars[String(code)] = [box.height, box.depth, width];
+    kept++;
+  }
+  notes.push(`Read ${kept} glyphs from cmap+hmtx; kept MathJax metrics for ${skippedNonDrawing} non-drawing codepoints and ` + `${skippedZeroWidth} zero-advance glyphs${skippedNoVertical > 0 ? ` and ${skippedNoVertical} glyphs without vertical extents` : ""}.`);
+  if (perGlyph) {
+    notes.push("Per-glyph verticals come from glyf bounding boxes.");
+  } else if (wide) {
+    notes.push("No per-glyph verticals (CFF outlines): font-wide OS/2 sTypoAscender/sTypoDescender (or hhea) stand in for every glyph — heights and depths are approximate.");
+  } else {
+    notes.push("No vertical extents could be read; per-glyph metrics left entirely to MathJax.");
+  }
+  return chars;
+}
+var libertinusMathAdapter = {
+  id: "libertinus-math",
+  name: "Libertinus Math",
+  families: CLAIMED_FAMILIES,
+  priority: 60,
+  matches(familyName) {
+    return matchByFamilyName({ families: CLAIMED_FAMILIES }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    const math = readOpenTypeMathTable(binary);
+    if (!math) {
+      return null;
+    }
+    try {
+      const reader = new OpenTypeReader(binary);
+      const upem = math.unitsPerEm > 0 ? math.unitsPerEm : reader.unitsPerEm;
+      if (ctx.unitsPerEm && ctx.unitsPerEm !== upem) {
+        notes.push(`Caller reported unitsPerEm=${ctx.unitsPerEm}, font says ${upem}; using the font's value.`);
+      }
+      const chars = buildChars(reader, notes);
+      summarizeItalicCorrection(math.italicCorrection, notes);
+      notes.push("Stretchy delimiter sizes were left to MathJax: this font does not own the assembly.");
+      for (const problem of reader.problems) {
+        notes.push(problem);
+      }
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants: math.constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (err) {
+      notes.push(`Libertinus Math metrics could not be assembled (${errorText(err)}); MathJax metrics kept.`);
+      return {
+        source: "opentype-math",
+        chars: {},
+        delimiters: undefined,
+        constants: math.constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    }
+  }
+};
+
+// src/math-standards/adapters/asana-math.ts
+var ADAPTER_FAMILIES = ["Asana Math", "Asana"];
+function isPrivateUse3(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isControl3(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function readTableDirectory2(dv) {
+  const tables = new Map;
+  if (dv.byteLength < 12) {
+    return tables;
+  }
+  let base = 0;
+  const headTag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  if (headTag === "ttcf") {
+    if (dv.byteLength < 16) {
+      return tables;
+    }
+    base = dv.getUint32(12);
+  }
+  if (base < 0 || base + 12 > dv.byteLength) {
+    return tables;
+  }
+  const numTables = dv.getUint16(base + 4);
+  for (let i = 0;i < numTables; i++) {
+    const rec = base + 12 + i * 16;
+    if (rec + 16 > dv.byteLength) {
+      break;
+    }
+    const tag = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+    const offset = dv.getUint32(rec + 8);
+    const length = dv.getUint32(rec + 12);
+    if (offset <= dv.byteLength && length <= dv.byteLength - offset) {
+      tables.set(tag, { offset, length });
+    }
+  }
+  return tables;
+}
+function parseCmapFormat42(dv, off, into) {
+  const segCountX2 = dv.getUint16(off + 6);
+  const segCount = segCountX2 >> 1;
+  if (segCount <= 0 || segCount > 16384) {
+    return;
+  }
+  const endBase = off + 14;
+  const startBase = endBase + segCountX2 + 2;
+  const deltaBase = startBase + segCountX2;
+  const rangeBase = deltaBase + segCountX2;
+  for (let i = 0;i < segCount; i++) {
+    const end = dv.getUint16(endBase + i * 2);
+    const start = dv.getUint16(startBase + i * 2);
+    const delta = dv.getInt16(deltaBase + i * 2);
+    const rangeOffset = dv.getUint16(rangeBase + i * 2);
+    if (start > end) {
+      continue;
+    }
+    if (end - start > 65535) {
+      continue;
+    }
+    for (let code = start;code <= end; code++) {
+      let gid;
+      if (rangeOffset === 0) {
+        gid = code + delta & 65535;
+      } else {
+        const addr = rangeBase + i * 2 + rangeOffset + (code - start) * 2;
+        gid = dv.getUint16(addr);
+        if (gid !== 0) {
+          gid = gid + delta & 65535;
+        }
+      }
+      if (gid !== 0) {
+        into.set(code, gid);
+      }
+    }
+  }
+}
+function parseCmapFormat122(dv, off, into) {
+  const nGroups = dv.getUint32(off + 12);
+  const groups = Math.min(nGroups, 131072);
+  const groupsOff = off + 16;
+  for (let i = 0;i < groups; i++) {
+    const rec = groupsOff + i * 12;
+    const start = dv.getUint32(rec);
+    const end = dv.getUint32(rec + 4);
+    const startGid = dv.getUint32(rec + 8);
+    if (start > end || end - start > 65535) {
+      continue;
+    }
+    for (let code = start;code <= end; code++) {
+      const gid = startGid + (code - start);
+      if (gid !== 0) {
+        into.set(code, gid);
+      }
+    }
+  }
+}
+function readCodepointMap(dv, ref, notes) {
+  const map = new Map;
+  const base = ref.offset;
+  const numSubtables = dv.getUint16(base + 2);
+  let parsed = 0;
+  for (let i = 0;i < numSubtables; i++) {
+    const rec = base + 4 + i * 8;
+    if (rec + 8 > base + ref.length) {
+      break;
+    }
+    const platform = dv.getUint16(rec);
+    const encoding = dv.getUint16(rec + 2);
+    const subOff = base + dv.getUint32(rec + 4);
+    if (subOff + 4 > dv.byteLength) {
+      continue;
+    }
+    const format = dv.getUint16(subOff);
+    try {
+      if (format === 4) {
+        parseCmapFormat42(dv, subOff, map);
+        parsed++;
+      } else if (format === 12 && (platform === 3 || platform === 0 || encoding === 10)) {
+        parseCmapFormat122(dv, subOff, map);
+        parsed++;
+      }
+    } catch (err) {
+      notes.push(`cmap subtable ${i} (format ${format}) could not be read; skipped.`);
+      notes.push(`cmap read error: ${String(err)}`);
+    }
+  }
+  if (parsed === 0) {
+    notes.push("No readable Unicode cmap subtable (format 4 or 12); chars cannot be keyed by codepoint.");
+  }
+  return map;
+}
+function readAdvances2(dv, ref, numberOfHMetrics, numGlyphs) {
+  const advances = new Array(numGlyphs).fill(0);
+  const metricCount = Math.max(1, Math.min(numberOfHMetrics, numGlyphs));
+  for (let gid = 0;gid < numGlyphs; gid++) {
+    const slot = Math.min(gid, metricCount - 1);
+    advances[gid] = dv.getUint16(ref.offset + slot * 4);
+  }
+  return advances;
+}
+function readOutlineExtents(dv, locaRef, glyfRef, numGlyphs, longLoca, notes) {
+  if (!locaRef || !glyfRef || numGlyphs <= 0) {
+    notes.push("No glyf/loca outlines (CFF or unreadable); per-glyph verticals fall back to font-wide ascender/descender.");
+    return null;
+  }
+  try {
+    const entrySize = longLoca ? 4 : 2;
+    const need = (numGlyphs + 1) * entrySize;
+    if (locaRef.length < need) {
+      notes.push("loca table shorter than numGlyphs; per-glyph verticals fall back to font-wide ascender/descender.");
+      return null;
+    }
+    const readLoca = (i) => longLoca ? dv.getUint32(locaRef.offset + i * 4) : dv.getUint16(locaRef.offset + i * 2) * 2;
+    const out = new Array(numGlyphs).fill(null);
+    for (let gid = 0;gid < numGlyphs; gid++) {
+      const start = readLoca(gid);
+      const end = readLoca(gid + 1);
+      if (end <= start) {
+        out[gid] = null;
+        continue;
+      }
+      const at = glyfRef.offset + start;
+      if (start + 10 > glyfRef.length || at + 10 > dv.byteLength) {
+        out[gid] = null;
+        continue;
+      }
+      out[gid] = {
+        yMin: dv.getInt16(at + 4),
+        yMax: dv.getInt16(at + 8)
+      };
+    }
+    return out;
+  } catch (err) {
+    notes.push(`glyf/loca read failed (${String(err)}); per-glyph verticals fall back to font-wide ascender/descender.`);
+    return null;
+  }
+}
+function readFontVerticals(dv, tables, notes) {
+  let ascent = 0;
+  let descent = 0;
+  try {
+    const os2 = tables.get("OS/2");
+    if (os2 && os2.length >= 72) {
+      ascent = dv.getInt16(os2.offset + 68);
+      descent = dv.getInt16(os2.offset + 70);
+    }
+  } catch (err) {
+    notes.push(`OS/2 verticals unreadable (${String(err)}); trying hhea.`);
+  }
+  if (!(ascent > 0) || !(descent < 0)) {
+    try {
+      const hhea = tables.get("hhea");
+      if (hhea && hhea.length >= 8) {
+        ascent = dv.getInt16(hhea.offset + 4);
+        descent = dv.getInt16(hhea.offset + 6);
+      }
+    } catch (err) {
+      notes.push(`hhea verticals unreadable (${String(err)}).`);
+    }
+  }
+  if (!(ascent > 0) || !(descent < 0)) {
+    notes.push("No usable OS/2 or hhea vertical metrics; using a declared 0.8em / 0.2em em-box guess.");
+    return { ascent: 800, descent: -200 };
+  }
+  return { ascent, descent };
+}
+function readNumGlyphs2(dv, tables, notes) {
+  try {
+    const maxp = tables.get("maxp");
+    if (maxp && maxp.length >= 6) {
+      const n = dv.getUint16(maxp.offset + 4);
+      if (n > 0) {
+        return n;
+      }
+    }
+  } catch (err) {
+    notes.push(`maxp unreadable (${String(err)}).`);
+  }
+  notes.push("numGlyphs unavailable; only advance widths for glyph ids under 65535 can be trusted.");
+  return 0;
+}
+function readHead(dv, tables, notes) {
+  let unitsPerEm = 0;
+  let longLoca = false;
+  try {
+    const head = tables.get("head");
+    if (head && head.length >= 54) {
+      unitsPerEm = dv.getUint16(head.offset + 18);
+      longLoca = dv.getInt16(head.offset + 50) !== 0;
+    }
+  } catch (err) {
+    notes.push(`head unreadable (${String(err)}).`);
+  }
+  return { unitsPerEm, longLoca };
+}
+var asanaMathAdapter = {
+  id: "asana-math",
+  name: "Asana Math",
+  families: ADAPTER_FAMILIES,
+  priority: 70,
+  matches(familyName) {
+    return matchByFamilyName({ families: ADAPTER_FAMILIES }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    try {
+      const math = readOpenTypeMathTable(binary);
+      if (!math) {
+        return null;
+      }
+      const dv = new DataView(binary);
+      const tables = readTableDirectory2(dv);
+      const headInfo = readHead(dv, tables, notes);
+      const upm = math.unitsPerEm || headInfo.unitsPerEm || ctx.unitsPerEm || 1000;
+      const toEm = (design) => design / upm;
+      const cmapRef = tables.get("cmap");
+      const codeToGid = cmapRef ? readCodepointMap(dv, cmapRef, notes) : new Map;
+      if (!cmapRef) {
+        notes.push("No cmap table; chars cannot be keyed by codepoint.");
+      }
+      const numGlyphs = readNumGlyphs2(dv, tables, notes);
+      const hheaRef = tables.get("hhea");
+      let numberOfHMetrics = numGlyphs;
+      try {
+        if (hheaRef && hheaRef.length >= 36) {
+          numberOfHMetrics = dv.getUint16(hheaRef.offset + 34);
+        }
+      } catch (err) {
+        notes.push(`hhea.numberOfHMetrics unreadable (${String(err)}); assuming all glyphs carry a full metric record.`);
+      }
+      const hmtxRef = tables.get("hmtx");
+      let advances = [];
+      if (hmtxRef && numGlyphs > 0) {
+        try {
+          advances = readAdvances2(dv, hmtxRef, numberOfHMetrics, numGlyphs);
+        } catch (err) {
+          notes.push(`hmtx read failed (${String(err)}); widths left to MathJax.`);
+        }
+      } else if (!hmtxRef) {
+        notes.push("No hmtx table; widths left to MathJax.");
+      }
+      const extents = readOutlineExtents(dv, tables.get("loca"), tables.get("glyf"), numGlyphs, headInfo.longLoca, notes);
+      const fontVerticals = readFontVerticals(dv, tables, notes);
+      const fontHeight = Math.max(0, toEm(fontVerticals.ascent));
+      const fontDepth = Math.max(0, toEm(-fontVerticals.descent));
+      const chars = {};
+      let built = 0;
+      let skipped = 0;
+      for (const [code, gid] of codeToGid) {
+        if (isPrivateUse3(code) || isControl3(code)) {
+          continue;
+        }
+        const width = advances[gid];
+        if (width === undefined || !(width > 0)) {
+          skipped++;
+          continue;
+        }
+        const w = toEm(width);
+        let h;
+        let d;
+        if (extents) {
+          const box = extents[gid];
+          if (box) {
+            h = Math.max(0, toEm(box.yMax));
+            d = Math.max(0, toEm(-box.yMin));
+          } else {
+            h = 0;
+            d = 0;
+          }
+        } else {
+          h = fontHeight;
+          d = fontDepth;
+        }
+        chars[String(code)] = [h, d, w];
+        built++;
+      }
+      if (built === 0) {
+        notes.push("No glyph of the cmap coverage produced a usable layout box; MathJax metrics stay in place for chars.");
+      }
+      if (!extents) {
+        notes.push("Per-glyph height/depth are the font-wide ascender/descender approximation (OpenType hmtx has no per-glyph verticals and outlines were unreadable).");
+      }
+      const vertCount = Object.keys(math.vertVariants).length;
+      const horizCount = Object.keys(math.horizVariants).length;
+      let assemblyCount = 0;
+      for (const key of Object.keys(math.vertVariants)) {
+        if (math.vertVariants[key].assembly) {
+          assemblyCount++;
+        }
+      }
+      for (const key of Object.keys(math.horizVariants)) {
+        if (math.horizVariants[key].assembly) {
+          assemblyCount++;
+        }
+      }
+      notes.push(`MATH table adopted (axis height ${math.constants.axisHeight ?? "n/a"}em); ` + `${vertCount} vertical and ${horizCount} horizontal constructions, ${assemblyCount} with assembly recipes.`);
+      notes.push("Stretchy delimiter target sizes were left to MathJax: this font does not own the assembly.");
+      notes.push(`Built ${built} glyph layout boxes from font tables; skipped ${skipped} without a usable advance.`);
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants: math.constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (err) {
+      notes.push(`Asana Math adapter failed and declined: ${String(err)}`);
+      return null;
+    }
+  }
+};
+
+// src/math-standards/adapters/cambria-math.ts
+var FAMILIES3 = ["Cambria Math", "Cambria"];
+var MAX_CODEPOINT_ENTRIES = 300000;
+function describeError(e) {
+  return e instanceof Error ? e.message : String(e);
+}
+function readTag(dv, at) {
+  return String.fromCharCode(dv.getUint8(at), dv.getUint8(at + 1), dv.getUint8(at + 2), dv.getUint8(at + 3));
+}
+function findTable3(dv, base, tag) {
+  try {
+    const numTables = dv.getUint16(base + 4);
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      if (rec + 16 > dv.byteLength)
+        break;
+      if (readTag(dv, rec) !== tag)
+        continue;
+      const offset = dv.getUint32(rec + 8);
+      const length = dv.getUint32(rec + 12);
+      if (offset + length > dv.byteLength)
+        return null;
+      return { offset, length };
+    }
+  } catch {}
+  return null;
+}
+function getTable(dv, tag) {
+  return findTable3(dv, 0, tag);
+}
+function isCollection2(dv) {
+  return dv.byteLength >= 12 && readTag(dv, 0) === "ttcf";
+}
+function rebuildSingleFont(dv, base) {
+  const numTables = dv.getUint16(base + 4);
+  if (numTables < 1 || numTables > 512) {
+    throw new Error(`unreasonable table count ${numTables}`);
+  }
+  const tags = [];
+  const checksums = [];
+  const sources = [];
+  for (let i = 0;i < numTables; i++) {
+    const rec = base + 12 + i * 16;
+    if (rec + 16 > dv.byteLength) {
+      throw new Error("table directory truncated");
+    }
+    const tag = readTag(dv, rec);
+    const checksum = dv.getUint32(rec + 4);
+    const offset = dv.getUint32(rec + 8);
+    const length = dv.getUint32(rec + 12);
+    if (offset + length > dv.byteLength) {
+      throw new Error(`table ${tag} out of range`);
+    }
+    tags.push(tag);
+    checksums.push(checksum);
+    sources.push({ offset, length });
+  }
+  const headerSize = 12 + numTables * 16;
+  let cursor = headerSize;
+  const placements = [];
+  for (const src of sources) {
+    placements.push(cursor);
+    cursor = cursor + src.length + 3 & ~3;
+  }
+  const out = new ArrayBuffer(cursor);
+  const odv = new DataView(out);
+  const outBytes = new Uint8Array(out);
+  const srcBytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+  odv.setUint32(0, dv.getUint32(base));
+  odv.setUint16(4, numTables);
+  const maxPow2 = 1 << 31 - Math.clz32(numTables);
+  odv.setUint16(6, maxPow2 * 16);
+  odv.setUint16(8, Math.log2(maxPow2) | 0);
+  odv.setUint16(10, numTables * 16 - maxPow2 * 16);
+  for (let i = 0;i < numTables; i++) {
+    const rec = 12 + i * 16;
+    for (let t2 = 0;t2 < 4; t2++) {
+      odv.setUint8(rec + t2, tags[i].charCodeAt(t2));
+    }
+    odv.setUint32(rec + 4, checksums[i]);
+    odv.setUint32(rec + 8, placements[i]);
+    odv.setUint32(rec + 12, sources[i].length);
+    outBytes.set(srcBytes.subarray(sources[i].offset, sources[i].offset + sources[i].length), placements[i]);
+  }
+  return out;
+}
+function extractSingleFont(binary, notes) {
+  const dv = new DataView(binary);
+  if (!isCollection2(dv)) {
+    return binary;
+  }
+  try {
+    const numFonts = dv.getUint32(8);
+    if (numFonts < 1)
+      return binary;
+    let chosen = -1;
+    for (let i = 0;i < numFonts; i++) {
+      const at = 12 + i * 4;
+      if (at + 4 > binary.byteLength)
+        break;
+      const base = dv.getUint32(at);
+      if (base <= 0 || base + 12 > binary.byteLength)
+        continue;
+      if (chosen < 0)
+        chosen = base;
+      if (findTable3(dv, base, "MATH")) {
+        chosen = base;
+        break;
+      }
+    }
+    if (chosen < 0)
+      return binary;
+    const rebuilt = rebuildSingleFont(dv, chosen);
+    notes.push("OpenType collection unpacked to the member that carries the MATH table.");
+    return rebuilt;
+  } catch (e) {
+    notes.push(`OpenType collection could not be unpacked (${describeError(e)}); reading the file as-is.`);
+    return binary;
+  }
+}
+function readHhea(dv) {
+  try {
+    const ref = getTable(dv, "hhea");
+    if (!ref || ref.length < 36)
+      return null;
+    return {
+      ascent: dv.getInt16(ref.offset + 4),
+      descent: dv.getInt16(ref.offset + 6),
+      numHMetrics: dv.getUint16(ref.offset + 34)
+    };
+  } catch (e) {
+    return null;
+  }
+}
+function readOs2(dv, notes) {
+  try {
+    const ref = getTable(dv, "OS/2");
+    if (!ref || ref.length < 8)
+      return null;
+    const info = {
+      fsSelection: 0,
+      sTypoAscender: 0,
+      sTypoDescender: 0,
+      usWinAscent: 0,
+      usWinDescent: 0
+    };
+    if (ref.length >= 64) {
+      info.fsSelection = dv.getUint16(ref.offset + 62);
+    }
+    if (ref.length >= 72) {
+      info.sTypoAscender = dv.getInt16(ref.offset + 68);
+      info.sTypoDescender = dv.getInt16(ref.offset + 70);
+    }
+    if (ref.length >= 78) {
+      info.usWinAscent = dv.getUint16(ref.offset + 74);
+      info.usWinDescent = dv.getUint16(ref.offset + 76);
+    }
+    return info;
+  } catch (e) {
+    notes.push(`OS/2 table unreadable (${describeError(e)}); falling back to hhea verticals.`);
+    return null;
+  }
+}
+function pickVertical(hhea, os2) {
+  const typoUsable = !!os2 && os2.sTypoAscender > 0;
+  const useTypo = typoUsable && (os2.fsSelection & 128) !== 0;
+  if (useTypo && os2) {
+    return {
+      ascent: os2.sTypoAscender,
+      descent: Math.abs(os2.sTypoDescender),
+      source: "OS/2 sTypoAscender/sTypoDescender (USE_TYPO_METRICS)"
+    };
+  }
+  if (hhea && hhea.ascent > 0) {
+    return {
+      ascent: hhea.ascent,
+      descent: Math.abs(hhea.descent),
+      source: "hhea ascent/descent"
+    };
+  }
+  if (typoUsable && os2) {
+    return {
+      ascent: os2.sTypoAscender,
+      descent: Math.abs(os2.sTypoDescender),
+      source: "OS/2 sTypoAscender/sTypoDescender"
+    };
+  }
+  if (os2 && os2.usWinAscent > 0) {
+    return {
+      ascent: os2.usWinAscent,
+      descent: os2.usWinDescent,
+      source: "OS/2 usWinAscent/usWinDescent"
+    };
+  }
+  return { ascent: 800, descent: 200, source: "built-in 0.8/0.2 default" };
+}
+function parseCmap4(dv, sub, end, into) {
+  const segCountX2 = dv.getUint16(sub + 6);
+  if (segCountX2 < 2 || (segCountX2 & 1) !== 0)
+    return;
+  const segCount = segCountX2 / 2;
+  const endBase = sub + 14;
+  const startBase = endBase + segCountX2 + 2;
+  const deltaBase = startBase + segCountX2;
+  const rangeBase = deltaBase + segCountX2;
+  for (let s = 0;s < segCount; s++) {
+    const segEnd = dv.getUint16(endBase + s * 2);
+    const segStart = dv.getUint16(startBase + s * 2);
+    const delta = dv.getInt16(deltaBase + s * 2);
+    const rangeOffset = dv.getUint16(rangeBase + s * 2);
+    if (segStart === 65535 || segStart > segEnd)
+      continue;
+    for (let c = segStart;c <= segEnd; c++) {
+      if (into.size >= MAX_CODEPOINT_ENTRIES)
+        return;
+      let gid;
+      if (rangeOffset === 0) {
+        gid = c + delta & 65535;
+      } else {
+        const idx = rangeBase + s * 2 + rangeOffset + (c - segStart) * 2;
+        if (idx + 2 > end)
+          return;
+        gid = dv.getUint16(idx);
+        if (gid !== 0)
+          gid = gid + delta & 65535;
+      }
+      if (gid === 0)
+        continue;
+      if (!into.has(c))
+        into.set(c, gid);
+    }
+  }
+}
+function parseCmap6(dv, sub, end, into) {
+  const firstCode = dv.getUint16(sub + 6);
+  const entryCount = dv.getUint16(sub + 8);
+  for (let i = 0;i < entryCount; i++) {
+    if (into.size >= MAX_CODEPOINT_ENTRIES)
+      return;
+    const idx = sub + 10 + i * 2;
+    if (idx + 2 > end)
+      return;
+    const gid = dv.getUint16(idx);
+    if (gid === 0)
+      continue;
+    const code = firstCode + i;
+    if (!into.has(code))
+      into.set(code, gid);
+  }
+}
+function parseCmap12(dv, sub, end, into) {
+  const numGroups = dv.getUint32(sub + 12);
+  for (let i = 0;i < numGroups; i++) {
+    const rec = sub + 16 + i * 12;
+    if (rec + 12 > end)
+      return;
+    const start = dv.getUint32(rec);
+    const finish2 = dv.getUint32(rec + 4);
+    const startGid = dv.getUint32(rec + 8);
+    if (start > finish2 || finish2 > 1114111)
+      continue;
+    for (let c = start;c <= finish2; c++) {
+      if (into.size >= MAX_CODEPOINT_ENTRIES)
+        return;
+      const gid = startGid + (c - start);
+      if (gid === 0)
+        continue;
+      if (!into.has(c))
+        into.set(c, gid);
+    }
+  }
+}
+function readCmap5(dv, notes) {
+  const map = new Map;
+  try {
+    const ref = getTable(dv, "cmap");
+    if (!ref) {
+      notes.push("No cmap table: codepoint coverage unknown, chars left empty.");
+      return map;
+    }
+    const numSub = dv.getUint16(ref.offset + 2);
+    for (let i = 0;i < numSub; i++) {
+      const rec = ref.offset + 4 + i * 8;
+      if (rec + 8 > ref.offset + ref.length)
+        break;
+      const platform = dv.getUint16(rec);
+      const encoding = dv.getUint16(rec + 2);
+      const isUnicode = platform === 0 || platform === 3 && (encoding === 1 || encoding === 10);
+      if (!isUnicode)
+        continue;
+      const sub = ref.offset + dv.getUint32(rec + 4);
+      if (sub + 4 > ref.offset + ref.length)
+        continue;
+      const end = ref.offset + ref.length;
+      const format = dv.getUint16(sub);
+      if (format === 12)
+        parseCmap12(dv, sub, end, map);
+      else if (format === 4)
+        parseCmap4(dv, sub, end, map);
+      else if (format === 6)
+        parseCmap6(dv, sub, end, map);
+    }
+    if (map.size === 0) {
+      notes.push("cmap contained no usable Unicode subtable; chars left empty.");
+    } else if (map.size >= MAX_CODEPOINT_ENTRIES) {
+      notes.push(`cmap truncated at ${MAX_CODEPOINT_ENTRIES} entries (corrupt size guard).`);
+    }
+  } catch (e) {
+    notes.push(`cmap table unreadable (${describeError(e)}); partial coverage kept.`);
+  }
+  return map;
+}
+function readHmtx(dv, numHMetrics, notes) {
+  try {
+    const ref = getTable(dv, "hmtx");
+    if (!ref) {
+      notes.push("No hmtx table: advance widths unavailable, chars left empty.");
+      return null;
+    }
+    const count = Math.max(0, Math.min(numHMetrics, Math.floor(ref.length / 4)));
+    if (count === 0) {
+      notes.push("hmtx has no longHorMetric records; advance widths unavailable.");
+      return null;
+    }
+    const advances = new Uint16Array(count);
+    for (let i = 0;i < count; i++) {
+      advances[i] = dv.getUint16(ref.offset + i * 4);
+    }
+    const tail = advances[count - 1];
+    return (gid) => gid < count ? advances[gid] : tail;
+  } catch (e) {
+    notes.push(`hmtx table unreadable (${describeError(e)}); advance widths unavailable.`);
+    return null;
+  }
+}
+function isPrivateUse4(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isControl4(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+var cambriaMathAdapter = {
+  id: "cambria-math",
+  name: "Cambria Math",
+  families: FAMILIES3,
+  priority: 80,
+  matches(familyName) {
+    return matchByFamilyName({ families: FAMILIES3 }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    let mathTable = null;
+    let chars = {};
+    try {
+      if (!binary || binary.byteLength < 12) {
+        return null;
+      }
+      const font = extractSingleFont(binary, notes);
+      const dv = new DataView(font);
+      mathTable = readOpenTypeMathTable(font);
+      if (!mathTable) {
+        return null;
+      }
+      const upm = mathTable.unitsPerEm > 0 ? mathTable.unitsPerEm : ctx.unitsPerEm && ctx.unitsPerEm > 0 ? ctx.unitsPerEm : 1000;
+      const vertical = pickVertical(readHhea(dv), readOs2(dv, notes));
+      const height = vertical.ascent / upm;
+      const depth = vertical.descent / upm;
+      const cmap = readCmap5(dv, notes);
+      const hhea = readHhea(dv);
+      const advanceFor = readHmtx(dv, hhea ? hhea.numHMetrics : 0, notes);
+      let used = 0;
+      let skipped = 0;
+      if (advanceFor && cmap.size > 0) {
+        for (const [code, gid] of cmap) {
+          if (gid <= 0 || isPrivateUse4(code) || isControl4(code) || code > 1114111) {
+            skipped++;
+            continue;
+          }
+          const advance = advanceFor(gid);
+          if (!(advance > 0)) {
+            skipped++;
+            continue;
+          }
+          chars[String(code)] = [height, depth, advance / upm];
+          used++;
+        }
+      }
+      if (cmap.size > 0 && used === 0 && advanceFor) {
+        chars = {};
+        notes.push("Every hmtx advance was zero; treating hmtx as unreadable and leaving chars empty.");
+      }
+      notes.push(`Layout-box height/depth from font-wide ${vertical.source} ` + `(${height.toFixed(4)} / ${depth.toFixed(4)} em): the MATH table carries no per-glyph vertical extents, ` + `so verticals are an approximation; widths are exact hmtx advances.`);
+      notes.push(`Read ${used} glyph boxes from cmap+hmtx (skipped ${skipped}: private-use, control, .notdef or zero advance).`);
+      notes.push("MATH constants taken verbatim from Cambria Math (ClearType-tuned; axis height is relatively high by design).");
+      notes.push("Stretchy delimiter sizes left to MathJax (delimiters omitted, ownsStretchyAssembly=false): " + "brace and arrow assembly uses MathJax private-use pieces, not this font.");
+      if (Object.keys(mathTable.italicCorrection).length > 0) {
+        notes.push(`MATH italics corrections for ${Object.keys(mathTable.italicCorrection).length} glyphs were read ` + "but not exported (MathFontMetrics has no field for them).");
+      }
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants: mathTable.constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (e) {
+      notes.push(`Cambria Math metrics were only partially read: ${describeError(e)}`);
+      if (mathTable) {
+        return {
+          source: "opentype-math",
+          chars,
+          constants: mathTable.constants,
+          ownsStretchyAssembly: false,
+          notes
+        };
+      }
+      return null;
+    }
+  }
+};
+
+// src/math-standards/adapters/minion-math.ts
+var FAMILIES4 = ["Minion Math"];
+function findTableRange(dv, base, tag) {
+  try {
+    const numTables = dv.getUint16(base + 4);
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      const t2 = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+      if (t2 === tag) {
+        return { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) };
+      }
+    }
+  } catch {}
+  return null;
+}
+function firstFontBase(dv) {
+  try {
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    if (tag === "ttcf") {
+      const numFonts = dv.getUint32(8);
+      if (numFonts < 1)
+        return 0;
+      return dv.getUint32(12);
+    }
+  } catch {}
+  return 0;
+}
+function isControl5(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function isPrivateUse5(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isSurrogate(code) {
+  return code >= 55296 && code <= 57343;
+}
+function isSpacing(code) {
+  return code === 32 || code === 160 || code >= 8192 && code <= 8202 || code === 8232 || code === 8233 || code === 8239 || code === 8287 || code === 12288;
+}
+function parseCmapFormat43(dv, at, end, into) {
+  const segCount = dv.getUint16(at + 6) / 2;
+  const endCodes = at + 14;
+  const startCodes = endCodes + segCount * 2 + 2;
+  const idDeltas = startCodes + segCount * 2;
+  const idRangeOffsets = idDeltas + segCount * 2;
+  for (let i = 0;i < segCount; i++) {
+    const end2 = dv.getUint16(endCodes + i * 2);
+    const start = dv.getUint16(startCodes + i * 2);
+    if (start === 65535 || start > end2)
+      continue;
+    const delta = dv.getInt16(idDeltas + i * 2);
+    const rangeOffset = dv.getUint16(idRangeOffsets + i * 2);
+    for (let code = start;code <= end2; code++) {
+      let gid;
+      if (rangeOffset === 0) {
+        gid = code + delta & 65535;
+      } else {
+        const addr = idRangeOffsets + i * 2 + rangeOffset + (code - start) * 2;
+        if (addr + 2 > end2)
+          break;
+        gid = dv.getUint16(addr);
+        if (gid !== 0)
+          gid = gid + delta & 65535;
+      }
+      if (gid !== 0)
+        into.set(code, gid);
+    }
+  }
+}
+function parseCmapFormat123(dv, at, end, into, manyToOne) {
+  const numGroups = dv.getUint32(at + 12);
+  for (let g = 0;g < numGroups; g++) {
+    const rec = at + 16 + g * 12;
+    if (rec + 12 > end)
+      break;
+    const startChar = dv.getUint32(rec);
+    const endChar = dv.getUint32(rec + 4);
+    const startGid = dv.getUint32(rec + 8);
+    if (startChar > endChar)
+      continue;
+    for (let code = startChar;code <= endChar; code++) {
+      const gid = manyToOne ? startGid : startGid + (code - startChar);
+      if (gid !== 0)
+        into.set(code, gid);
+    }
+  }
+}
+function parseCmapSmall(dv, at, end, into, format) {
+  if (format === 0) {
+    for (let code = 0;code < 256; code++) {
+      const addr = at + 6 + code;
+      if (addr >= end)
+        break;
+      const gid = dv.getUint8(addr);
+      if (gid !== 0)
+        into.set(code, gid);
+    }
+    return;
+  }
+  const first = dv.getUint16(at + 6);
+  const count = dv.getUint16(at + 8);
+  for (let i = 0;i < count; i++) {
+    const addr = at + 10 + i * 2;
+    if (addr + 2 > end)
+      break;
+    const gid = dv.getUint16(addr);
+    if (gid !== 0)
+      into.set(first + i, gid);
+  }
+}
+function parseCmap(dv, table, notes) {
+  const map = new Map;
+  try {
+    const end = table.offset + table.length;
+    const numTables = dv.getUint16(table.offset + 2);
+    const subtables = [];
+    for (let i = 0;i < numTables; i++) {
+      const rec = table.offset + 4 + i * 8;
+      if (rec + 8 > end)
+        break;
+      const subOff = table.offset + dv.getUint32(rec + 4);
+      if (subOff + 2 > end)
+        continue;
+      const format = dv.getUint16(subOff);
+      let score = 0;
+      if (format === 12 || format === 13)
+        score = 3;
+      else if (format === 4)
+        score = 2;
+      else if (format === 0 || format === 6)
+        score = 1;
+      if (score > 0)
+        subtables.push({ offset: subOff, score });
+    }
+    subtables.sort((a, b) => a.score - b.score);
+    for (const sub of subtables) {
+      const format = dv.getUint16(sub.offset);
+      if (format === 4)
+        parseCmapFormat43(dv, sub.offset, end, map);
+      else if (format === 12)
+        parseCmapFormat123(dv, sub.offset, end, map, false);
+      else if (format === 13)
+        parseCmapFormat123(dv, sub.offset, end, map, true);
+      else
+        parseCmapSmall(dv, sub.offset, end, map, format);
+    }
+    if (map.size === 0) {
+      notes.push("cmap subtables were present but yielded no codepoint mapping.");
+    }
+  } catch {
+    notes.push("cmap could not be fully parsed; codepoints mapped so far were kept.");
+  }
+  return map;
+}
+function readGlyphLayout(binary, notes, upemFallback, ctx) {
+  try {
+    const dv = new DataView(binary);
+    const base = firstFontBase(dv);
+    const head = findTableRange(dv, base, "head");
+    const hhea = findTableRange(dv, base, "hhea");
+    const maxp = findTableRange(dv, base, "maxp");
+    const hmtx = findTableRange(dv, base, "hmtx");
+    const cmapTable = findTableRange(dv, base, "cmap");
+    if (!head || !hhea || !maxp || !hmtx || !cmapTable) {
+      notes.push("Required tables (head/hhea/maxp/hmtx/cmap) are incomplete; declining.");
+      return null;
+    }
+    const unitsPerEm = dv.getUint16(head.offset + 18) || upemFallback || ctx.unitsPerEm || 1000;
+    const numGlyphs = dv.getUint16(maxp.offset + 4);
+    if (!(numGlyphs > 0)) {
+      notes.push("maxp reports no glyphs; declining.");
+      return null;
+    }
+    const hheaAsc = dv.getInt16(hhea.offset + 4);
+    const hheaDesc = dv.getInt16(hhea.offset + 6);
+    const rawHMetrics = dv.getUint16(hhea.offset + 34);
+    let fontAscentDU = hheaAsc;
+    let fontDescentDU = Math.max(0, -hheaDesc);
+    let verticalSource = "hhea";
+    const os2 = findTableRange(dv, base, "OS/2");
+    if (os2 && os2.length >= 72) {
+      const typoAsc = dv.getInt16(os2.offset + 68);
+      const typoDesc = dv.getInt16(os2.offset + 70);
+      if (typoAsc > 0) {
+        fontAscentDU = typoAsc;
+        fontDescentDU = Math.max(0, -typoDesc);
+        verticalSource = "os2-typo";
+      }
+    }
+    if (!(fontAscentDU > 0)) {
+      fontAscentDU = Math.round(unitsPerEm * 0.75);
+      fontDescentDU = Math.round(unitsPerEm * 0.25);
+      verticalSource = "default";
+      notes.push("Neither OS/2 sTypo nor hhea gave a usable ascender; used 0.75em/0.25em defaults.");
+    }
+    const advances = new Uint16Array(numGlyphs);
+    const hMetricsCount = Math.max(1, Math.min(rawHMetrics || 1, numGlyphs, Math.floor(hmtx.length / 4)));
+    for (let g = 0;g < numGlyphs; g++) {
+      const rec = hmtx.offset + Math.min(g, hMetricsCount - 1) * 4;
+      advances[g] = dv.getUint16(rec);
+    }
+    if (hMetricsCount < (rawHMetrics || 1)) {
+      notes.push("hmtx is shorter than hhea.numberOfHMetrics; advance widths were truncated to the readable range.");
+    }
+    const cmap = parseCmap(dv, cmapTable, notes);
+    let yMin = null;
+    let yMax = null;
+    const glyf = findTableRange(dv, base, "glyf");
+    const loca = findTableRange(dv, base, "loca");
+    if (glyf && loca) {
+      try {
+        const indexToLocFormat = dv.getInt16(head.offset + 50);
+        const needed = indexToLocFormat === 0 ? (numGlyphs + 1) * 2 : (numGlyphs + 1) * 4;
+        if (loca.length >= needed) {
+          yMin = new Int16Array(numGlyphs);
+          yMax = new Int16Array(numGlyphs);
+          const glyfEnd = glyf.offset + glyf.length;
+          for (let g = 0;g < numGlyphs; g++) {
+            let start;
+            let stop;
+            if (indexToLocFormat === 0) {
+              start = dv.getUint16(loca.offset + g * 2) * 2;
+              stop = dv.getUint16(loca.offset + (g + 1) * 2) * 2;
+            } else {
+              start = dv.getUint32(loca.offset + g * 4);
+              stop = dv.getUint32(loca.offset + (g + 1) * 4);
+            }
+            if (stop <= start || start + 10 > glyfEnd || stop > glyfEnd)
+              continue;
+            yMin[g] = dv.getInt16(glyf.offset + start + 4);
+            yMax[g] = dv.getInt16(glyf.offset + start + 8);
+          }
+          verticalSource = "glyf";
+          notes.push("Per-glyph vertical extents come from glyf bounding boxes (TrueType outlines).");
+        }
+      } catch {
+        yMin = null;
+        yMax = null;
+        notes.push("glyf/loca could not be read; fell back to font-wide vertical extents.");
+      }
+    } else {
+      notes.push("No glyf/loca (CFF outlines): height/depth use the font-wide ascender/descender for every glyph.");
+    }
+    return {
+      unitsPerEm,
+      numGlyphs,
+      advances,
+      cmap,
+      yMin,
+      yMax,
+      fontAscent: fontAscentDU / unitsPerEm,
+      fontDescent: fontDescentDU / unitsPerEm,
+      verticalSource
+    };
+  } catch {
+    notes.push("Glyph layout tables could not be read at all; declining.");
+    return null;
+  }
+}
+var minionMathAdapter = {
+  id: "minion-math",
+  name: "Minion Math",
+  families: FAMILIES4,
+  priority: 90,
+  matches(familyName) {
+    return matchByFamilyName({ families: FAMILIES4 }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    const chars = {};
+    let constants;
+    try {
+      const math = readOpenTypeMathTable(binary);
+      if (!math) {
+        return null;
+      }
+      constants = math.constants;
+      const layout = readGlyphLayout(binary, notes, math.unitsPerEm, ctx);
+      if (!layout) {
+        return null;
+      }
+      const upem = layout.unitsPerEm;
+      let mapped = 0;
+      let skipped = 0;
+      for (const [code, gid] of layout.cmap) {
+        if (code <= 0 || isControl5(code) || isPrivateUse5(code) || isSurrogate(code)) {
+          skipped++;
+          continue;
+        }
+        if (gid <= 0 || gid >= layout.numGlyphs) {
+          skipped++;
+          continue;
+        }
+        const width = layout.advances[gid] / upem;
+        let height;
+        let depth;
+        if (layout.yMax && layout.yMin) {
+          height = Math.max(0, layout.yMax[gid] / upem);
+          depth = Math.max(0, -layout.yMin[gid] / upem);
+        } else if (isSpacing(code)) {
+          height = 0;
+          depth = 0;
+        } else {
+          height = layout.fontAscent;
+          depth = layout.fontDescent;
+        }
+        chars[String(code)] = [height, depth, width];
+        mapped++;
+      }
+      if (mapped === 0) {
+        notes.push("No usable codepoint could be mapped from cmap; declining.");
+        return null;
+      }
+      notes.push(`Mapped ${mapped} codepoints; kept MathJax metrics for ${skipped} control, private-use or absent ones.`);
+      if (layout.verticalSource !== "glyf") {
+        notes.push("Vertical extents are a font-wide approximation (OS/2 sTypo / hhea), not per-glyph ink.");
+      }
+      notes.push("Stretchy delimiter sizes were left to MathJax: Minion Math is substituted into MathJax and does not own the assembly.");
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      notes.push(`Minion Math adapter failed mid-build: ${message}`);
+      const count = Object.keys(chars).length;
+      if (count === 0) {
+        return null;
+      }
+      return {
+        source: "opentype-math",
+        chars,
+        delimiters: undefined,
+        constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    }
+  }
+};
+
+// src/math-standards/adapters/noto-math.ts
+var notoMathAdapter = {
+  id: "noto-math",
+  name: "Noto Sans/Serif Math",
+  families: ["Noto Sans Math", "Noto Serif Math", "Noto Sans Math Mono"],
+  priority: 100,
+  matches(familyName) {
+    return matchByFamilyName(this, familyName);
+  },
+  build(binary, _ctx) {
+    const font = readOpenTypeFontInfo(binary);
+    if (!font) {
+      return null;
+    }
+    const math = readOpenTypeMathTable(binary);
+    const built = buildCharsFromFont(font);
+    if (built.mapped === 0) {
+      return null;
+    }
+    const notes = [
+      "Noto maths fonts: coverage-first design, deliberately plain shapes.",
+      math ? "Read from the font's OpenType MATH table; nothing was measured." : "No MATH table found — boxes come from the font's own hmtx/OS-2 metrics.",
+      `Mapped ${built.mapped} glyphs; left ${built.skippedAbsent} uncovered ones to MathJax.`
+    ];
+    if (math && math.extendedShapes.size > 0) {
+      notes.push(`${math.extendedShapes.size} glyphs are extended shapes.`);
+    }
+    return {
+      source: math ? "opentype-math" : "tex-tfm",
+      chars: built.chars,
+      delimiters: undefined,
+      ownsStretchyAssembly: false,
+      constants: math ? math.constants : undefined,
+      notes
+    };
+  }
+};
+
+// src/math-standards/adapters/fira-math.ts
+var firaMathAdapter = {
+  id: "fira-math",
+  name: "Fira Math",
+  families: ["Fira Math"],
+  priority: 110,
+  matches(familyName) {
+    return matchByFamilyName(this, familyName);
+  },
+  build(binary, _ctx) {
+    const font = readOpenTypeFontInfo(binary);
+    if (!font) {
+      return null;
+    }
+    const math = readOpenTypeMathTable(binary);
+    const built = buildCharsFromFont(font);
+    if (built.mapped === 0) {
+      return null;
+    }
+    const notes = [
+      "Fira lineage: humanist sans, large x-height and short ascenders.",
+      math ? "Read from the font's OpenType MATH table; nothing was measured." : "No MATH table found — boxes come from the font's own hmtx/OS-2 metrics.",
+      `Mapped ${built.mapped} glyphs; left ${built.skippedAbsent} uncovered ones to MathJax.`
+    ];
+    if (font.verticals.xHeight) {
+      notes.push(`x-height ${font.verticals.xHeight.toFixed(3)}em, ascent ${font.verticals.ascent.toFixed(3)}em.`);
+    }
+    return {
+      source: math ? "opentype-math" : "tex-tfm",
+      chars: built.chars,
+      delimiters: undefined,
+      ownsStretchyAssembly: false,
+      constants: math ? math.constants : undefined,
+      notes
+    };
+  }
+};
+
+// src/math-standards/adapters/euler-math.ts
+var EULER_FAMILIES = ["Euler Math", "Neo Euler", "Euler"];
+var MAX_MAPPED_CODEPOINTS = 65536;
+var MAX_BAND_EM = 2;
+function isPrivateUse6(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isControl6(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function isSurrogate2(code) {
+  return code >= 55296 && code <= 57343;
+}
+function sfntBase(dv) {
+  try {
+    if (dv.byteLength < 12)
+      return null;
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    if (tag === "ttcf") {
+      if (dv.byteLength < 16)
+        return null;
+      return dv.getUint32(12);
+    }
+    const version = dv.getUint32(0);
+    if (version === 65536 || tag === "OTTO" || tag === "true" || tag === "typ1")
+      return 0;
+    return null;
+  } catch {
+    return null;
+  }
+}
+function findTable4(dv, base, tag) {
+  try {
+    if (base + 12 > dv.byteLength)
+      return null;
+    const numTables = dv.getUint16(base + 4);
+    for (let i = 0;i < numTables; i++) {
+      const rec = base + 12 + i * 16;
+      if (rec + 16 > dv.byteLength)
+        return null;
+      const t2 = String.fromCharCode(dv.getUint8(rec), dv.getUint8(rec + 1), dv.getUint8(rec + 2), dv.getUint8(rec + 3));
+      if (t2 === tag) {
+        return { offset: dv.getUint32(rec + 8), length: dv.getUint32(rec + 12) };
+      }
+    }
+  } catch {}
+  return null;
+}
+function readFontWide(binary) {
+  try {
+    const dv = new DataView(binary);
+    const base = sfntBase(dv);
+    if (base === null)
+      return null;
+    const out = {
+      unitsPerEm: 1000,
+      typoAscender: null,
+      typoDescender: null,
+      hheaAscender: null,
+      hheaDescender: null,
+      numberOfHMetrics: null,
+      numGlyphs: null
+    };
+    const head = findTable4(dv, base, "head");
+    if (head && head.length >= 20 && head.offset + 20 <= binary.byteLength) {
+      const upem = dv.getUint16(head.offset + 18);
+      if (upem > 0)
+        out.unitsPerEm = upem;
+    }
+    const os2 = findTable4(dv, base, "OS/2");
+    if (os2 && os2.length >= 72 && os2.offset + 72 <= binary.byteLength) {
+      out.typoAscender = dv.getInt16(os2.offset + 68);
+      out.typoDescender = dv.getInt16(os2.offset + 70);
+    }
+    const hhea = findTable4(dv, base, "hhea");
+    if (hhea && hhea.length >= 36 && hhea.offset + 36 <= binary.byteLength) {
+      out.hheaAscender = dv.getInt16(hhea.offset + 4);
+      out.hheaDescender = dv.getInt16(hhea.offset + 6);
+      out.numberOfHMetrics = dv.getUint16(hhea.offset + 34);
+    }
+    const maxp = findTable4(dv, base, "maxp");
+    if (maxp && maxp.length >= 6 && maxp.offset + 6 <= binary.byteLength) {
+      out.numGlyphs = dv.getUint16(maxp.offset + 4);
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+function parseCmapSubtable(dv, at, tableEnd) {
+  try {
+    if (at + 4 > tableEnd)
+      return null;
+    const map = new Map;
+    const format = dv.getUint16(at);
+    if (format === 12) {
+      if (at + 16 > tableEnd)
+        return null;
+      const numGroups = dv.getUint32(at + 12);
+      for (let g = 0;g < numGroups; g++) {
+        const rec = at + 16 + g * 12;
+        if (rec + 12 > tableEnd)
+          break;
+        const startChar = dv.getUint32(rec);
+        const endChar = Math.min(dv.getUint32(rec + 4), 1114111);
+        const startGid = dv.getUint32(rec + 8);
+        for (let code = startChar;code <= endChar; code++) {
+          if (map.size >= MAX_MAPPED_CODEPOINTS)
+            return map.size > 0 ? map : null;
+          const gid = startGid + (code - startChar);
+          if (gid !== 0)
+            map.set(code, gid);
+        }
+      }
+    } else if (format === 4) {
+      if (at + 14 > tableEnd)
+        return null;
+      const segCount = dv.getUint16(at + 6) >> 1;
+      if (segCount < 1)
+        return null;
+      const endPos = at + 14;
+      const startPos = endPos + segCount * 2 + 2;
+      const deltaPos = startPos + segCount * 2;
+      const rangePos = deltaPos + segCount * 2;
+      if (rangePos + segCount * 2 > tableEnd)
+        return null;
+      for (let i = 0;i < segCount; i++) {
+        const endCode = dv.getUint16(endPos + i * 2);
+        const startCode = dv.getUint16(startPos + i * 2);
+        if (startCode === 65535 || startCode > endCode)
+          continue;
+        const idDelta = dv.getInt16(deltaPos + i * 2);
+        const idRangeOffset = dv.getUint16(rangePos + i * 2);
+        for (let code = startCode;code <= endCode; code++) {
+          if (map.size >= MAX_MAPPED_CODEPOINTS)
+            return map.size > 0 ? map : null;
+          let gid = 0;
+          if (idRangeOffset === 0) {
+            gid = code + idDelta & 65535;
+          } else {
+            const gPos = rangePos + i * 2 + idRangeOffset + (code - startCode) * 2;
+            if (gPos + 2 > tableEnd)
+              continue;
+            gid = dv.getUint16(gPos);
+            if (gid !== 0)
+              gid = gid + idDelta & 65535;
+          }
+          if (gid !== 0)
+            map.set(code, gid);
+        }
+      }
+    } else if (format === 6) {
+      if (at + 10 > tableEnd)
+        return null;
+      const firstCode = dv.getUint16(at + 6);
+      const entryCount = dv.getUint16(at + 8);
+      for (let i = 0;i < entryCount; i++) {
+        const rec = at + 10 + i * 2;
+        if (rec + 2 > tableEnd)
+          break;
+        const gid = dv.getUint16(rec);
+        if (gid !== 0)
+          map.set(firstCode + i, gid);
+      }
+    } else if (format === 0) {
+      for (let code = 0;code < 256; code++) {
+        const rec = at + 6 + code;
+        if (rec + 1 > tableEnd)
+          break;
+        const gid = dv.getUint8(rec);
+        if (gid !== 0)
+          map.set(code, gid);
+      }
+    } else {
+      return null;
+    }
+    return map.size > 0 ? map : null;
+  } catch {
+    return null;
+  }
+}
+function readCmap6(binary) {
+  try {
+    const dv = new DataView(binary);
+    const base = sfntBase(dv);
+    if (base === null)
+      return null;
+    const cmap = findTable4(dv, base, "cmap");
+    if (!cmap || cmap.length < 4)
+      return null;
+    const tableEnd = Math.min(cmap.offset + cmap.length, binary.byteLength);
+    const numTables = dv.getUint16(cmap.offset + 2);
+    const candidates = [];
+    for (let i = 0;i < numTables; i++) {
+      const rec = cmap.offset + 4 + i * 8;
+      if (rec + 8 > tableEnd)
+        break;
+      const platform = dv.getUint16(rec);
+      const encoding = dv.getUint16(rec + 2);
+      const subOff = cmap.offset + dv.getUint32(rec + 4);
+      if (subOff + 4 > tableEnd)
+        continue;
+      const format = dv.getUint16(subOff);
+      let score = 0;
+      if (format === 12)
+        score = 4;
+      else if (format === 4)
+        score = 3;
+      else if (format === 6)
+        score = 2;
+      else if (format === 0)
+        score = 1;
+      if (score === 0)
+        continue;
+      if (platform === 3 && encoding === 10)
+        score += 3;
+      else if (platform === 0)
+        score += 2;
+      else if (platform === 3 && encoding === 1)
+        score += 1;
+      candidates.push({ score, offset: subOff });
+    }
+    candidates.sort((a, b) => b.score - a.score);
+    for (const candidate of candidates) {
+      const map = parseCmapSubtable(dv, candidate.offset, tableEnd);
+      if (map)
+        return map;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+function readAdvances3(binary, numberOfHMetrics, numGlyphs) {
+  try {
+    if (numberOfHMetrics < 1)
+      return null;
+    const dv = new DataView(binary);
+    const base = sfntBase(dv);
+    if (base === null)
+      return null;
+    const hmtx = findTable4(dv, base, "hmtx");
+    if (!hmtx)
+      return null;
+    const count = numGlyphs !== null && numGlyphs > 0 ? numGlyphs : numberOfHMetrics;
+    const need = numberOfHMetrics * 4 + Math.max(0, count - numberOfHMetrics) * 2;
+    if (hmtx.offset + Math.min(need, hmtx.length) > binary.byteLength)
+      return null;
+    const out = new Uint16Array(count);
+    for (let gid = 0;gid < count; gid++) {
+      const metric = gid < numberOfHMetrics ? gid : numberOfHMetrics - 1;
+      const rec = hmtx.offset + metric * 4;
+      if (rec + 2 > tableEndOf(hmtx, binary.byteLength))
+        return out.length > 0 ? out : null;
+      out[gid] = dv.getUint16(rec);
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+function tableEndOf(table, fileLength) {
+  return Math.min(table.offset + table.length, fileLength);
+}
+var eulerMathAdapter = {
+  id: "euler-math",
+  name: "Euler / Neo Euler",
+  families: EULER_FAMILIES,
+  priority: 120,
+  matches(familyName) {
+    return matchByFamilyName({ families: EULER_FAMILIES }, familyName);
+  },
+  build(binary, ctx) {
+    const notes = [];
+    const chars = {};
+    let constants;
+    let source = "opentype-math";
+    try {
+      const math = readOpenTypeMathTable(binary);
+      const wide = readFontWide(binary);
+      if (!math && !wide) {
+        return null;
+      }
+      const unitsPerEm = (math ? math.unitsPerEm : 0) || (wide ? wide.unitsPerEm : 0) || ctx.unitsPerEm || 1000;
+      let ascDesign = wide ? wide.typoAscender : null;
+      let descDesign = wide ? wide.typoDescender : null;
+      let bandSource = "OS/2 sTypoAscender/sTypoDescender";
+      const typoUsable = typeof ascDesign === "number" && ascDesign > 0 && typeof descDesign === "number" && descDesign < 0;
+      if (!typoUsable) {
+        ascDesign = wide ? wide.hheaAscender : null;
+        descDesign = wide ? wide.hheaDescender : null;
+        bandSource = "hhea ascent/descent";
+      }
+      const height = typeof ascDesign === "number" ? ascDesign / unitsPerEm : NaN;
+      const depth = typeof descDesign === "number" ? Math.abs(descDesign) / unitsPerEm : NaN;
+      if (!(height > 0) || !(depth >= 0) || height > MAX_BAND_EM || depth > MAX_BAND_EM) {
+        return null;
+      }
+      const numberOfHMetrics = wide ? wide.numberOfHMetrics : null;
+      const numGlyphs = wide ? wide.numGlyphs : null;
+      if (numberOfHMetrics === null) {
+        return null;
+      }
+      const advances = readAdvances3(binary, numberOfHMetrics, numGlyphs);
+      const cmap = readCmap6(binary);
+      if (!advances || !cmap) {
+        return null;
+      }
+      let skippedFiltered = 0;
+      let skippedZeroAdvance = 0;
+      const gidToCode = new Map;
+      for (const [code, gid] of cmap) {
+        if (isPrivateUse6(code) || isControl6(code) || isSurrogate2(code)) {
+          skippedFiltered++;
+          continue;
+        }
+        const advance = gid >= 0 && gid < advances.length ? advances[gid] : 0;
+        if (!(advance > 0)) {
+          skippedZeroAdvance++;
+          continue;
+        }
+        chars[String(code)] = [height, depth, advance / unitsPerEm];
+        if (!gidToCode.has(gid))
+          gidToCode.set(gid, code);
+      }
+      if (Object.keys(chars).length === 0) {
+        return null;
+      }
+      notes.push("Euler / Neo Euler — the OpenType revival of Zapf's AMS Euler (CTAN euler-math; Neo-Euler.otf renamed Euler-Math.otf).");
+      notes.push("Design: upright-calligraphic letterforms rather than Times-like math italics; every number here is the font's own, never inferred from Times-like conventions.");
+      notes.push(`Layout band (approximation, applied per glyph): height ${height.toFixed(4)}em / depth ${depth.toFixed(4)}em from ${bandSource}; ` + "width is each glyph's real advance from hmtx. OpenType MATH carries no per-glyph vertical extents, so the band over-reserves for small glyphs — expected for Euler, whose calligraphic shapes are unusually uneven.");
+      if (math) {
+        constants = math.constants;
+        source = "opentype-math";
+        const axis = math.constants.axisHeight;
+        if (typeof axis === "number") {
+          notes.push(`MATH table read: axisHeight ${axis.toFixed(4)}em — non-standard versus Times-like math fonts; used exactly as the font states it (Euler's fraction bars and minus signs sit on its own axis).`);
+        } else {
+          notes.push("MATH table read, but its axis height was not present; left undefined for MathJax.");
+        }
+        const italics = Object.keys(math.italicCorrection).length;
+        if (italics > 0) {
+          let maxId = "";
+          let maxVal = -Infinity;
+          for (const [gid, value] of Object.entries(math.italicCorrection)) {
+            if (value > maxVal) {
+              maxVal = value;
+              maxId = gid;
+            }
+          }
+          const code = gidToCode.get(Number(maxId));
+          const where = code !== undefined ? `U+${code.toString(16).toUpperCase()}` : `glyph ${maxId}`;
+          notes.push(`Italics corrections: ${italics} entries, largest ${maxVal.toFixed(4)}em at ${where} — non-standard versus Times-like fonts, following Euler's upright-calligraphic design.`);
+        } else {
+          notes.push("Italics corrections: none in the MATH table.");
+        }
+        notes.push("Stretchy assemblies were readable but not exported: `delimiters` stays undefined so MathJax keeps its own brace and arrow target sizes.");
+      } else {
+        constants = undefined;
+        source = "reference";
+        notes.push("No readable MATH table in this file: constants omitted; layout boxes come from head/hhea/OS/2/cmap/hmtx only.");
+      }
+      notes.push(`Mapped ${Object.keys(chars).length} codepoints; kept MathJax metrics for ${skippedFiltered} private-use/control/surrogate and ${skippedZeroAdvance} zero-advance codepoints.`);
+      notes.push("Stretchy delimiter sizes were left to MathJax: this font does not own the assembly.");
+      return {
+        source,
+        chars,
+        delimiters: undefined,
+        constants,
+        ownsStretchyAssembly: false,
+        notes
+      };
+    } catch (err) {
+      if (Object.keys(chars).length > 0) {
+        notes.push(`Euler adapter hit an unexpected error and returned partial metrics: ${String(err)}`);
+        return {
+          source,
+          chars,
+          delimiters: undefined,
+          constants,
+          ownsStretchyAssembly: false,
+          notes
+        };
+      }
+      return null;
+    }
+  }
+};
+
+// src/math-standards/adapters/computer-modern.ts
+var TEX_DESIGN_CONSTANTS = {
+  ascent: 0.75,
+  descent: 0.25,
+  xHeight: 0.43,
+  capHeight: 0.67
+};
+var computerModernAdapter = {
+  id: "computer-modern",
+  name: "Computer Modern / Concrete",
+  families: [
+    "Computer Modern",
+    "CMU Serif",
+    "CMU Sans Serif",
+    "CMU Bright",
+    "CMU Typewriter Text",
+    "Concrete",
+    "Concrete Roman",
+    "Dingbats"
+  ],
+  priority: 130,
+  matches(familyName) {
+    return matchByFamilyName(this, familyName);
+  },
+  build(binary, _ctx) {
+    const font = readOpenTypeFontInfo(binary);
+    if (!font) {
+      return null;
+    }
+    const math = readOpenTypeMathTable(binary);
+    const built = buildCharsFromFont(font);
+    if (built.mapped === 0) {
+      return null;
+    }
+    const verticalsLookSane = Math.abs(font.verticals.ascent - TEX_DESIGN_CONSTANTS.ascent) < 0.15;
+    const notes = [
+      "Computer Modern lineage: TeX TFM design constants apply.",
+      math ? "Read from the font's OpenType MATH table; nothing was measured." : "No MATH table — boxes come from the font's own hmtx/OS-2 metrics.",
+      `Mapped ${built.mapped} glyphs; left ${built.skippedAbsent} uncovered ones to MathJax.`
+    ];
+    if (!verticalsLookSane) {
+      notes.push(`Font states ascent ${font.verticals.ascent.toFixed(3)}em against the CM design's ` + `${TEX_DESIGN_CONSTANTS.ascent}em — kept the font's own value.`);
+    }
+    return {
+      source: math ? "opentype-math" : "tex-tfm",
+      chars: built.chars,
+      delimiters: undefined,
+      ownsStretchyAssembly: false,
+      constants: math ? math.constants : undefined,
+      notes
+    };
+  }
+};
+
+// src/math-standards/adapters/mathjax-tex.ts
+var mathJaxTexAdapter = {
+  id: "mathjax-tex",
+  name: "MathJax TeX faces (reference)",
+  families: [
+    "MJX-TEX-N",
+    "MJX-TEX-B",
+    "MJX-TEX-I",
+    "MJX-TEX-BI",
+    "MJX-TEX-MI",
+    "MJX-TEX-S1",
+    "MJX-TEX-S2",
+    "MJX-TEX-S3",
+    "MJX-TEX-S4",
+    "MJX-TEX-ZERO",
+    "MJX-BRK",
+    "MJX-MHC-N",
+    "MJX-MHC-M",
+    "MJXZERO",
+    "MJXTEX"
+  ],
+  priority: 5,
+  matches(familyName) {
+    try {
+      return matchByFamilyName(this, familyName);
+    } catch (error) {
+      console.error("[mathjax-tex] family match failed:", error);
+      return false;
+    }
+  },
+  build(_binary, _ctx) {
+    return null;
+  }
+};
+
+// src/math-standards/fallback-measure.ts
+var PROBE_SIZE = 200;
+var NOT_A_GLYPH = "\uDBFF\uDFFD";
+function isPrivateUse7(code) {
+  return code >= 57344 && code <= 63743 || code >= 983040 && code <= 1048573 || code >= 1048576 && code <= 1114109;
+}
+function isControl7(code) {
+  return code < 32 || code >= 127 && code <= 159;
+}
+function measureWith(ctx, family, text) {
+  ctx.font = `${PROBE_SIZE}px "${family.replace(/"/g, "")}"`;
+  const m = ctx.measureText(text);
+  return {
+    width: m.width,
+    ascent: m.actualBoundingBoxAscent || 0,
+    descent: m.actualBoundingBoxDescent || 0
+  };
+}
+function sameInk(a, b) {
+  return a.width === b.width && a.ascent === b.ascent && a.descent === b.descent;
+}
+var measurementFallbackAdapter = {
+  id: "fallback-measure",
+  name: "Measured (fallback)",
+  families: [],
+  priority: 1000,
+  matches(_familyName) {
+    return true;
+  },
+  build(_binary, ctx) {
+    const familyName = (ctx.familyName || "").trim();
+    if (!familyName) {
+      return null;
+    }
+    const canvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+    const c2d = canvas ? canvas.getContext("2d") : null;
+    if (!c2d) {
+      return null;
+    }
+    const notes = [];
+    const notdef = measureWith(c2d, familyName, NOT_A_GLYPH);
+    const chars = {};
+    let measured = 0;
+    let skippedMissing = 0;
+    const ranges = [
+      [32, 126],
+      [160, 255],
+      [8192, 8303],
+      [8304, 8351],
+      [8352, 8383],
+      [8448, 8527],
+      [8592, 8703],
+      [8704, 8959],
+      [8960, 9215],
+      [9632, 9727],
+      [9728, 9983],
+      [10176, 10223],
+      [10624, 10751],
+      [10752, 11007],
+      [119808, 120831]
+    ];
+    for (const [from, to] of ranges) {
+      for (let code = from;code <= to; code++) {
+        if (isPrivateUse7(code) || isControl7(code)) {
+          continue;
+        }
+        const text = String.fromCodePoint(code);
+        const ink = measureWith(c2d, familyName, text);
+        if (sameInk(ink, notdef)) {
+          skippedMissing++;
+          continue;
+        }
+        const width = ink.width / PROBE_SIZE;
+        const ascent = ink.ascent / PROBE_SIZE;
+        const descent = ink.descent / PROBE_SIZE;
+        const height = Math.max(0, ascent);
+        const depth = Math.max(0, descent);
+        if (!(width > 0)) {
+          skippedMissing++;
+          continue;
+        }
+        chars[String(code)] = [height, depth, width];
+        measured++;
+      }
+    }
+    if (measured === 0) {
+      notes.push("No glyph of the probed set could be measured; leaving MathJax metrics in place.");
+      return null;
+    }
+    notes.push(`Measured ${measured} glyphs; kept MathJax metrics for ${skippedMissing} absent or unusable ones.`);
+    notes.push("Stretchy delimiter sizes were left to MathJax: this font does not own the assembly.");
+    if (skippedMissing > 0) {
+      notes.push(`Presence detection uses a missing-codepoint baseline, not zero-width, because canvas falls back silently.`);
+    }
+    return {
+      source: "measured",
+      chars,
+      delimiters: undefined,
+      ownsStretchyAssembly: false,
+      notes
+    };
+  }
+};
+
+// src/math-standards/index.ts
+var adapters = [
+  xitsMathAdapter,
+  stixTwoMathAdapter,
+  latinModernMathAdapter,
+  texGyreTermesMathAdapter,
+  texGyrePagellaMathAdapter,
+  libertinusMathAdapter,
+  asanaMathAdapter,
+  cambriaMathAdapter,
+  minionMathAdapter,
+  notoMathAdapter,
+  firaMathAdapter,
+  eulerMathAdapter,
+  computerModernAdapter,
+  mathJaxTexAdapter,
+  measurementFallbackAdapter
+].sort((a, b) => a.priority - b.priority);
+function findMathFontAdapter(familyName) {
+  for (const adapter of adapters) {
+    if (adapter.matches(familyName)) {
+      return adapter;
+    }
+  }
+  return null;
+}
+function buildMathMetrics(binary, familyName, unitsPerEm) {
+  const ctx = { familyName, unitsPerEm };
+  const named = adapters.filter((a) => a.id !== measurementFallbackAdapter.id && a.matches(familyName));
+  const pool = named.length > 0 ? named : [measurementFallbackAdapter];
+  for (const adapter of pool) {
+    try {
+      const metrics = adapter.build(binary, ctx);
+      if (metrics) {
+        return { metrics, adapterId: adapter.id, adapterName: adapter.name };
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 // src/plugin.ts
 var browserNavigator = window.navigator;
 var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen"];
 var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 var FONT_CSS_SNIPPET = "local-font-loader";
 var FONT_FACES_ID = "local-font-loader-faces";
+var FONT_GLYPHS_ID = "local-font-loader-glyphs";
 var SNIPPET_PARK_RECOVERY_MS = 5000;
 var MATH_ADOPTION_RETRY_MS = 5000;
 
@@ -2598,6 +6900,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   currentDeviceId;
   _mathAdoptionAttemptAt = 0;
   _mathFontSnapshot = null;
+  _mathAdaptationLayer = null;
+  _mathAdaptationSource = "MathJax's own metrics";
+  _mathCoverageGaps = [];
   _appliedCss = new Map;
   _snippetCss = new Map;
   _snippetEnabled = false;
@@ -2857,6 +7162,18 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       callback: async () => {
         await this.scanFonts();
         new import_obsidian10.Notice("✓ Font list updated");
+      }
+    });
+    this.addCommand({
+      id: "show-font-status",
+      name: "Show font status",
+      callback: () => {
+        try {
+          new FontStatusModal(this.app, this._collectFontStatusRows()).open();
+        } catch (error) {
+          this._logError("[Local Font Loader] Could not show the font status:", error);
+          new import_obsidian10.Notice("Could not show the font status");
+        }
       }
     });
     this.addSettingTab(new FontManagerSettingTab(this.app, this));
@@ -3597,7 +7914,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
             for (const [variantType, filename] of Object.entries(metadata.variants)) {
               const fontPath = `${fontDir}/${filename}`;
               try {
-                await this.app.vault.adapter.readBinary(fontPath);
+                if (!await this.app.vault.adapter.exists(fontPath)) {
+                  throw new Error("font file missing");
+                }
                 const basename = filename ?? "";
                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, "");
                 const ext = (basename.split(".").pop() || "").toLowerCase();
@@ -3764,12 +8083,129 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._mathAdoptionAttemptAt = now;
       const adopted = await this._adoptMathFontMetrics(familyName);
       if (adopted) {
-        await this._rebuildMathJaxStyles();
-        this._refreshMathViews();
+        await this._afterMetricAdoption();
         this._log("[Local Font Loader] Math font metrics adopted on a later attempt");
       }
     } catch (error) {
       this._logError("[Local Font Loader] Could not adopt the math font metrics:", error);
+    }
+  }
+  async _afterMetricAdoption() {
+    this.applyCss(this._buildMathGlyphRules(), FONT_GLYPHS_ID);
+    await this._rebuildMathJaxStyles();
+    this._refreshMathViews();
+  }
+  _collectFontStatusRows() {
+    const preset = this._getDevicePreset();
+    const fonts = preset && preset.fonts || {};
+    const categories = [
+      { key: "ui", label: "Interface" },
+      { key: "text", label: "Text" },
+      { key: "heading", label: "Heading" },
+      { key: "monospace", label: "Monospace" },
+      { key: "math", label: "Math" }
+    ];
+    return categories.map(({ key, label }) => {
+      const family = (fonts[key] || "").trim();
+      const variants = (this.settings.availableFonts || []).filter((f) => f.familyName && f.familyName === family || f.name === family);
+      const row = {
+        category: label,
+        family,
+        adaptation: [],
+        source: "",
+        files: variants.map((v) => v.variantType).join(", "),
+        gaps: []
+      };
+      if (!family) {
+        return row;
+      }
+      if (key === "math") {
+        if (this._mathAdaptationLayer) {
+          row.adaptation.push(this._mathAdaptationLayer);
+          row.source = this._mathAdaptationSource;
+        } else {
+          row.adaptation.push("Not worked out yet — formulas use the MathJax defaults for now");
+          row.source = "The MathJax defaults";
+        }
+        row.adaptation.push("Braces and arrows keep the MathJax sizes — those pieces come from MathJax itself");
+        for (const gap of this._mathCoverageGaps) {
+          row.gaps.push(gap);
+        }
+      } else {
+        row.adaptation.push("Used as-is through CSS");
+        row.source = "Not applicable — text is laid out by the text engine";
+      }
+      return row;
+    });
+  }
+  async _resolveMathMetricsFromStandards(familyName) {
+    try {
+      const adapter = findMathFontAdapter(familyName);
+      if (!adapter) {
+        return { kind: "unclaimed" };
+      }
+      const record = (this.settings.availableFonts || []).find((f) => f.familyName && f.familyName === familyName || f.name === familyName);
+      if (!record || !record.path) {
+        return { kind: "declined", adapterName: adapter.name };
+      }
+      if (!await this.app.vault.adapter.exists(record.path)) {
+        return { kind: "declined", adapterName: adapter.name };
+      }
+      const binary = await this.app.vault.adapter.readBinary(record.path);
+      const result = buildMathMetrics(binary, familyName);
+      if (!result) {
+        return { kind: "declined", adapterName: adapter.name };
+      }
+      this._log(`[Local Font Loader] Math metrics from "${result.adapterName}" (${result.metrics.source})`);
+      return { kind: "metrics", metrics: result.metrics, adapterName: result.adapterName };
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not read the math font's own metrics:", error);
+      return { kind: "unclaimed" };
+    }
+  }
+  _applyMathMetrics(fontData, metrics, adapterName) {
+    try {
+      this._restoreMathFontMetrics();
+      const snapshot = { chars: [], delimiters: [] };
+      let adopted = 0;
+      for (const variantName of Object.keys(fontData.variant ?? {})) {
+        const chars = fontData.variant[variantName]?.chars;
+        if (!chars) {
+          continue;
+        }
+        for (const code of Object.keys(metrics.chars)) {
+          const wanted = metrics.chars[code];
+          const entry = chars[code];
+          if (!Array.isArray(entry) || entry.length < 3) {
+            continue;
+          }
+          const before = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
+          if (before[0] === wanted[0] && before[1] === wanted[1] && before[2] === wanted[2]) {
+            continue;
+          }
+          snapshot.chars.push({ variantName, code, values: before });
+          entry[0] = wanted[0];
+          entry[1] = wanted[1];
+          entry[2] = wanted[2];
+          adopted++;
+        }
+      }
+      if (adopted === 0) {
+        this._log("[Local Font Loader] The family adapter found nothing to change; leaving MathJax metrics as they are.");
+        return false;
+      }
+      this._mathFontSnapshot = snapshot;
+      this._mathAdaptationLayer = `${adapterName} — ${adopted} glyph sizes read from the font`;
+      this._mathAdaptationSource = metrics.source === "opentype-math" ? "Its own OpenType MATH table" : metrics.source === "tex-tfm" ? "The TeX design constants this font follows" : metrics.source === "measured" ? "Worked out from rendered text — a guess, not the font’s own numbers" : "Read from the font file";
+      this._mathCoverageGaps = metrics.gaps ?? [];
+      for (const note of metrics.notes ?? []) {
+        this._log(`[Local Font Loader] ${adapterName}: ${note}`);
+      }
+      this._log(`[Local Font Loader] Adopted ${adopted} glyph boxes from ${adapterName}; delimiter sizes left to MathJax.`);
+      return true;
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not apply the font's own metrics:", error);
+      return false;
     }
   }
   async _adoptMathFontMetrics(familyName) {
@@ -3780,6 +8216,16 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     const fontData = await this._waitForMathFontData();
     if (!fontData) {
       this._log("[Local Font Loader] MathJax's font table never became available; metrics not adopted");
+      return false;
+    }
+    const fromStandard = await this._resolveMathMetricsFromStandards(familyName);
+    if (fromStandard.kind === "metrics") {
+      return this._applyMathMetrics(fontData, fromStandard.metrics, fromStandard.adapterName);
+    }
+    if (fromStandard.kind === "declined") {
+      this._mathAdaptationLayer = `${fromStandard.adapterName} declined — MathJax's own numbers kept`;
+      this._mathAdaptationSource = "The MathJax defaults";
+      this._log(`[Local Font Loader] ${fromStandard.adapterName} declined this family; nothing measured.`);
       return false;
     }
     if (!await this._waitForMathFont(familyName)) {
@@ -3844,6 +8290,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       delimiter.HDW = [measured.h, measured.d, measured.w];
     });
     this._mathFontSnapshot = snapshot;
+    this._mathAdaptationLayer = `Worked out by rendering the text — ${adopted} glyph sizes measured`;
+    this._mathAdaptationSource = "Worked out from rendered text — a guess, not the font’s own numbers";
+    this._mathCoverageGaps = [];
     this._log(`[Local Font Loader] Math font metrics adopted from "${familyName}": ${adopted} glyphs, ${snapshot.delimiters.length} delimiters`);
     return true;
   }
@@ -3885,7 +8334,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         italic: ".TEX-I",
         "bold-italic": ".TEX-BI"
       };
-      let css = `/* Per-glyph advances - kept here so the display does not depend on MathJax's stylesheet */
+      const original = new Map;
+      for (const saved of this._mathFontSnapshot?.chars ?? []) {
+        original.set(`${saved.variantName}@${saved.code}`, saved.values.map((v) => Number(v).toFixed(4)).join(","));
+      }
+      let css = `/* Per-glyph boxes that differ from MathJax's own, so display does not depend on its stylesheet */
 `;
       let count = 0;
       for (const variantName of Object.keys(guards)) {
@@ -3906,8 +8359,23 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
           if (!Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(width)) {
             continue;
           }
+          const key = `${variantName}@${code}`;
+          const now = [height, depth, width].map((v) => v.toFixed(4)).join(",");
+          if (original.get(key) === now) {
+            continue;
+          }
           const glyphClass = "mjx-c" + Number(code).toString(16).toUpperCase();
-          css += `body mjx-c.${glyphClass}${guard} { padding: ${height.toFixed(4)}em ${width.toFixed(4)}em ${depth.toFixed(4)}em 0 !important; }
+          css += `body mjx-c.${glyphClass}${guard} {
+`;
+          css += `  padding-top: ${Math.max(0, height).toFixed(4)}em !important;
+`;
+          css += `  padding-right: ${Math.max(0, width).toFixed(4)}em !important;
+`;
+          css += `  padding-bottom: ${Math.max(0, depth).toFixed(4)}em !important;
+`;
+          css += `  padding-left: 0 !important;
+`;
+          css += `}
 `;
           count++;
         }
@@ -4313,7 +8781,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         varsCss += `body mjx-c { clip-path: none !important; }
 
 `;
-        varsCss += this._buildMathGlyphRules();
         varsCss += `/* Container */
 `;
         varsCss += `body mjx-container,
@@ -4351,7 +8818,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
           this._adoptMathFontMetrics(fontsConfig.math).then((adopted) => {
             if (!adopted)
               return;
-            return this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
+            return this._afterMetricAdoption();
           }).catch((error) => {
             this._logError("[Local Font Loader] Failed to adopt math font metrics:", error);
           });
@@ -4553,6 +9020,7 @@ ${css}}
   }
   removeFontStyles() {
     this._removeGeneratedStyles(FONT_FACES_ID);
+    this._removeGeneratedStyles(FONT_GLYPHS_ID);
     this._removeGeneratedStyles("local-font-loader-vars");
     this._restoreMathFontMetrics();
   }

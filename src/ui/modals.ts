@@ -219,3 +219,125 @@ export function showConfirmDialog(
 
     modal.open();
 }
+
+/**
+ * One font category's adaptation status, as the status modal renders it.
+ *
+ * "Adaptation method" is the interesting field: a font can be handled by more than one layer — a
+ * family adapter reading its own metrics, then the measurement fallback covering whatever that
+ * family does not ship — so the modal states which layers are actually in play rather than only
+ * naming the font.
+ */
+
+/**
+ * One font category's adaptation status, as the status modal shows it.
+ *
+ * The point of the modal is the `adaptation` list: a category is often served by more than one
+ * layer — a family adapter reading that family's own metrics, with something else covering what the
+ * family does not ship — and naming only the font would hide that entirely.
+ */
+export interface FontStatusRow {
+    /** Category name, e.g. "Text" or "Math". Rendered as the card's heading. */
+    category: string;
+    /** The configured family name, or empty when the category has none. */
+    family: string;
+    /**
+     * How the metrics are obtained, in order of application. Each entry is plain language —
+     * "Read from the font file" rather than an adapter id — because this is read by a person
+     * deciding whether the numbers behind their formula are trustworthy.
+     */
+    adaptation: string[];
+    /** Where the numbers came from, in plain language. */
+    source: string;
+    /** The font files the scan found, e.g. "regular, bold". */
+    files: string;
+    /** Coverage gaps, phrased so it is clear what falls back to MathJax. */
+    gaps: string[];
+}
+
+/**
+ * Modal listing every font category, the font it uses, and how that font's metrics are obtained.
+ */
+export class FontStatusModal extends Modal {
+    rows: FontStatusRow[];
+
+    constructor(app: App, rows: FontStatusRow[]) {
+        super(app);
+        this.rows = rows;
+    }
+
+    onOpen(): void {
+        const { contentEl, titleEl } = this;
+        titleEl.setText(t('fontStatusTitle') || 'Font status');
+
+        contentEl.addClass('lfl-font-status');
+        contentEl.createEl('p', {
+            cls: 'lfl-font-status-intro',
+            text: t('fontStatusIntro') || 'Which font each category uses, and where its metrics come from.',
+        });
+
+        for (const row of this.rows) {
+            contentEl.appendChild(this.renderRow(row));
+        }
+
+        const footer = contentEl.createDiv({ cls: 'lfl-font-status-footer' });
+        const closeEl = footer.createEl('button', { cls: 'mod-cta', text: t('fontStatusClose') || 'Close' });
+        closeEl.addEventListener('click', () => this.close());
+    }
+
+    /** One category card: heading, the font, then the fields. */
+    private renderRow(row: FontStatusRow): HTMLElement {
+        const card = createDiv({ cls: 'lfl-font-status-card' });
+
+        card.createDiv({ cls: 'lfl-font-status-category', text: row.category });
+
+        const fontEl = card.createDiv({ cls: 'lfl-font-status-font' });
+        fontEl.createSpan({ cls: 'lfl-font-status-label', text: t('fontStatusFont') || 'Font' });
+        fontEl.createSpan({
+            cls: 'lfl-font-status-value lfl-font-status-value-strong',
+            text: row.family || (t('fontStatusNone') || 'None'),
+        });
+
+        if (row.files) {
+            const filesEl = card.createDiv({ cls: 'lfl-font-status-field' });
+            filesEl.createSpan({ cls: 'lfl-font-status-label', text: t('fontStatusFiles') || 'Files' });
+            filesEl.createSpan({ cls: 'lfl-font-status-value', text: row.files });
+        }
+
+        if (row.family) {
+            const howEl = card.createDiv({ cls: 'lfl-font-status-field lfl-font-status-field-stack' });
+            howEl.createSpan({
+                cls: 'lfl-font-status-label',
+                text: t('fontStatusHow') || 'How the metrics are obtained',
+            });
+
+            const list = howEl.createEl('ol', { cls: 'lfl-font-status-steps' });
+            const steps = row.adaptation.length > 0
+                ? row.adaptation
+                : [t('fontStatusPending') || 'Waiting for the font to be resolved'];
+            for (const step of steps) {
+                list.createEl('li', { cls: 'lfl-font-status-step', text: step });
+            }
+
+            if (row.source) {
+                const sourceEl = card.createDiv({ cls: 'lfl-font-status-field' });
+                sourceEl.createSpan({ cls: 'lfl-font-status-label', text: t('fontStatusSource') || 'Source' });
+                sourceEl.createSpan({ cls: 'lfl-font-status-value', text: row.source });
+            }
+
+            if (row.gaps.length > 0) {
+                const gapsEl = card.createDiv({ cls: 'lfl-font-status-field lfl-font-status-field-stack' });
+                gapsEl.createSpan({ cls: 'lfl-font-status-label', text: t('fontStatusGaps') || 'Not covered' });
+                for (const gap of row.gaps) {
+                    gapsEl.createDiv({ cls: 'lfl-font-status-gap', text: gap });
+                }
+            }
+        }
+
+        return card;
+    }
+
+    onClose(): void {
+        this.contentEl.empty();
+    }
+}

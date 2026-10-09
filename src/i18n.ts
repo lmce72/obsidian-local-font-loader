@@ -115,6 +115,17 @@ export const TRANSLATIONS = {
 
         // Font Missing Warning
         fontMissingWarning: 'Font file is missing, fallback to system default',
+        noAvailableFonts: "No fonts found yet. Use Rescan to look for them.",
+        fontStatusTitle: "Font status",
+        fontStatusIntro: "Which font each category uses, and where its numbers come from.",
+        fontStatusFont: "Font",
+        fontStatusFiles: "Files",
+        fontStatusHow: "How the numbers are obtained",
+        fontStatusSource: "Source",
+        fontStatusGaps: "Not covered",
+        fontStatusNone: "None",
+        fontStatusPending: "Waiting for the font to be resolved",
+        fontStatusClose: "Close",
 
         // UI Text
         variantsSuffix: 'variants',
@@ -307,6 +318,17 @@ export const TRANSLATIONS = {
 
         // Font Missing Warning
         fontMissingWarning: '当前字体文件缺失，已回退至系统设置',
+        noAvailableFonts: "尚未发现任何字体。请使用「重新扫描」查找。",
+        fontStatusTitle: "字体状态",
+        fontStatusIntro: "每一类用的是哪个字体，以及它的度量从哪里来。",
+        fontStatusFont: "字体",
+        fontStatusFiles: "文件",
+        fontStatusHow: "度量是怎么得到的",
+        fontStatusSource: "来源",
+        fontStatusGaps: "未覆盖",
+        fontStatusNone: "未设置",
+        fontStatusPending: "字体尚未解析完成",
+        fontStatusClose: "关闭",
 
         // Font Variant Warning
         variantWarningTitle: '字体变体警告',
@@ -534,6 +556,17 @@ export const TRANSLATIONS = {
 
         // Font Missing Warning
         fontMissingWarning: 'フォントファイルが見つかりません。システムデフォルトにフォールバックしました',
+        noAvailableFonts: "まだフォントが見つかりません。「再スキャン」で探してください。",
+        fontStatusTitle: "フォントの状態",
+        fontStatusIntro: "各カテゴリが使うフォントと、その数値の出所。",
+        fontStatusFont: "フォント",
+        fontStatusFiles: "ファイル",
+        fontStatusHow: "数値の取得方法",
+        fontStatusSource: "出所",
+        fontStatusGaps: "未対応",
+        fontStatusNone: "未設定",
+        fontStatusPending: "フォントの解決待ち",
+        fontStatusClose: "閉じる",
 
         // Font Variant Warning
         variantWarningTitle: 'フォントバリアント警告',
@@ -654,6 +687,17 @@ export const TRANSLATIONS = {
 
         // Font Missing Warning
         fontMissingWarning: '폰트 파일이 없습니다. 시스템 기본값으로 대체되었습니다',
+        noAvailableFonts: "아직 글꼴이 없습니다. 다시 스캔하여 찾아보세요.",
+        fontStatusTitle: "글꼴 상태",
+        fontStatusIntro: "각 범주가 쓰는 글꼴과 수치의 출처입니다.",
+        fontStatusFont: "글꼴",
+        fontStatusFiles: "파일",
+        fontStatusHow: "수치를 얻는 방식",
+        fontStatusSource: "출처",
+        fontStatusGaps: "미지원",
+        fontStatusNone: "없음",
+        fontStatusPending: "글꼴 확인 대기 중",
+        fontStatusClose: "닫기",
 
         // Font Variant Warning
         variantWarningTitle: '폰트 변형 경고',
@@ -768,6 +812,17 @@ export const TRANSLATIONS = {
 
         // Advertencia de Fuente Faltante
         fontMissingWarning: 'Archivo de fuente faltante, usando predeterminado del sistema',
+        noAvailableFonts: "Aún no hay fuentes. Use «Volver a buscar» para encontrarlas.",
+        fontStatusTitle: "Estado de las fuentes",
+        fontStatusIntro: "Qué fuente usa cada categoría y de dónde salen sus números.",
+        fontStatusFont: "Fuente",
+        fontStatusFiles: "Archivos",
+        fontStatusHow: "Cómo se obtienen los números",
+        fontStatusSource: "Origen",
+        fontStatusGaps: "Sin cubrir",
+        fontStatusNone: "Ninguna",
+        fontStatusPending: "Esperando a resolver la fuente",
+        fontStatusClose: "Cerrar",
 
         // Advertencias de variantes de fuente
         variantWarningTitle: 'Advertencia de Variantes de Fuente',

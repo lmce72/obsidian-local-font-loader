@@ -1,7 +1,7 @@
 /**
  * The plugin class: font scanning, conversion, device identity and CSS generation.
  */
-import { Component, Plugin, Notice, MarkdownRenderer, Platform, normalizePath } from 'obsidian';
+import { Plugin, Notice, Platform, normalizePath } from 'obsidian';
 import type { DataAdapter } from 'obsidian';
 import type { MathJaxFontData } from './obsidian-extras';
 
@@ -16,6 +16,10 @@ import {
 } from './device-repair';
 import type { PluginSettings, FontPreset, PresetFonts, LatinFontScope, DeviceMeta, LegacyFontSettings, MathFontMetricSnapshot, MathFontDeviation, MathFontReferenceMetrics, MathFontVerdict, FontInfo, FontCategoryKey } from './types';
 import FontManagerSettingTab from './ui/settings-tab';
+import { FontStatusModal } from './ui/modals';
+import type { FontStatusRow } from './ui/modals';
+import { buildMathMetrics, findMathFontAdapter } from './math-standards';
+import type { MathFontMetrics } from './math-standards';
 
 /**
  * The browser's navigator, taken once through an alias.
@@ -56,6 +60,16 @@ const FONT_CSS_SNIPPET = 'local-font-loader';
 
 /** The id the `@font-face` rules are generated under — the half of the snippet that holds URLs. */
 const FONT_FACES_ID = 'local-font-loader-faces';
+
+/**
+ * The id the per-glyph box overrides are generated under.
+ *
+ * Kept apart from the variables block because the two are written at different moments: the
+ * variables exist as soon as the fonts are applied, while the box overrides only exist once the
+ * metrics have been adopted — and the overrides are precisely the glyphs whose box the adoption
+ * changed, which cannot be known before it runs.
+ */
+const FONT_GLYPHS_ID = 'local-font-loader-glyphs';
 
 /**
  * The part of Obsidian's desktop adapter that can write without waiting.
@@ -103,6 +117,34 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     /** MathJax's original glyph metrics, kept so adoption can be undone. */
     _mathFontSnapshot: MathFontMetricSnapshot | null = null;
+
+    /**
+     * Which adaptation layer produced the math metrics currently in place.
+     *
+     * Recorded rather than recomputed so the status command reports what actually happened —
+     * "measured" and "read from the font's own MATH table" are very different answers to the
+     * question the command exists to answer, and only the code that did the work knows which one
+     * it was.
+     */
+    _mathAdaptationLayer: string | null = null;
+
+    /**
+     * Where the math metrics came from, in words a person can act on.
+     *
+     * Kept apart from the layer name so the status command can say 'the font's own MATH table'
+     * rather than an adapter id: the question is whether the numbers are the font's intent or a
+     * guess, not which module produced them.
+     */
+    _mathAdaptationSource = 'MathJax\x27s own metrics';
+
+    /**
+     * Codepoint ranges the configured math font does not cover, phrased for the status command.
+     *
+     * A gap is not an error — Libertinus carries no Fraktur, Latin Modern no lowercase Script — but
+     * glyphs in those ranges have to come from somewhere, and that somewhere is MathJax's own
+     * faces. Stating the gap is what stops a missing letter looking like a bug in the font.
+     */
+    _mathCoverageGaps: string[] = [];
 
     /** The CSS text last applied per id, to skip no-op updates. */
     _appliedCss = new Map<string, string>();
@@ -537,6 +579,26 @@ export default class LocalFontLoaderPlugin extends Plugin {
             callback: async () => {
                 await this.scanFonts();
                 new Notice('✓ Font list updated');
+            }
+        });
+
+        // Font status: which font each category uses, and how each one is being adapted.
+        //
+        // The adaptation column is the point of the command. A category can be served by more than
+        // one layer — a family adapter reading that family's own metrics, with the measurement
+        // fallback covering whatever the family does not ship — and without naming the layers the
+        // picture is just "a font is configured", which says nothing about whether the numbers
+        // behind it are read from a standard or guessed.
+        this.addCommand({
+            id: 'show-font-status',
+            name: 'Show font status',
+            callback: () => {
+                try {
+                    new FontStatusModal(this.app, this._collectFontStatusRows()).open();
+                } catch (error) {
+                    this._logError('[Local Font Loader] Could not show the font status:', error);
+                    new Notice('Could not show the font status');
+                }
             }
         });
 
@@ -1908,8 +1970,16 @@ export default class LocalFontLoaderPlugin extends Plugin {
                             const fontPath = `${fontDir}/${filename}`;
 
                             try {
-                                // Check if file exists (by attempting to read)
-                                await this.app.vault.adapter.readBinary(fontPath);
+                                // Check if the file exists without reading it.
+                                //
+                                // This used to call `readBinary` and throw the bytes away, which on a
+                                // phone means loading every multi-megabyte CJK face into memory on the
+                                // startup path just to answer "is it there?" — tens of megabytes of I/O
+                                // and pressure, and the whole reason the plugin dragged app launch.
+                                // `exists` answers the same question for a stat call.
+                                if (!(await this.app.vault.adapter.exists(fontPath))) {
+                                    throw new Error('font file missing');
+                                }
 
                                 const basename = filename ?? '';
                                 const name = basename.replace(/\.(ttf|otf|woff|woff2)$/i, '');
@@ -2164,12 +2234,210 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             const adopted = await this._adoptMathFontMetrics(familyName);
             if (adopted) {
-                await this._rebuildMathJaxStyles();
-                this._refreshMathViews();
+                await this._afterMetricAdoption();
                 this._log('[Local Font Loader] Math font metrics adopted on a later attempt');
             }
         } catch (error) {
             this._logError('[Local Font Loader] Could not adopt the math font metrics:', error);
+        }
+    }
+
+    /**
+     * What has to happen once the metrics are in place, from whichever path adopted them.
+     *
+     * The box overrides come first because they are what makes the new numbers reach the screen;
+     * the MathJax pass afterwards is what puts every glyph back on a rule of its own.
+     */
+    async _afterMetricAdoption(): Promise<void> {
+        this.applyCss(this._buildMathGlyphRules(), FONT_GLYPHS_ID);
+        await this._rebuildMathJaxStyles();
+        this._refreshMathViews();
+    }
+
+    /**
+     * One row per font category, saying which font is configured and how it is being adapted.
+     *
+     * The adaptation column is deliberately a list. A category is often served by more than one
+     * layer — a family adapter reading that family's own metrics, with the measurement fallback
+     * covering whatever the family does not ship — and naming only the font would hide that. Where
+     * a layer could not be identified, the row says so rather than implying a single clean answer.
+     */
+    _collectFontStatusRows(): FontStatusRow[] {
+        const preset = this._getDevicePreset();
+        const fonts: PresetFonts = (preset && preset.fonts) || ({} as PresetFonts);
+        const categories: Array<{ key: keyof PresetFonts; label: string }> = [
+            { key: 'ui', label: 'Interface' },
+            { key: 'text', label: 'Text' },
+            { key: 'heading', label: 'Heading' },
+            { key: 'monospace', label: 'Monospace' },
+            { key: 'math', label: 'Math' },
+        ];
+
+        return categories.map(({ key, label }) => {
+            const family = (fonts[key] || '').trim();
+            const variants = (this.settings.availableFonts || []).filter(f =>
+                (f.familyName && f.familyName === family) || f.name === family
+            );
+
+            const row: FontStatusRow = {
+                category: label,
+                family,
+                adaptation: [],
+                source: '',
+                files: variants.map(v => v.variantType).join(', '),
+                gaps: [],
+            };
+
+            if (!family) {
+                return row;
+            }
+
+            if (key === 'math') {
+                // Math is the one category whose numbers are worked out rather than simply used,
+                // so it is also the one where the method matters to the person reading this.
+                if (this._mathAdaptationLayer) {
+                    row.adaptation.push(this._mathAdaptationLayer);
+                    row.source = this._mathAdaptationSource;
+                } else {
+                    row.adaptation.push('Not worked out yet — formulas use the MathJax defaults for now');
+                    row.source = 'The MathJax defaults';
+                }
+                row.adaptation.push('Braces and arrows keep the MathJax sizes — those pieces come from MathJax itself');
+
+                for (const gap of this._mathCoverageGaps) {
+                    row.gaps.push(gap);
+                }
+            } else {
+                row.adaptation.push('Used as-is through CSS');
+                row.source = 'Not applicable — text is laid out by the text engine';
+            }
+
+            return row;
+        });
+    }
+    /**
+     * Asks the font's own adapter for its metrics, by reading the font file.
+     *
+     * @param familyName - the configured math family
+     * @returns the metrics plus which adapter produced them, or null when no adapter claims the family
+     */
+    /**
+     * What the standards layer said about a family.
+     *
+     * 'unclaimed' means no family adapter wanted it, so measuring is still fair game. A
+     * 'declined' is different and final: an adapter matched the family and refused to size it,
+     * which is what the MathJax reference adapter does for its own faces. Measuring after that
+     * refusal would undo it, so the caller must not fall through.
+     */
+    async _resolveMathMetricsFromStandards(
+        familyName: string,
+    ): Promise<
+        | { kind: 'metrics'; metrics: MathFontMetrics; adapterName: string }
+        | { kind: 'declined'; adapterName: string }
+        | { kind: 'unclaimed' }
+    > {
+        try {
+            const adapter = findMathFontAdapter(familyName);
+            if (!adapter) {
+                // Nothing claimed this family by name, so measuring it is still fair game.
+                return { kind: 'unclaimed' };
+            }
+
+            // The adapter that matches by name is not necessarily one that will produce anything —
+            // the measurement fallback matches everything and is allowed to decline. Find the file
+            // the family actually resolves to and hand its bytes over.
+            const record = (this.settings.availableFonts || []).find(f =>
+                (f.familyName && f.familyName === familyName) || f.name === familyName
+            );
+            if (!record || !record.path) {
+                // A named adapter already claimed this family. Without its file there is
+                // nothing to read, and substituting a guess is exactly what that claim rules out.
+                return { kind: 'declined', adapterName: adapter.name };
+            }
+            if (!(await this.app.vault.adapter.exists(record.path))) {
+                // A named adapter already claimed this family. Without its file there is
+                // nothing to read, and substituting a guess is exactly what that claim rules out.
+                return { kind: 'declined', adapterName: adapter.name };
+            }
+
+            const binary = await this.app.vault.adapter.readBinary(record.path);
+            const result = buildMathMetrics(binary, familyName);
+            if (!result) {
+                // An adapter matched the family and produced nothing: a refusal, not a gap.
+                return { kind: 'declined', adapterName: adapter.name };
+            }
+
+            this._log(`[Local Font Loader] Math metrics from "${result.adapterName}" (${result.metrics.source})`);
+            return { kind: 'metrics', metrics: result.metrics, adapterName: result.adapterName };
+        } catch (error) {
+            // A broken adapter must not stop the measuring fallback from trying.
+            this._logError('[Local Font Loader] Could not read the math font\'s own metrics:', error);
+            return { kind: 'unclaimed' };
+        }
+    }
+
+    /**
+     * Writes resolved metrics into MathJax's table.
+     *
+     * Only `variant.*.chars` is touched. `delimiters.*.HDW` sizes the stretchy assemblies MathJax
+     * draws from its own private-use pieces, so those targets are MathJax's to set no matter which
+     * font is substituted — overwriting them is what put braces at the wrong height before.
+     *
+     * @returns whether anything was adopted
+     */
+    _applyMathMetrics(fontData: MathJaxFontData, metrics: MathFontMetrics, adapterName: string): boolean {
+        try {
+            this._restoreMathFontMetrics();
+
+            const snapshot: MathFontMetricSnapshot = { chars: [], delimiters: [] };
+            let adopted = 0;
+
+            for (const variantName of Object.keys(fontData.variant ?? {})) {
+                const chars = fontData.variant[variantName]?.chars;
+                if (!chars) {
+                    continue;
+                }
+                for (const code of Object.keys(metrics.chars)) {
+                    const wanted = metrics.chars[code];
+                    const entry = chars[code];
+                    if (!Array.isArray(entry) || entry.length < 3) {
+                        continue;
+                    }
+                    const before = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
+                    if (before[0] === wanted[0] && before[1] === wanted[1] && before[2] === wanted[2]) {
+                        continue;
+                    }
+                    snapshot.chars.push({ variantName, code, values: before });
+                    entry[0] = wanted[0];
+                    entry[1] = wanted[1];
+                    entry[2] = wanted[2];
+                    adopted++;
+                }
+            }
+
+            if (adopted === 0) {
+                this._log('[Local Font Loader] The family adapter found nothing to change; leaving MathJax metrics as they are.');
+                return false;
+            }
+
+            this._mathFontSnapshot = snapshot;
+            this._mathAdaptationLayer = `${adapterName} — ${adopted} glyph sizes read from the font`;
+            this._mathAdaptationSource = metrics.source === 'opentype-math'
+                ? 'Its own OpenType MATH table'
+                : metrics.source === 'tex-tfm'
+                    ? 'The TeX design constants this font follows'
+                    : metrics.source === 'measured'
+                        ? 'Worked out from rendered text — a guess, not the font\u2019s own numbers'
+                        : 'Read from the font file';
+            this._mathCoverageGaps = metrics.gaps ?? [];
+            for (const note of metrics.notes ?? []) {
+                this._log(`[Local Font Loader] ${adapterName}: ${note}`);
+            }
+            this._log(`[Local Font Loader] Adopted ${adopted} glyph boxes from ${adapterName}; delimiter sizes left to MathJax.`);
+            return true;
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not apply the font\'s own metrics:', error);
+            return false;
         }
     }
 
@@ -2192,6 +2460,29 @@ export default class LocalFontLoaderPlugin extends Plugin {
         const fontData = await this._waitForMathFontData();
         if (!fontData) {
             this._log('[Local Font Loader] MathJax\'s font table never became available; metrics not adopted');
+            return false;
+        }
+
+        // Preferred path: ask the family's own adapter for its metrics.
+        //
+        // A font that follows a published standard — an OpenType `MATH` table, or the TeX design
+        // constants — already states its own numbers, and those are design values rather than ink
+        // boxes. Reading them beats measuring the rendered text, which is a different standard and
+        // cannot recover a font's intent. Measuring is kept only for fonts that carry no math
+        // metadata at all, where there is nothing to read.
+        //
+        // This path needs the font *file*, not a rendered face, so it runs before the wait below.
+        const fromStandard = await this._resolveMathMetricsFromStandards(familyName);
+        if (fromStandard.kind === 'metrics') {
+            return this._applyMathMetrics(fontData, fromStandard.metrics, fromStandard.adapterName);
+        }
+        if (fromStandard.kind === 'declined') {
+            // The family was claimed and refused. Measuring it would be the answer the adapter
+            // exists to prevent — MathJax's own faces are the case in point — so stop here and
+            // leave the metrics exactly as they are.
+            this._mathAdaptationLayer = `${fromStandard.adapterName} declined — MathJax's own numbers kept`;
+            this._mathAdaptationSource = 'The MathJax defaults';
+            this._log(`[Local Font Loader] ${fromStandard.adapterName} declined this family; nothing measured.`);
             return false;
         }
 
@@ -2275,6 +2566,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
         });
 
         this._mathFontSnapshot = snapshot;
+        // Recorded for the status command: today this path always measures, so say so plainly.
+        this._mathAdaptationLayer = `Worked out by rendering the text — ${adopted} glyph sizes measured`;
+        this._mathAdaptationSource = 'Worked out from rendered text — a guess, not the font\u2019s own numbers';
+        this._mathCoverageGaps = [];
         this._log(`[Local Font Loader] Math font metrics adopted from "${familyName}": ${adopted} glyphs, ${snapshot.delimiters.length} delimiters`);
 
         return true;
@@ -2352,7 +2647,18 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 'bold-italic': '.TEX-BI',
             };
 
-            let css = '/* Per-glyph advances - kept here so the display does not depend on MathJax\'s stylesheet */\n';
+            // Only glyphs whose box actually changed need a rule.
+            //
+            // Emitting one rule per glyph in the table produced thousands of declarations the
+            // browser had to parse at startup, most of them restating exactly what MathJax's own
+            // stylesheet already said. The snapshot keeps the value each glyph had before adoption,
+            // so "our number differs from the one MathJax uses" is the precise, minimal set.
+            const original = new Map<string, string>();
+            for (const saved of this._mathFontSnapshot?.chars ?? []) {
+                original.set(`${saved.variantName}@${saved.code}`, saved.values.map(v => Number(v).toFixed(4)).join(','));
+            }
+
+            let css = '/* Per-glyph boxes that differ from MathJax\'s own, so display does not depend on its stylesheet */\n';
             let count = 0;
             for (const variantName of Object.keys(guards)) {
                 const variant = fontData.variant[variantName];
@@ -2372,8 +2678,24 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     if (!Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(width)) {
                         continue;
                     }
+
+                    const key = `${variantName}@${code}`;
+                    const now = [height, depth, width].map(v => v.toFixed(4)).join(',');
+                    if (original.get(key) === now) {
+                        continue;
+                    }
+
+                    // Padding cannot be negative: a CSS shorthand carrying a negative value is
+                    // invalid and the whole declaration is dropped, which would leave the glyph with
+                    // no box at all. Longhand lets one side be zeroed without losing the others, and
+                    // a negative box extent simply means "the ink stays on this side of the baseline".
                     const glyphClass = 'mjx-c' + Number(code).toString(16).toUpperCase();
-                    css += `body mjx-c.${glyphClass}${guard} { padding: ${height.toFixed(4)}em ${width.toFixed(4)}em ${depth.toFixed(4)}em 0 !important; }\n`;
+                    css += `body mjx-c.${glyphClass}${guard} {\n`;
+                    css += `  padding-top: ${Math.max(0, height).toFixed(4)}em !important;\n`;
+                    css += `  padding-right: ${Math.max(0, width).toFixed(4)}em !important;\n`;
+                    css += `  padding-bottom: ${Math.max(0, depth).toFixed(4)}em !important;\n`;
+                    css += `  padding-left: 0 !important;\n`;
+                    css += `}\n`;
                     count++;
                 }
             }
@@ -2959,7 +3281,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 // Emitting the rules from the metrics table — which is already patched with the
                 // configured font's own numbers — makes the display independent of what
                 // MathJax's stylesheet happens to contain, and of whether it has been rebuilt.
-                varsCss += this._buildMathGlyphRules();
+                // Per-glyph box overrides are not part of this block: they describe the boxes the
+                // metric adoption is about to change, and adoption runs after this file is written.
+                // They are applied under their own id — see FONT_GLYPHS_ID.
 
                 varsCss += `/* Container */\n`;
                 varsCss += `body mjx-container,\n`;
@@ -3005,7 +3329,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     this._adoptMathFontMetrics(fontsConfig.math)
                         .then(adopted => {
                             if (!adopted) return;
-                            return this._rebuildMathJaxStyles().then(() => this._refreshMathViews());
+                            return this._afterMetricAdoption();
                         })
                         .catch(error => {
                             this._logError('[Local Font Loader] Failed to adopt math font metrics:', error);
@@ -3414,6 +3738,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     removeFontStyles() {
         this._removeGeneratedStyles(FONT_FACES_ID);
+        this._removeGeneratedStyles(FONT_GLYPHS_ID);
         this._removeGeneratedStyles('local-font-loader-vars');
 
         // Hand MathJax its own metrics back. They live on a global object shared with every other

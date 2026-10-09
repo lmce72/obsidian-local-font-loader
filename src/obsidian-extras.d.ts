@@ -88,6 +88,8 @@ declare global {
          * the same place, so the two paths below cover both.
          */
         MathJax?: {
+            /** Version string of the running MathJax, e.g. `"4.1.3"`. Reported by the status command. */
+            version?: string;
             /**
              * Typesets the given elements (the whole body when asked for it), returning once the
              * output is in place. Optional because only the plugin's fallback path needs it.

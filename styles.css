@@ -662,3 +662,93 @@
     padding: 0;
     border: 0;
 }
+
+/* ============================================================================
+   Font status modal (command: "Show font status")
+   ============================================================================ */
+
+.lfl-font-status-intro {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    margin: 0 0 var(--size-4-3);
+}
+
+.lfl-font-status-card {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background: var(--background-secondary);
+    padding: var(--size-4-3);
+    margin-bottom: var(--size-4-3);
+}
+
+.lfl-font-status-category {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--size-4-2);
+}
+
+.lfl-font-status-font {
+    display: flex;
+    align-items: baseline;
+    gap: var(--size-4-3);
+    margin-bottom: var(--size-4-2);
+}
+
+.lfl-font-status-field {
+    display: flex;
+    align-items: baseline;
+    gap: var(--size-4-3);
+    margin-top: var(--size-4-2);
+}
+
+.lfl-font-status-field-stack {
+    display: block;
+}
+
+.lfl-font-status-label {
+    flex: 0 0 8.5em;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.lfl-font-status-field-stack .lfl-font-status-label {
+    display: block;
+    margin-bottom: var(--size-4-1);
+}
+
+.lfl-font-status-value {
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+    overflow-wrap: anywhere;
+}
+
+.lfl-font-status-value-strong {
+    font-size: var(--font-ui-medium);
+    font-weight: var(--font-semibold);
+    color: var(--text-normal);
+}
+
+.lfl-font-status-steps {
+    margin: 0;
+    padding-left: var(--size-4-5);
+}
+
+.lfl-font-status-step {
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+    line-height: var(--line-height-normal);
+    margin-bottom: var(--size-4-1);
+}
+
+.lfl-font-status-gap {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    margin-top: var(--size-4-1);
+}
+
+.lfl-font-status-footer {
+    margin-top: var(--size-4-4);
+    text-align: right;
+}

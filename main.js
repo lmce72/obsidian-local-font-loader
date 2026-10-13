@@ -6920,6 +6920,13 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   _logError(...args) {
     console.error(...args);
   }
+  _isCompleteSettingsSnapshot(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return false;
+    }
+    const record = data;
+    return Array.isArray(record.presets) || Array.isArray(record.availableFonts) || typeof record.fontSourceDir === "string";
+  }
   _settingsEqual(a, b) {
     try {
       return JSON.stringify(a) === JSON.stringify(b);
@@ -7192,37 +7199,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         if (this._dataReloadTimer) {
           window.clearTimeout(this._dataReloadTimer);
         }
-        this._dataReloadTimer = window.setTimeout(async () => {
-          try {
-            if (this._isSaving) {
-              this._log("[Local Font Loader] Save in progress, skipping reload");
-              return;
-            }
-            const data = await this.loadData();
-            if (this._settingsEqual(data, this.settings)) {
-              this._log("[Local Font Loader] data.json content unchanged, skipping reload");
-              return;
-            }
-            await this.loadSettings();
-            this._log("[Local Font Loader] Settings reloaded from data.json");
-            try {
-              await this.repairDeviceList();
-            } catch (error) {
-              this._logError("[Local Font Loader] Device-list repair failed:", error);
-            }
-            if (this.settings.autoLoadOnStartup) {
-              this._log("[Local Font Loader] Re-applying fonts after settings reload...");
-              try {
-                await this.applyFonts();
-                this._log("[Local Font Loader] Fonts re-applied successfully");
-              } catch (error) {
-                this._logError("[Local Font Loader] Failed to re-apply fonts:", error);
-              }
-            }
-            this.app.workspace.trigger("local-font-loader:settings-changed");
-          } catch (error) {
-            this._logError("[Local Font Loader] Failed to reload settings from data.json:", error);
-          }
+        this._dataReloadTimer = window.setTimeout(() => {
+          this._reloadSettingsFromDisk();
         }, 500);
       }
     }));
@@ -7277,8 +7255,24 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     };
   }
   async loadSettings() {
+    const hadSettings = Boolean(this.settings && Object.keys(this.settings).length > 0);
     const data = await this.loadData();
     this._settingsFilePresent = Boolean(data && Object.keys(data).length > 0);
+    if (!this._isCompleteSettingsSnapshot(data)) {
+      if (hadSettings) {
+        this._log("[Local Font Loader] data.json read back incomplete; keeping the settings already in memory");
+        return;
+      }
+      this._log("[Local Font Loader] No usable settings on disk; starting from the defaults");
+    }
+    if (!this._isCompleteSettingsSnapshot(data) && this.settings && this._settingsFilePresent === false) {
+      this._log("[Local Font Loader] data.json read back incomplete; keeping the settings already in memory");
+      return;
+    }
+    if (!this._isCompleteSettingsSnapshot(data) && this.settings && Object.keys(this.settings).length > 0 && this._settingsFilePresent) {
+      this._log("[Local Font Loader] data.json read back incomplete; keeping the settings already in memory");
+      return;
+    }
     if (data && (!data.presets || data.presets.length === 0)) {
       this._log("[Local Font Loader] Legacy configuration detected, migrating into a default preset");
       data.presets = [this._buildLegacyDefaultPreset(data)];
@@ -9023,6 +9017,48 @@ ${css}}
     this._removeGeneratedStyles(FONT_GLYPHS_ID);
     this._removeGeneratedStyles("local-font-loader-vars");
     this._restoreMathFontMetrics();
+  }
+  async _reloadSettingsFromDisk() {
+    try {
+      if (this._isSaving) {
+        this._log("[Local Font Loader] Save in progress, skipping reload");
+        return;
+      }
+      const data = await this.loadData();
+      if (!this._isCompleteSettingsSnapshot(data)) {
+        this._log("[Local Font Loader] data.json is incomplete on disk; waiting for the write to finish");
+        if (this._dataReloadTimer) {
+          window.clearTimeout(this._dataReloadTimer);
+        }
+        this._dataReloadTimer = window.setTimeout(() => {
+          this._reloadSettingsFromDisk();
+        }, 1500);
+        return;
+      }
+      if (this._settingsEqual(data, this.settings)) {
+        this._log("[Local Font Loader] data.json content unchanged, skipping reload");
+        return;
+      }
+      await this.loadSettings();
+      this._log("[Local Font Loader] Settings reloaded from data.json");
+      try {
+        await this.repairDeviceList();
+      } catch (error) {
+        this._logError("[Local Font Loader] Device-list repair failed:", error);
+      }
+      if (this.settings.autoLoadOnStartup) {
+        this._log("[Local Font Loader] Re-applying fonts after settings reload...");
+        try {
+          await this.applyFonts();
+          this._log("[Local Font Loader] Fonts re-applied successfully");
+        } catch (error) {
+          this._logError("[Local Font Loader] Failed to re-apply fonts:", error);
+        }
+      }
+      this.app.workspace.trigger("local-font-loader:settings-changed");
+    } catch (error) {
+      this._logError("[Local Font Loader] Failed to reload settings from data.json:", error);
+    }
   }
 }
 

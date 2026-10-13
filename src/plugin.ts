@@ -186,6 +186,26 @@ export default class LocalFontLoaderPlugin extends Plugin {
       * Used to determine whether a data.json change originated from this plugin's own writes.
       * Returns false on serialization failure (conservative: prefer reloading over missing a sync).
      */
+    /**
+     * Whether a file read back as a complete settings document.
+     *
+     * A file a sync service is still writing reads back as null or an empty object — it has been
+     * truncated and not yet filled. Treating that as 'the settings' is what turned a sync into a
+     * reset: the in-memory configuration was replaced with the defaults, and the write that follows
+     * then persisted those defaults over the real file. A snapshot from another device always
+     * carries at least one of these fields, because `loadSettings` guarantees them, so requiring
+     * one is enough to tell 'still being written' apart from 'real content, just different'.
+     */
+    _isCompleteSettingsSnapshot(data: unknown): boolean {
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            return false;
+        }
+        const record = data as Record<string, unknown>;
+        return Array.isArray(record.presets)
+            || Array.isArray(record.availableFonts)
+            || typeof record.fontSourceDir === 'string';
+    }
+
     _settingsEqual(a: unknown, b: unknown) {
         try {
             return JSON.stringify(a) === JSON.stringify(b);
@@ -648,50 +668,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     if (this._dataReloadTimer) {
                         window.clearTimeout(this._dataReloadTimer);
                     }
-                    this._dataReloadTimer = window.setTimeout(async () => {
-                        try {
-                            // A save of our own is in flight: skip reloading to avoid rolling back newer in-memory settings with a stale disk snapshot
-                            if (this._isSaving) {
-                                this._log('[Local Font Loader] Save in progress, skipping reload');
-                                return;
-                            }
-                            const data = await this.loadData();
-                            // Content matches in-memory settings = written by this plugin (or nothing changed),
-                            // skip reloading to avoid rebuilding the whole settings UI and losing input focus.
-                            if (this._settingsEqual(data, this.settings)) {
-                                this._log('[Local Font Loader] data.json content unchanged, skipping reload');
-                                return;
-                            }
-                            // External change (e.g. multi-device sync): reload settings and refresh the UI
-                            await this.loadSettings();
-                            this._log('[Local Font Loader] Settings reloaded from data.json');
-
-                            // A merge conflict unions the two sides' device maps, so the duplicate
-                            // this leaves behind is collapsed here, right where it appears. The
-                            // write this may perform is ignored by the guard above on the next
-                            // pass: the file it saves matches the settings it saved from.
-                            try {
-                                await this.repairDeviceList();
-                            } catch (error) {
-                                this._logError('[Local Font Loader] Device-list repair failed:', error);
-                            }
-
-                            // Re-apply the font configuration (when auto-load is enabled)
-                            if (this.settings.autoLoadOnStartup) {
-                                this._log('[Local Font Loader] Re-applying fonts after settings reload...');
-                                try {
-                                    await this.applyFonts();
-                                    this._log('[Local Font Loader] Fonts re-applied successfully');
-                                } catch (error) {
-                                    this._logError('[Local Font Loader] Failed to re-apply fonts:', error);
-                                }
-                            }
-
-                            // Notify the settings panel to refresh
-                            this.app.workspace.trigger('local-font-loader:settings-changed');
-                        } catch (error) {
-                            this._logError('[Local Font Loader] Failed to reload settings from data.json:', error);
-                        }
+                    this._dataReloadTimer = window.setTimeout(() => {
+                        void this._reloadSettingsFromDisk();
                     }, 500); // 500ms debounce
                 }
             })
@@ -773,6 +751,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     async loadSettings() {
+        // Remembered before the read, because the read is exactly what may come back unusable.
+        const hadSettings = Boolean(this.settings && Object.keys(this.settings).length > 0);
+
         const data = await this.loadData();
 
         // Whether there is a settings file to work from at all. An empty object is not one: a file
@@ -780,6 +761,31 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // settings is what lets the plugin persist a fresh-install snapshot over the real file —
         // see _persistStartupState().
         this._settingsFilePresent = Boolean(data && Object.keys(data).length > 0);
+
+        // A file a sync service is mid-way through writing is not a configuration. Adopting it
+        // would replace the real settings with the defaults, and the write that then follows would
+        // persist those defaults over the real file — which is how a sync became a reset. Keep what
+        // is already in memory: the writer finishes on its own and the next read gets the whole
+        // document.
+        if (!this._isCompleteSettingsSnapshot(data)) {
+            if (hadSettings) {
+                this._log('[Local Font Loader] data.json read back incomplete; keeping the settings already in memory');
+                return;
+            }
+            this._log('[Local Font Loader] No usable settings on disk; starting from the defaults');
+        }
+
+        // A file a sync service is mid-way through writing is not a configuration, and adopting it
+        // would replace the real settings with the defaults. Keep what is in memory instead: the
+        // write finishes on its own, and the next read gets the whole document.
+        if (!this._isCompleteSettingsSnapshot(data) && this.settings && this._settingsFilePresent === false) {
+            this._log('[Local Font Loader] data.json read back incomplete; keeping the settings already in memory');
+            return;
+        }
+        if (!this._isCompleteSettingsSnapshot(data) && this.settings && Object.keys(this.settings).length > 0 && this._settingsFilePresent) {
+            this._log('[Local Font Loader] data.json read back incomplete; keeping the settings already in memory');
+            return;
+        }
 
         // Backward compatibility: lift a pre-preset configuration — which kept fonts at the top
         // level — into a default preset.
@@ -3747,4 +3753,70 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this._restoreMathFontMetrics();
     }
 
+    /**
+     * Adopts a settings change that appeared on disk, if it is a real one.
+     *
+     * Split out of the file-watcher callback so a read that came back mid-write can be retried
+     * without re-arming the whole listener.
+     */
+    async _reloadSettingsFromDisk(): Promise<void> {
+        try {
+            // A save of our own is in flight: skip reloading to avoid rolling back newer in-memory settings with a stale disk snapshot
+            if (this._isSaving) {
+                this._log('[Local Font Loader] Save in progress, skipping reload');
+                return;
+            }
+            const data = await this.loadData();
+
+            // A file the sync is still writing is not a change to react to. Reacting
+            // would load the defaults over the real settings and then save them back,
+            // so the reload waits for a read that looks like a whole document.
+            if (!this._isCompleteSettingsSnapshot(data)) {
+                this._log('[Local Font Loader] data.json is incomplete on disk; waiting for the write to finish');
+                if (this._dataReloadTimer) {
+                    window.clearTimeout(this._dataReloadTimer);
+                }
+                this._dataReloadTimer = window.setTimeout(() => {
+                    void this._reloadSettingsFromDisk();
+                }, 1500);
+                return;
+            }
+
+            // Content matches in-memory settings = written by this plugin (or nothing changed),
+            // skip reloading to avoid rebuilding the whole settings UI and losing input focus.
+            if (this._settingsEqual(data, this.settings)) {
+                this._log('[Local Font Loader] data.json content unchanged, skipping reload');
+                return;
+            }
+            // External change (e.g. multi-device sync): reload settings and refresh the UI
+            await this.loadSettings();
+            this._log('[Local Font Loader] Settings reloaded from data.json');
+
+            // A merge conflict unions the two sides' device maps, so the duplicate
+            // this leaves behind is collapsed here, right where it appears. The
+            // write this may perform is ignored by the guard above on the next
+            // pass: the file it saves matches the settings it saved from.
+            try {
+                await this.repairDeviceList();
+            } catch (error) {
+                this._logError('[Local Font Loader] Device-list repair failed:', error);
+            }
+
+            // Re-apply the font configuration (when auto-load is enabled)
+            if (this.settings.autoLoadOnStartup) {
+                this._log('[Local Font Loader] Re-applying fonts after settings reload...');
+                try {
+                    await this.applyFonts();
+                    this._log('[Local Font Loader] Fonts re-applied successfully');
+                } catch (error) {
+                    this._logError('[Local Font Loader] Failed to re-apply fonts:', error);
+                }
+            }
+
+            // Notify the settings panel to refresh
+            this.app.workspace.trigger('local-font-loader:settings-changed');
+        } catch (error) {
+            this._logError('[Local Font Loader] Failed to reload settings from data.json:', error);
+        }
+    }
 }

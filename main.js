@@ -6893,7 +6893,6 @@ var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 var FONT_CSS_SNIPPET = "local-font-loader";
 var FONT_FACES_ID = "local-font-loader-faces";
 var FONT_GLYPHS_ID = "local-font-loader-glyphs";
-var SNIPPET_PARK_RECOVERY_MS = 5000;
 var MATH_ADOPTION_RETRY_MS = 5000;
 
 class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
@@ -6904,6 +6903,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   _mathAdaptationSource = "MathJax's own metrics";
   _mathCoverageGaps = [];
   _appliedCss = new Map;
+  _fontDocuments = new Set;
   _snippetCss = new Map;
   _snippetEnabled = false;
   _snippetSync = Promise.resolve();
@@ -7088,6 +7088,18 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   async onload() {
     this._log("[Local Font Loader] Plugin loading...");
+    this._fontDocuments.add(document);
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      this._fontDocuments.add(leaf.view.containerEl.ownerDocument);
+    });
+    this.registerEvent(this.app.workspace.on("window-open", (_win, openedWindow) => {
+      this._fontDocuments.add(openedWindow.document);
+      this._applyRuntimeFontFaces(this._appliedCss.get(FONT_FACES_ID) || "");
+    }));
+    this.registerEvent(this.app.workspace.on("window-close", (_win, closedWindow) => {
+      this._fontDocuments.delete(closedWindow.document);
+    }));
+    await this._sanitizePersistedFontSnippet();
     try {
       await this.loadSettings();
       this._log("[Local Font Loader] Settings loaded successfully");
@@ -7184,12 +7196,10 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       }
     });
     this.addSettingTab(new FontManagerSettingTab(this.app, this));
-    this.registerEvent(this.app.workspace.on("css-change", () => this._ensureSnippetEnabled()));
-    if (import_obsidian10.Platform.isDesktopApp) {
-      for (const event of ["pagehide", "unload"]) {
-        this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
-      }
-    }
+    this.registerEvent(this.app.workspace.on("css-change", () => {
+      this._ensureSnippetEnabled();
+      this._snippetSync = this._snippetSync.then(() => this._sanitizePersistedFontSnippet()).catch((error) => this._logError("[Local Font Loader] Could not sanitize the synced snippet:", error));
+    }));
     this.registerEvent(this.app.workspace.on("layout-change", () => {
       this._retryMathMetricAdoption();
     }));
@@ -7239,6 +7249,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._dataReloadTimer = null;
     }
     this.removeFontStyles();
+    this._fontDocuments.clear();
     const presetStyle = document.getElementById("local-font-loader-preset-styles");
     if (presetStyle)
       presetStyle.remove();
@@ -8887,6 +8898,40 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
 `;
     return { css, fontFamily, variantType, fontWeight, fontStyle };
   }
+  _applyRuntimeFontFaces(css) {
+    for (const doc of this._fontDocuments) {
+      let element = doc.getElementById(FONT_FACES_ID);
+      if (!css) {
+        element?.remove();
+        continue;
+      }
+      if (!element) {
+        element = doc.createElement("style");
+        element.id = FONT_FACES_ID;
+        doc.head.appendChild(element);
+      }
+      if (element.textContent !== css)
+        element.textContent = css;
+    }
+  }
+  async _sanitizePersistedFontSnippet() {
+    const customCss = this.app.customCss;
+    if (!customCss)
+      return;
+    const path = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+    const css = await this._readSnippet(path);
+    if (css === null)
+      return;
+    const portable = css.replace(/@font-face\s*\{[^}]*\}/gi, "");
+    if (portable === css)
+      return;
+    try {
+      await this.app.vault.adapter.write(path, portable);
+      this._forceSnippetReload(path);
+    } catch (error) {
+      this._logError("[Local Font Loader] Could not remove stale font URLs from the snippet:", error);
+    }
+  }
   applyCss(css, cssId) {
     if (this._appliedCss.get(cssId) === css) {
       return;
@@ -8895,11 +8940,17 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._removeGeneratedStyles(cssId);
       return;
     }
-    this._snippetCss.set(cssId, css);
+    if (cssId === FONT_FACES_ID) {
+      this._applyRuntimeFontFaces(css);
+    } else {
+      this._snippetCss.set(cssId, css);
+    }
     this._queueSnippetSync();
     this._appliedCss.set(cssId, css);
   }
   _removeGeneratedStyles(cssId) {
+    if (cssId === FONT_FACES_ID)
+      this._applyRuntimeFontFaces("");
     const element = document.getElementById(cssId);
     if (element) {
       element.remove();
@@ -8931,7 +8982,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._logError("[Local Font Loader] No CSS snippets on this platform: the fonts cannot be applied.");
       return;
     }
-    const css = this._renderSnippetCss(false);
+    const css = this._renderSnippetCss();
     const isSnippetEnabled = customCss.enabledSnippets ? customCss.enabledSnippets.has(FONT_CSS_SNIPPET) : this._snippetEnabled;
     if (!css) {
       if (!isSnippetEnabled) {
@@ -8960,7 +9011,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
       this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
     }
-    this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
+    this._log(`[Local Font Loader] Applied ${(css.length / 1024).toFixed(1)} KB of portable CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
   }
   async _readSnippet(snippetPath) {
     try {
@@ -8983,34 +9034,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._logError("[Local Font Loader] Could not ask Obsidian to re-read the snippet:", error);
     }
   }
-  _renderSnippetCss(parked) {
-    return Array.from(this._snippetCss.entries()).map(([cssId, css]) => parked && cssId === FONT_FACES_ID ? `@media print {
-${css}}
-` : css).join(`
+  _renderSnippetCss() {
+    return Array.from(this._snippetCss.entries()).filter(([cssId]) => cssId !== FONT_FACES_ID).map(([, css]) => css).join(`
 `);
-  }
-  _parkSnippetForNextStart() {
-    try {
-      const customCss = this.app.customCss;
-      if (!customCss || this._snippetCss.size === 0) {
-        return;
-      }
-      const css = this._renderSnippetCss(true);
-      const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
-      const adapter = this.app.vault.adapter;
-      if (adapter.fs?.writeFileSync && adapter.getFullPath) {
-        adapter.fs.writeFileSync(adapter.getFullPath(snippetPath), css);
-        this._log(`[Local Font Loader] Snippet parked for the next start (${(css.length / 1024).toFixed(1)} KB).`);
-      } else {
-        adapter.write(snippetPath, css);
-      }
-      this._appliedCss.delete(FONT_FACES_ID);
-      window.setTimeout(() => {
-        this.applyFonts();
-      }, SNIPPET_PARK_RECOVERY_MS);
-    } catch (error) {
-      this._logError("[Local Font Loader] Could not park the snippet for the next start:", error);
-    }
   }
   removeFontStyles() {
     this._removeGeneratedStyles(FONT_FACES_ID);

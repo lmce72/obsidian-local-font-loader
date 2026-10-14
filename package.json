@@ -13,6 +13,7 @@
 		"build": "bun build src/main.ts --outfile=main.js --target=node --format=cjs --external obsidian",
 		"dev": "bun build src/main.ts --outfile=main.js --target=node --format=cjs --external obsidian --watch",
 		"typecheck": "tsc --noEmit",
+		"test": "bun test",
 		"sync-version": "bun run scripts/sync-version.mjs",
 		"publish-release": "bun run scripts/publish-release.mjs"
 	},

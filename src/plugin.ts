@@ -2,7 +2,6 @@
  * The plugin class: font scanning, conversion, device identity and CSS generation.
  */
 import { Plugin, Notice, Platform, normalizePath } from 'obsidian';
-import type { DataAdapter } from 'obsidian';
 import type { MathJaxFontData } from './obsidian-extras';
 
 import { t } from './i18n';
@@ -45,20 +44,12 @@ const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 
 const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 /**
- * The CSS snippet the generated stylesheets are delivered through.
- *
- * Obsidian turns an enabled snippet into a `<style>` element in the document, and that is the
- * whole point of using one: Export to PDF builds a window of its own and clones the main
- * document's `<style>` elements into it, so a constructable stylesheet — which is not a node —
- * never makes the trip, while a snippet does. Older WebViews that lack constructable
- * stylesheets are covered by the same carrier.
- *
- * Named after the plugin so it can be recognized later — including on a device that never
- * wrote it, where it arrived by sync.
+ * The snippet synced between devices contains only portable font variables and layout rules.
+ * Font faces belong to runtime DOM styles: their resource URLs are device- and session-specific.
  */
 const FONT_CSS_SNIPPET = 'local-font-loader';
 
-/** The id the `@font-face` rules are generated under — the half of the snippet that holds URLs. */
+/** The runtime style id for session-local font faces. */
 const FONT_FACES_ID = 'local-font-loader-faces';
 
 /**
@@ -70,27 +61,6 @@ const FONT_FACES_ID = 'local-font-loader-faces';
  * changed, which cannot be known before it runs.
  */
 const FONT_GLYPHS_ID = 'local-font-loader-glyphs';
-
-/**
- * The part of Obsidian's desktop adapter that can write without waiting.
- *
- * `fs` and `getFullPath` are how the file-system adapter is built; neither is in the public API,
- * so both are optional here and the caller falls back to `adapter.write` when they are absent
- * (which is the case on mobile, where there is nothing to park for anyway).
- */
-interface AdapterWithSyncWrite {
-    fs?: { writeFileSync(path: string, data: string): void };
-    getFullPath?(path: string): string;
-}
-
-/**
- * How long after parking the snippet the live form is put back.
- *
- * Only ever reached when a quit is called off — see `_parkSnippetForNextStart`. It sits beyond
- * the few seconds the main process lets a window hold up a close, so a quit that is really going
- * through ends before this could undo the parking.
- */
-const SNIPPET_PARK_RECOVERY_MS = 5000;
 
 /** Shortest gap between two attempts at adopting the math metrics. */
 const MATH_ADOPTION_RETRY_MS = 5000;
@@ -149,7 +119,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
     /** The CSS text last applied per id, to skip no-op updates. */
     _appliedCss = new Map<string, string>();
 
-    /** The CSS each id currently contributes to the snippet. */
+    /** Documents receiving session-local font faces, including desktop popouts. */
+    _fontDocuments = new Set<Document>();
+
+    /** The portable CSS each id currently contributes to the snippet. */
     _snippetCss = new Map<string, string>();
 
     /** True once the snippet is enabled in Obsidian's CSS snippets. */
@@ -463,6 +436,20 @@ export default class LocalFontLoaderPlugin extends Plugin {
     async onload() {
         this._log('[Local Font Loader] Plugin loading...');
 
+        this._fontDocuments.add(document);
+        this.app.workspace.iterateAllLeaves(leaf => {
+            this._fontDocuments.add(leaf.view.containerEl.ownerDocument);
+        });
+        this.registerEvent(this.app.workspace.on('window-open', (_win, openedWindow) => {
+            this._fontDocuments.add(openedWindow.document);
+            this._applyRuntimeFontFaces(this._appliedCss.get(FONT_FACES_ID) || '');
+        }));
+        this.registerEvent(this.app.workspace.on('window-close', (_win, closedWindow) => {
+            this._fontDocuments.delete(closedWindow.document);
+        }));
+        // Old snippets may arrive from desktop sync before this plugin starts.
+        await this._sanitizePersistedFontSnippet();
+
         try {
             // Load settings
             await this.loadSettings();
@@ -627,29 +614,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // A snippet being toggled fires css-change, and that toggle may have been this plugin's
         // snippet — see `_ensureSnippetEnabled`.
-        this.registerEvent(this.app.workspace.on('css-change', () => this._ensureSnippetEnabled()));
-
-        // Leaving the snippet live on disk is what makes the next start log a burst of
-        // `net::ERR_FILE_NOT_FOUND`: the resource URLs it holds expire when the process does, and
-        // Obsidian reads the file before any plugin is loaded.
-        //
-        // Only the desktop has that problem. There the URL is `app://<token>/…`, and the token is
-        // minted afresh by the main process on every launch; on mobile the adapter resolves a file
-        // through the platform's own URI helper (`fs.getUri`), which contains no such token and is
-        // still valid at the next start. Parking there would buy nothing and cost the fonts: the
-        // parked rules are inert, so the screen would wait for the next apply before showing them
-        // again — and on a phone that wait is the font files being read and parsed all over.
-        //
-        // Parking waits for the document to go away (`pagehide`/`unload`), not for the earlier
-        // events that merely suggest it might: both `quit` and `beforeunload` fire on a close that
-        // is then deferred and possibly called off, and parking there pulls the fonts out from
-        // under a prompt that is still on screen. Measured in a test vault: a deferred close fired
-        // `beforeunload` only, and `pagehide`/`unload` never came.
-        if (Platform.isDesktopApp) {
-            for (const event of ['pagehide', 'unload'] as const) {
-                this.registerDomEvent(window, event, () => this._parkSnippetForNextStart());
-            }
-        }
+        this.registerEvent(this.app.workspace.on('css-change', () => {
+            this._ensureSnippetEnabled();
+            // A still-unpatched device may sync its generated font rules during this session.
+            this._snippetSync = this._snippetSync
+                .then(() => this._sanitizePersistedFontSnippet())
+                .catch(error => this._logError('[Local Font Loader] Could not sanitize the synced snippet:', error));
+        }));
 
         // Adopting the math font's metrics needs MathJax's font table, and that only exists
         // once a formula has been typeset — which on a cold start is after the apply that would
@@ -723,6 +694,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
 
         this.removeFontStyles();
+        this._fontDocuments.clear();
 
         // Remove preset styles injected by the settings tab (incl. device SVG icons) to prevent leftovers after unload
         const presetStyle = document.getElementById('local-font-loader-preset-styles');
@@ -2984,10 +2956,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                     // Build each variant's @font-face rule from its own resource URL.
                     //
-                    // The rule points at the font file and the browser fetches it, so nothing is
-                    // embedded and nothing is cached: the generated snippet stays at a few KB no
-                    // matter how large the fonts are, and only the weights a note actually renders
-                    // get pulled in. `_buildFontFaceCss` emits the unicode-range for the Latin font
+                    // The runtime rule points at the file; URLs are never written to the synced
+                    // snippet. Only the weights a note actually renders get pulled in. `_buildFontFaceCss` emits the unicode-range for the Latin font
                     // itself, so no post-processing is needed here.
                     const deviceFontContext = this._getDeviceFontContext();
                     const results = await Promise.all(familyFonts.map(async (font) => {
@@ -3363,8 +3333,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Resolves a font file to a CSS `url("…")` value through Obsidian's resource API.
      *
      * `getResourcePath` is the supported way to point the webview at a file inside the vault —
-     * hardcoded `app://local/` and `file://` URLs were removed in Obsidian 1.2.8. It works on
-     * desktop and mobile alike. The returned path is session-specific (it embeds the current
+     * the adapter chooses the URI supported by the current desktop or mobile runtime. The returned path is session-specific (it embeds the current
      * vault location), so callers must resolve it at load time instead of persisting it.
      *
      * @param {Object} font The font object
@@ -3449,24 +3418,44 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * Applies a generated stylesheet, by handing it to Obsidian as a CSS snippet.
-     *
-     * The CSS here is built at runtime from the user's own font files (their `@font-face` rules
-     * and the variables derived from their presets), so it cannot live in a static `styles.css`
-     * — which is what the plugin guidelines otherwise ask for. A snippet is the one carrier that
-     * satisfies every constraint at once:
-     *
-     *  - The guidelines: Obsidian loads the file itself, and this plugin attaches no `<style>`
-     *    or `<link>` element of its own.
-     *  - Export to PDF: it opens a window of its own and clones the main document's `<style>`
-     *    elements into it. A snippet arrives as one of those elements. A constructable
-     *    stylesheet does not, because it is not a node — which is exactly why the fonts were
-     *    missing from exported PDFs while the same fonts rendered on screen.
-     *  - iOS below 16.4, where constructable stylesheets do not exist at all.
-     *
-     * @param css - The CSS text; an empty value removes the stylesheet
-     * @param cssId - A stable id, so repeated applies replace rather than accumulate
+     * Keep font resource URLs in DOM styles for this session only. PDF export clones these
+     * style nodes, while the synced snippet carries only portable variables and layout rules.
      */
+    _applyRuntimeFontFaces(css: string): void {
+        for (const doc of this._fontDocuments) {
+            let element = doc.getElementById(FONT_FACES_ID);
+            if (!css) {
+                element?.remove();
+                continue;
+            }
+            if (!element) {
+                element = doc.createElement('style');
+                element.id = FONT_FACES_ID;
+                doc.head.appendChild(element);
+            }
+            if (element.textContent !== css) element.textContent = css;
+        }
+    }
+
+    /** Remove font rules written by older versions, including their print-media form. */
+    async _sanitizePersistedFontSnippet(): Promise<void> {
+        const customCss = this.app.customCss;
+        if (!customCss) return;
+        const path = customCss.getSnippetPath(FONT_CSS_SNIPPET);
+        const css = await this._readSnippet(path);
+        if (css === null) return;
+        // This file is generated by this plugin; its font-face declarations contain no nested blocks.
+        const portable = css.replace(/@font-face\s*\{[^}]*\}/gi, '');
+        if (portable === css) return;
+        try {
+            await this.app.vault.adapter.write(path, portable);
+            this._forceSnippetReload(path);
+        } catch (error) {
+            this._logError('[Local Font Loader] Could not remove stale font URLs from the snippet:', error);
+        }
+    }
+
+    /** Apply generated CSS without persisting session-specific font addresses. */
     applyCss(css: string, cssId: string): void {
         if (this._appliedCss.get(cssId) === css) {
             return;
@@ -3477,7 +3466,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        this._snippetCss.set(cssId, css);
+        if (cssId === FONT_FACES_ID) {
+            this._applyRuntimeFontFaces(css);
+        } else {
+            this._snippetCss.set(cssId, css);
+        }
         this._queueSnippetSync();
 
         this._appliedCss.set(cssId, css);
@@ -3489,10 +3482,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param cssId - The id the stylesheet was applied under
      */
     _removeGeneratedStyles(cssId: string): void {
-        // Versions up to 1.5.6 attached a `<style>` element per id when the platform had no
-        // constructable stylesheets. Reloading the plugin can leave one behind for the rest of
-        // the session, so it is still cleared here. Obsidian's own snippet element carries no id
-        // and is never matched: turning the snippet off is what removes that one.
+        if (cssId === FONT_FACES_ID) this._applyRuntimeFontFaces('');
+
+        // Clear legacy per-id styles too. Obsidian's snippet style has no id and is not matched.
         const element = document.getElementById(cssId);
         if (element) {
             element.remove();
@@ -3518,21 +3510,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     /**
-     * Brings the snippet in line with the CSS currently generated.
-     *
-     * The plugin never touches the element Obsidian builds from the snippet: it writes the file
-     * and enables it, and Obsidian loads it like any other snippet. Rewriting the file is enough
-     * for Obsidian to pick the new content up — its snippet cache is invalidated when the file
-     * changes — so no reload is forced here.
-     *
-     * The file is left in place when the last stylesheet goes away. It is a cache of generated
-     * CSS, like the per-font ones, and deleting it on every unload would push megabytes through
-     * sync on each app start for no change in content.
-     */
-    /**
      * Puts the generated snippet back on when something else switched it off.
      *
-     * The stylesheet is the only carrier the fonts have, and it can be turned off outside this
+     * The snippet carries font variables and layout rules, and it can be turned off outside this
      * plugin — Appearance → CSS snippets is one click, and a snippet manager plugin can do the
      * same. Reacting matters because `applyCss` skips an unchanged stylesheet: in a session where
      * nothing else changes there is no later apply to notice. Obsidian fires `css-change` on
@@ -3568,7 +3548,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             return;
         }
 
-        const css = this._renderSnippetCss(false);
+        const css = this._renderSnippetCss();
 
         // Read the snippet's live state rather than trusting `_snippetEnabled`.
         //
@@ -3599,12 +3579,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
         const onDisk = await this._readSnippet(snippetPath);
 
-        // A file that already holds exactly this CSS needs neither the write nor the reload that
-        // follows it. The reload is not free: Obsidian re-reads every enabled snippet and the
-        // document rebuilds its rules, which on a phone means the font files being read and parsed
-        // again. This is the ordinary case at the start of a mobile session, where the file left
-        // behind already holds the current session's URLs (the platform's own file URI carries no
-        // per-launch token), so the startup apply has nothing to change.
+        // Avoid rewriting the portable snippet when only this device's resource URLs changed.
         if (onDisk === css) {
             if (!isSnippetEnabled) {
                 this._snippetEnabled = true;
@@ -3623,7 +3598,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
             this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
         }
-        this._log(`[Local Font Loader] Applied ${(css.length / 1024 / 1024).toFixed(2)} MB of CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
+        this._log(`[Local Font Loader] Applied ${(css.length / 1024).toFixed(1)} KB of portable CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
     }
 
     /**
@@ -3646,20 +3621,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
     }
 
-    /**
-     * Makes Obsidian read the snippet from disk instead of from its own cache.
-     *
-     * Rewriting the file is *not* enough on its own. Obsidian caches a snippet's text by path and
-     * drops the entry only when its file watcher reports a change — and that watcher is armed
-     * lazily, so it is not watching yet when the first apply of a session rewrites the file. The
-     * document then keeps what the previous session left behind: the parked rules at the start of
-     * a normal session, or the previous session's dead URLs before that. Nothing on screen
-     * recovers from that, and only a later apply — once the watcher happens to be watching — puts
-     * the fonts back, which is the "apply the fonts again and they work" this plugin used to
-     * require after every start.
-     *
-     * @param snippetPath - The vault path the snippet was just written to
-     */
+    /** Invalidate Obsidian's lazy snippet cache after writing or sanitizing portable CSS. */
     _forceSnippetReload(snippetPath: string): void {
         try {
             const customCss = this.app.customCss;
@@ -3670,77 +3632,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }
     }
 
-    /**
-     * The snippet's text, in the form the file has to be left in.
-     *
-     * `parked` is the whole difference between "the app is running" and "the app is about to
-     * stop". Every `@font-face` URL is resolved from the running app — the host in it is a token
-     * Obsidian's main process mints afresh on each launch — so a `src` written to disk is dead by
-     * the next start. Obsidian reads the snippet and injects its `<style>` element before any
-     * plugin's `onload` runs, so that dead copy is always the one parsed first, and each font in
-     * it is then requested from a host that no longer exists: the startup burst of
-     * `net::ERR_FILE_NOT_FOUND` that parking exists to prevent.
-     *
-     * Scoping the rules to print media leaves the copy inert on screen — an inert rule is never
-     * fetched — while Export to PDF, which renders the cloned `<style>` elements in print media,
-     * still finds them. The rest of the snippet carries no URL and is left alone, so the fonts
-     * keep their configuration either way, and the first apply of the next session writes the live
-     * form back over the parked one.
-     *
-     * @param parked - Whether the text is being left behind for the next start
-     * @returns the CSS to write
-     */
-    _renderSnippetCss(parked: boolean): string {
+    /** The synced snippet never contains font faces or device-specific resource URLs. */
+    _renderSnippetCss(): string {
         return Array.from(this._snippetCss.entries())
-            .map(([cssId, css]) => parked && cssId === FONT_FACES_ID ? `@media print {\n${css}}\n` : css)
+            .filter(([cssId]) => cssId !== FONT_FACES_ID)
+            .map(([, css]) => css)
             .join('\n');
     }
-
-    /**
-     * Leaves the snippet in the form that is safe to be read at startup.
-     *
-     * Runs from the window's `beforeunload`, which is the last moment the renderer gets: the
-     * unload handler cannot await anything, and the renderer may be torn down before a promise
-     * resolves, so the write is issued synchronously where the platform allows it — the desktop
-     * adapter holds Node's `fs`, and a few kilobytes land long before the process goes. Mobile has
-     * no such adapter (and no unload event to speak of), so it keeps the asynchronous path, which
-     * is what the rest of the plugin uses anyway.
-     *
-     * If the unload is called off — something else can hold the close up the way this plugin's own
-     * prompt-holding neighbours do — the session keeps running with a parked file, and the screen
-     * faces, which came from the live rules, are gone. The apply put back on a timer is what
-     * covers that; when the app really is leaving, the timer dies with it.
-     */
-    _parkSnippetForNextStart(): void {
-        try {
-            const customCss = this.app.customCss;
-            if (!customCss || this._snippetCss.size === 0) {
-                return;
-            }
-
-            const css = this._renderSnippetCss(true);
-            const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
-            const adapter = this.app.vault.adapter as DataAdapter & AdapterWithSyncWrite;
-
-            if (adapter.fs?.writeFileSync && adapter.getFullPath) {
-                adapter.fs.writeFileSync(adapter.getFullPath(snippetPath), css);
-                this._log(`[Local Font Loader] Snippet parked for the next start (${(css.length / 1024).toFixed(1)} KB).`);
-            } else {
-                void adapter.write(snippetPath, css);
-            }
-
-            // The recovery apply generates the same CSS text, so it would be skipped as a no-op
-            // while the file on disk holds the parked form: the record of what was applied is
-            // dropped to make it run again.
-            this._appliedCss.delete(FONT_FACES_ID);
-            window.setTimeout(() => {
-                void this.applyFonts();
-            }, SNIPPET_PARK_RECOVERY_MS);
-        } catch (error) {
-            this._logError('[Local Font Loader] Could not park the snippet for the next start:', error);
-        }
-    }
-
 
     removeFontStyles() {
         this._removeGeneratedStyles(FONT_FACES_ID);

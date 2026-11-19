@@ -1,5 +1,9 @@
 import type { DeviceMeta, DeviceType, FontPreset, PluginSettings } from './types';
 
+export function deviceGroup(settings: PluginSettings, type: DeviceType): DeviceType | 'mobile' {
+    return settings.mergeMobileDeviceTypes && type !== 'computer' ? 'mobile' : type;
+}
+
 export const DEVICE_TYPES: readonly DeviceType[] = ['computer', 'tablet', 'phone'];
 
 export function isDeviceType(value: unknown): value is DeviceType {
@@ -24,7 +28,8 @@ export function getRecordedDeviceType(meta: DeviceMeta | undefined, override?: D
 /** 仅已启用且有效的类型分配覆盖单设备配置；Unassigned or deleted targets retain the old fallback. */
 export function resolveDeviceTypePreset(settings: PluginSettings, type: DeviceType | undefined): FontPreset | undefined {
     if (!settings.deviceTypeModeEnabled || !type) return undefined;
-    const id = settings.deviceTypePresets[type];
+    const group = deviceGroup(settings, type);
+    const id = group === 'mobile' ? settings.mobileDevicePreset : settings.deviceTypePresets[group];
     return id ? settings.presets.find(preset => preset.id === id) : undefined;
 }
 
@@ -33,5 +38,7 @@ export function bindDeviceTypeToPreset(settings: PluginSettings, type: DeviceTyp
     if (!DEVICE_TYPES.includes(type) || !settings.presets.some(preset => preset.id === presetId)) {
         throw new Error('Cannot assign a device type without a valid type and preset');
     }
-    settings.deviceTypePresets[type] = presetId;
+    const group = deviceGroup(settings, type);
+    if (group === 'mobile') settings.mobileDevicePreset = presetId;
+    else settings.deviceTypePresets[group] = presetId;
 }

@@ -9,7 +9,7 @@ import { Menu, Notice, Platform, Setting, setIcon } from 'obsidian';
 
 import { t } from '../../i18n';
 import { deviceLimitNotices } from '../../device-presets';
-import { DEVICE_TYPES, bindDeviceTypeToPreset, detectDeviceType, getRecordedDeviceType, isDeviceType } from '../../device-mode';
+import { DEVICE_TYPES, bindDeviceTypeToPreset, detectDeviceType, deviceGroup, getRecordedDeviceType, isDeviceType } from '../../device-mode';
 import { TextInputModal, showConfirmDialog } from '../modals';
 import type FontManagerSettingTab from '../settings-tab';
 
@@ -44,7 +44,23 @@ function renderDeviceTypeSettings(tab: FontManagerSettingTab, containerEl: HTMLE
         });
     if (!settings.deviceTypeModeEnabled) return;
 
-    for (const type of DEVICE_TYPES) {
+    new Setting(containerEl)
+        .setName(t('mergeMobileDeviceTypes'))
+        .setDesc(t('mergeMobileDeviceTypesDesc'))
+        .addToggle(toggle => {
+            toggle.setValue(settings.mergeMobileDeviceTypes === true);
+            toggle.toggleEl.setAttribute('aria-label', t('mergeMobileDeviceTypes'));
+            toggle.onChange(enabled => {
+                settings.mergeMobileDeviceTypes = enabled;
+                runDeviceAction(tab, async () => {
+                    await tab.plugin.saveSettings();
+                    await tab.plugin.applyFonts();
+                    tab.update();
+                });
+            });
+        });
+    const groups = settings.mergeMobileDeviceTypes ? ['computer', 'mobile'] as const : DEVICE_TYPES;
+    for (const type of groups) {
         const name = t(`deviceType_${type}`);
         new Setting(containerEl)
             .setName(name)
@@ -53,12 +69,14 @@ function renderDeviceTypeSettings(tab: FontManagerSettingTab, containerEl: HTMLE
                 dropdown.selectEl.setAttribute('aria-label', name);
                 dropdown.addOption(INDIVIDUAL_BINDING_VALUE, t('deviceTypeUseDeviceBinding'));
                 for (const preset of settings.presets) dropdown.addOption(preset.id, preset.name);
-                const assigned = settings.deviceTypePresets[type];
+                const assigned = type === 'mobile' ? settings.mobileDevicePreset : settings.deviceTypePresets[type];
                 dropdown.setValue(assigned && settings.presets.some(preset => preset.id === assigned)
                     ? assigned : INDIVIDUAL_BINDING_VALUE);
                 dropdown.onChange(id => {
-                    if (id === INDIVIDUAL_BINDING_VALUE) delete settings.deviceTypePresets[type];
-                    else bindDeviceTypeToPreset(settings, type, id);
+                    if (id === INDIVIDUAL_BINDING_VALUE) {
+                        if (type === 'mobile') delete settings.mobileDevicePreset;
+                        else delete settings.deviceTypePresets[type];
+                    } else bindDeviceTypeToPreset(settings, type === 'mobile' ? 'phone' : type, id);
                     runDeviceAction(tab, async () => {
                         await tab.plugin.saveSettings();
                         await tab.plugin.applyFonts();
@@ -76,6 +94,18 @@ function renderDeviceTypeSettings(tab: FontManagerSettingTab, containerEl: HTMLE
  * @param tab - The settings tab, for access to the plugin and shared helpers
  * @param containerEl - Where to append the section
  */
+const openDeviceGroups = new WeakMap<FontManagerSettingTab, Set<string>>();
+
+function createDeviceTable(parent: HTMLElement, classified: boolean): HTMLTableSectionElement {
+    const label = t('deviceTableDevice');
+    const wrapper = parent.createDiv({ cls: 'lfl-device-table-scroll', attr: { tabindex: '0', role: 'region', 'aria-label': label } });
+    const table = wrapper.createEl('table', { cls: 'lfl-device-table' });
+    const header = table.createEl('thead').createEl('tr');
+    const columns = classified ? [label, t('deviceTypeLabel'), t('deviceTableActions')] : [label, t('deviceTableActions')];
+    for (const text of columns) header.createEl('th', { text, attr: { scope: 'col' } });
+    return table.createEl('tbody');
+}
+
 export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, containerEl: HTMLElement): void {
         // ========================================
         // Sync Delay Notice Callout
@@ -281,20 +311,52 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
 
             if (devicesToShow.length === 0) {
                 devicesContainer.createEl('p', {
-                    text: t('dragDeviceHere'),
+                    text: t(tab.plugin.settings.deviceTypeModeEnabled ? 'deviceTableEmpty' : 'dragDeviceHere'),
                     cls: 'setting-item-description'
                 });
             } else {
+                const settings = tab.plugin.settings;
+                const classified = settings.deviceTypeModeEnabled;
+                const buckets = new Map<string, HTMLTableSectionElement>();
+                const flat = classified ? undefined : createDeviceTable(devicesContainer, false);
+                if (classified) {
+                    const groupIds = settings.mergeMobileDeviceTypes ? ['computer', 'mobile', 'unclassified']
+                        : [...DEVICE_TYPES, 'unclassified'];
+                    const expanded = openDeviceGroups.get(tab) ?? new Set<string>();
+                    openDeviceGroups.set(tab, expanded);
+                    for (const group of groupIds) {
+                        const members = devicesToShow.filter(id => {
+                            const type = tab.plugin.getDeviceType(id);
+                            return (type ? deviceGroup(settings, type) : 'unclassified') === group;
+                        });
+                        if (members.length === 0) continue;
+                        const key = JSON.stringify([preset.id, group]);
+                        const details = devicesContainer.createEl('details', { cls: 'lfl-device-group' });
+                        details.open = expanded.has(key);
+                        const summary = details.createEl('summary');
+                        setIcon(summary.createSpan({ cls: 'lfl-device-chevron', attr: { 'aria-hidden': 'true' } }), 'chevron-right');
+                        summary.createSpan({ text: t(`deviceType_${group}`) });
+                        summary.createSpan({ text: String(members.length), cls: 'lfl-device-group-count' });
+                        tab._addEventListener(details, 'toggle', () => {
+                            if (details.open) expanded.add(key);
+                            else expanded.delete(key);
+                        });
+                        const body = createDeviceTable(details, true);
+                        for (const id of members) buckets.set(id, body);
+                    }
+                }
                 devicesToShow.forEach(deviceId => {
+                    const body = flat ?? buckets.get(deviceId);
+                    if (!body) return;
                     const deviceName = tab.plugin._getDeviceName(deviceId);
                     const isCurrent = deviceId === tab.plugin.currentDeviceId;
 
-                    const deviceItem = devicesContainer.createDiv({
+                    const deviceItem = body.createEl('tr', {
                         cls: 'device-item'
                     });
 
                     // OS icon + device name container
-                    const deviceInfoContainer = deviceItem.createDiv({ cls: 'lfl-device-info' });
+                    const deviceInfoContainer = deviceItem.createEl('th', { attr: { scope: 'row' } }).createDiv({ cls: 'lfl-device-info' });
 
                     // OS icon (using CSS class)
                     const osIcon = deviceInfoContainer.createSpan({
@@ -365,12 +427,9 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     }
 
                     // Button container
-                    const btnContainer = deviceItem.createDiv({ cls: 'device-actions' });
-
                     if (tab.plugin.settings.deviceTypeModeEnabled) {
                         // 旧设备可显式补充类型，原 ID 分配不变；Classification is separate from assignment.
-                        new Setting(textContainer)
-                            .setName(t('deviceTypeLabel'))
+                        new Setting(deviceItem.createEl('td', { cls: 'lfl-device-type-cell' }))
                             .addDropdown(dropdown => {
                                 dropdown.selectEl.setAttribute('aria-label', `${deviceName}: ${t('deviceTypeLabel')}`);
                                 const automaticType = isCurrent ? detectDeviceType(Platform)
@@ -393,7 +452,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                             });
                     }
 
-                    // Edit button (shown for all devices) - uses a white icon
+                    const btnContainer = deviceItem.createEl('td').createDiv({ cls: 'device-actions' });
                     const editBtn = btnContainer.createEl('button', {
                         cls: 'clickable-icon device-edit-btn',
                         attr: { 'aria-label': t('editDeviceName') }

@@ -33,7 +33,14 @@ var TRANSLATIONS = {
     deviceTypeLabel: "Device type",
     deviceTypeAutomatic: "Automatic",
     deviceTypeUnknown: "Not classified (keep individual binding)",
-    deviceTypeCardsDesc: "Cards below show saved individual bindings. Type assignments above override them while this mode is on. Classify older mobile devices manually if needed.",
+    deviceTypeCardsDesc: "Tables below show saved individual bindings. Type assignments above override them while this mode is on. Classify older mobile devices manually if needed.",
+    deviceType_mobile: "Tablet and phone",
+    deviceType_unclassified: "Unclassified",
+    mergeMobileDeviceTypes: "Group tablets and phones together",
+    mergeMobileDeviceTypesDesc: "Use a shared preset. Turning this off restores the separate assignments.",
+    deviceTableDevice: "Device",
+    deviceTableActions: "Actions",
+    deviceTableEmpty: "No devices",
     deviceType_computer: "Computer",
     deviceType_tablet: "Tablet",
     deviceType_phone: "Phone",
@@ -247,7 +254,14 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     deviceTypeLabel: "设备类型",
     deviceTypeAutomatic: "自动识别",
     deviceTypeUnknown: "待分类（沿用单设备绑定）",
-    deviceTypeCardsDesc: "下方卡片展示保留的单设备绑定。此模式开启时，上方类型预设优先生效；旧版移动设备可手工补充类型。",
+    deviceTypeCardsDesc: "下方表格展示保留的单设备绑定。此模式开启时，上方类型预设优先生效；旧版移动设备可手工补充类型。",
+    deviceType_mobile: "平板与手机",
+    deviceType_unclassified: "未分类",
+    mergeMobileDeviceTypes: "合并平板与手机",
+    mergeMobileDeviceTypesDesc: "共用一个预设，关闭后恢复各自的设置。",
+    deviceTableDevice: "设备",
+    deviceTableActions: "操作",
+    deviceTableEmpty: "没有设备",
     deviceType_computer: "电脑",
     deviceType_tablet: "平板",
     deviceType_phone: "手机",
@@ -770,7 +784,14 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     deviceTypeLabel: "裝置類型",
     deviceTypeAutomatic: "自動辨識",
     deviceTypeUnknown: "待分類（沿用個別裝置綁定）",
-    deviceTypeCardsDesc: "下方卡片展示保留的個別裝置綁定。此模式開啟時，上方類型預設優先生效；舊版行動裝置可手動補充類型。",
+    deviceTypeCardsDesc: "下方表格展示保留的個別裝置綁定。此模式開啟時，上方類型預設優先生效；舊版行動裝置可手動補充類型。",
+    deviceType_mobile: "平板與手機",
+    deviceType_unclassified: "未分類",
+    mergeMobileDeviceTypes: "合併平板與手機",
+    mergeMobileDeviceTypesDesc: "共用一個預設，關閉後恢復各自的設定。",
+    deviceTableDevice: "裝置",
+    deviceTableActions: "操作",
+    deviceTableEmpty: "沒有裝置",
     deviceType_computer: "電腦",
     deviceType_tablet: "平板",
     deviceType_phone: "手機",
@@ -1029,6 +1050,7 @@ var DEFAULT_SETTINGS = {
   fontFamilies: [],
   autoLoadOnStartup: true,
   deviceTypeModeEnabled: false,
+  mergeMobileDeviceTypes: false,
   deviceTypePresets: {},
   deviceTypeOverrides: {},
   deviceFingerprints: {},
@@ -1276,6 +1298,8 @@ function normalizeSettings(raw) {
     presets: uniquePresets,
     deviceTypeModeEnabled: source.deviceTypeModeEnabled === true,
     deviceTypePresets: deviceTypePresets(source.deviceTypePresets),
+    mergeMobileDeviceTypes: source.mergeMobileDeviceTypes === true,
+    mobileDevicePreset: typeof source.mobileDevicePreset === "string" ? source.mobileDevicePreset : undefined,
     deviceTypeOverrides: deviceTypeOverrides(source.deviceTypeOverrides)
   };
 }
@@ -1295,6 +1319,9 @@ function parseFontFamilyMetadata(raw) {
 }
 
 // src/device-mode.ts
+function deviceGroup(settings, type) {
+  return settings.mergeMobileDeviceTypes && type !== "computer" ? "mobile" : type;
+}
 var DEVICE_TYPES = ["computer", "tablet", "phone"];
 function isDeviceType2(value) {
   return value === "computer" || value === "tablet" || value === "phone";
@@ -1318,14 +1345,19 @@ function getRecordedDeviceType(meta, override) {
 function resolveDeviceTypePreset(settings, type) {
   if (!settings.deviceTypeModeEnabled || !type)
     return;
-  const id = settings.deviceTypePresets[type];
+  const group = deviceGroup(settings, type);
+  const id = group === "mobile" ? settings.mobileDevicePreset : settings.deviceTypePresets[group];
   return id ? settings.presets.find((preset2) => preset2.id === id) : undefined;
 }
 function bindDeviceTypeToPreset(settings, type, presetId) {
   if (!DEVICE_TYPES.includes(type) || !settings.presets.some((preset2) => preset2.id === presetId)) {
     throw new Error("Cannot assign a device type without a valid type and preset");
   }
-  settings.deviceTypePresets[type] = presetId;
+  const group = deviceGroup(settings, type);
+  if (group === "mobile")
+    settings.mobileDevicePreset = presetId;
+  else
+    settings.deviceTypePresets[group] = presetId;
 }
 
 // src/font-metadata.ts
@@ -1954,20 +1986,36 @@ function renderDeviceTypeSettings(tab, containerEl) {
   });
   if (!settings.deviceTypeModeEnabled)
     return;
-  for (const type of DEVICE_TYPES) {
+  new import_obsidian2.Setting(containerEl).setName(t("mergeMobileDeviceTypes")).setDesc(t("mergeMobileDeviceTypesDesc")).addToggle((toggle) => {
+    toggle.setValue(settings.mergeMobileDeviceTypes === true);
+    toggle.toggleEl.setAttribute("aria-label", t("mergeMobileDeviceTypes"));
+    toggle.onChange((enabled) => {
+      settings.mergeMobileDeviceTypes = enabled;
+      runDeviceAction(tab, async () => {
+        await tab.plugin.saveSettings();
+        await tab.plugin.applyFonts();
+        tab.update();
+      });
+    });
+  });
+  const groups = settings.mergeMobileDeviceTypes ? ["computer", "mobile"] : DEVICE_TYPES;
+  for (const type of groups) {
     const name = t(`deviceType_${type}`);
     new import_obsidian2.Setting(containerEl).setName(name).setDesc(t("deviceTypePresetDesc")).addDropdown((dropdown) => {
       dropdown.selectEl.setAttribute("aria-label", name);
       dropdown.addOption(INDIVIDUAL_BINDING_VALUE, t("deviceTypeUseDeviceBinding"));
       for (const preset2 of settings.presets)
         dropdown.addOption(preset2.id, preset2.name);
-      const assigned = settings.deviceTypePresets[type];
+      const assigned = type === "mobile" ? settings.mobileDevicePreset : settings.deviceTypePresets[type];
       dropdown.setValue(assigned && settings.presets.some((preset2) => preset2.id === assigned) ? assigned : INDIVIDUAL_BINDING_VALUE);
       dropdown.onChange((id) => {
-        if (id === INDIVIDUAL_BINDING_VALUE)
-          delete settings.deviceTypePresets[type];
-        else
-          bindDeviceTypeToPreset(settings, type, id);
+        if (id === INDIVIDUAL_BINDING_VALUE) {
+          if (type === "mobile")
+            delete settings.mobileDevicePreset;
+          else
+            delete settings.deviceTypePresets[type];
+        } else
+          bindDeviceTypeToPreset(settings, type === "mobile" ? "phone" : type, id);
         runDeviceAction(tab, async () => {
           await tab.plugin.saveSettings();
           await tab.plugin.applyFonts();
@@ -1977,6 +2025,17 @@ function renderDeviceTypeSettings(tab, containerEl) {
     });
   }
   containerEl.createEl("p", { cls: "setting-item-description", text: t("deviceTypeCardsDesc") });
+}
+var openDeviceGroups = new WeakMap;
+function createDeviceTable(parent, classified) {
+  const label = t("deviceTableDevice");
+  const wrapper = parent.createDiv({ cls: "lfl-device-table-scroll", attr: { tabindex: "0", role: "region", "aria-label": label } });
+  const table = wrapper.createEl("table", { cls: "lfl-device-table" });
+  const header = table.createEl("thead").createEl("tr");
+  const columns = classified ? [label, t("deviceTypeLabel"), t("deviceTableActions")] : [label, t("deviceTableActions")];
+  for (const text2 of columns)
+    header.createEl("th", { text: text2, attr: { scope: "col" } });
+  return table.createEl("tbody");
 }
 function renderDeviceAndPresetSection(tab, containerEl) {
   const syncWarningCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "info" } });
@@ -2121,17 +2180,53 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     }
     if (devicesToShow.length === 0) {
       devicesContainer.createEl("p", {
-        text: t("dragDeviceHere"),
+        text: t(tab.plugin.settings.deviceTypeModeEnabled ? "deviceTableEmpty" : "dragDeviceHere"),
         cls: "setting-item-description"
       });
     } else {
+      const settings = tab.plugin.settings;
+      const classified = settings.deviceTypeModeEnabled;
+      const buckets = new Map;
+      const flat = classified ? undefined : createDeviceTable(devicesContainer, false);
+      if (classified) {
+        const groupIds = settings.mergeMobileDeviceTypes ? ["computer", "mobile", "unclassified"] : [...DEVICE_TYPES, "unclassified"];
+        const expanded = openDeviceGroups.get(tab) ?? new Set;
+        openDeviceGroups.set(tab, expanded);
+        for (const group of groupIds) {
+          const members = devicesToShow.filter((id) => {
+            const type = tab.plugin.getDeviceType(id);
+            return (type ? deviceGroup(settings, type) : "unclassified") === group;
+          });
+          if (members.length === 0)
+            continue;
+          const key = JSON.stringify([preset2.id, group]);
+          const details = devicesContainer.createEl("details", { cls: "lfl-device-group" });
+          details.open = expanded.has(key);
+          const summary = details.createEl("summary");
+          import_obsidian2.setIcon(summary.createSpan({ cls: "lfl-device-chevron", attr: { "aria-hidden": "true" } }), "chevron-right");
+          summary.createSpan({ text: t(`deviceType_${group}`) });
+          summary.createSpan({ text: String(members.length), cls: "lfl-device-group-count" });
+          tab._addEventListener(details, "toggle", () => {
+            if (details.open)
+              expanded.add(key);
+            else
+              expanded.delete(key);
+          });
+          const body = createDeviceTable(details, true);
+          for (const id of members)
+            buckets.set(id, body);
+        }
+      }
       devicesToShow.forEach((deviceId) => {
+        const body = flat ?? buckets.get(deviceId);
+        if (!body)
+          return;
         const deviceName = tab.plugin._getDeviceName(deviceId);
         const isCurrent = deviceId === tab.plugin.currentDeviceId;
-        const deviceItem = devicesContainer.createDiv({
+        const deviceItem = body.createEl("tr", {
           cls: "device-item"
         });
-        const deviceInfoContainer = deviceItem.createDiv({ cls: "lfl-device-info" });
+        const deviceInfoContainer = deviceItem.createEl("th", { attr: { scope: "row" } }).createDiv({ cls: "lfl-device-info" });
         const osIcon = deviceInfoContainer.createSpan({
           cls: "device-os-icon"
         });
@@ -2175,9 +2270,8 @@ function renderDeviceAndPresetSection(tab, containerEl) {
             cls: "device-meta"
           });
         }
-        const btnContainer = deviceItem.createDiv({ cls: "device-actions" });
         if (tab.plugin.settings.deviceTypeModeEnabled) {
-          new import_obsidian2.Setting(textContainer).setName(t("deviceTypeLabel")).addDropdown((dropdown) => {
+          new import_obsidian2.Setting(deviceItem.createEl("td", { cls: "lfl-device-type-cell" })).addDropdown((dropdown) => {
             dropdown.selectEl.setAttribute("aria-label", `${deviceName}: ${t("deviceTypeLabel")}`);
             const automaticType = isCurrent ? detectDeviceType(import_obsidian2.Platform) : getRecordedDeviceType(tab.plugin.settings.deviceMeta[deviceId]);
             dropdown.addOption(AUTOMATIC_DEVICE_TYPE_VALUE, automaticType ? `${t("deviceTypeAutomatic")} (${t(`deviceType_${automaticType}`)})` : t("deviceTypeUnknown"));
@@ -2197,6 +2291,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
             });
           });
         }
+        const btnContainer = deviceItem.createEl("td").createDiv({ cls: "device-actions" });
         const editBtn2 = btnContainer.createEl("button", {
           cls: "clickable-icon device-edit-btn",
           attr: { "aria-label": t("editDeviceName") }

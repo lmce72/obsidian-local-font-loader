@@ -188,6 +188,8 @@ export function normalizeSettings(raw: unknown): PluginSettings {
         deviceAliases: stringMap(source.deviceAliases), deviceMeta: deviceMap(source.deviceMeta), presets: uniquePresets,
         deviceTypeModeEnabled: source.deviceTypeModeEnabled === true,
         deviceTypePresets: deviceTypePresets(source.deviceTypePresets),
+        mergeMobileDeviceTypes: source.mergeMobileDeviceTypes === true,
+        mobileDevicePreset: typeof source.mobileDevicePreset === 'string' ? source.mobileDevicePreset : undefined,
         deviceTypeOverrides: deviceTypeOverrides(source.deviceTypeOverrides),
     };
 }

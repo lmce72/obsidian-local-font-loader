@@ -138,6 +138,8 @@ export interface PluginSettings {
     autoLoadOnStartup: boolean;
     /** 默认关闭，保留原有按设备 ID 分配；Type bindings never replace legacy bindings. */
     deviceTypeModeEnabled: boolean;
+    mergeMobileDeviceTypes?: boolean;
+    mobileDevicePreset?: string;
     deviceTypePresets: Partial<Record<DeviceType, string>>;
     deviceTypeOverrides: Record<string, DeviceType>;
     /** Legacy fingerprint → device id. A one-time migration ledger, consumed on first run. */

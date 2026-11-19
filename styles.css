@@ -151,9 +151,9 @@
     border-radius: 6px;
     border: 2px dashed var(--background-modifier-border);
     background: var(--background-primary);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
     transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
@@ -167,29 +167,41 @@
     border-style: solid;
 }
 
-.device-item {
-    display: inline-flex;
+.lfl-device-table-scroll { overflow-x: auto; }
+.lfl-device-table { width: 100%; border-collapse: collapse; font-size: var(--font-ui-small); }
+.lfl-device-table th, .lfl-device-table td {
+    padding: 5px 8px;
+    text-align: start;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+.lfl-device-table thead { color: var(--text-muted); background: var(--background-secondary); }
+.lfl-device-table th[scope="row"] { font-weight: normal; }
+.lfl-device-table :is(th, td):last-child { width: 1%; }
+.lfl-device-table .device-actions { display: flex; align-items: center; justify-content: flex-end; }
+.lfl-device-table .device-item[draggable="true"] { cursor: grab; }
+.lfl-device-table .device-item.dragging { opacity: 0.5; }
+.lfl-device-table .current-device { background: var(--background-modifier-hover); }
+.lfl-device-type-cell .setting-item { display: block; margin: 0; padding: 0; border: 0; }
+.lfl-device-type-cell .setting-item-info { display: none; }
+.lfl-device-type-cell .setting-item-control { justify-content: flex-start; }
+.lfl-device-type-cell select { max-width: min(32vw, 16em); }
+.lfl-device-group > summary {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 6px;
+    gap: 8px;
+    min-height: 34px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: var(--radius-s);
     background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    cursor: move;
-    user-select: none;
-    font-size: 0.9em;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    color: var(--text-normal);
+    font-weight: var(--font-medium);
 }
-
-.device-item.dragging {
-    opacity: 0.5;
-}
-
-.device-item.current-device {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    font-weight: 500;
-}
+.lfl-device-group > summary::-webkit-details-marker { display: none; }
+.lfl-device-group > summary:hover { background: var(--background-modifier-hover); }
+.lfl-device-chevron { display: inline-flex; color: var(--icon-color); }
+.lfl-device-group[open] .lfl-device-chevron { transform: rotate(90deg); }
+.lfl-device-group-count { margin-inline-start: auto; color: var(--text-muted); }
 
 .device-remove-btn {
     margin-left: 4px;
@@ -240,10 +252,6 @@
         gap: 12px;
     }
 
-    .device-item {
-        font-size: 0.85em;
-        padding: 5px 10px;
-    }
 }
 
 /* Operating system icons */
@@ -643,8 +651,12 @@
     min-width: 0;
 }
 
-.device-edit-btn {
-    color: var(--text-on-accent);
+.lfl-device-table .device-edit-btn {
+    color: var(--icon-color, var(--text-muted));
+}
+
+.lfl-device-table .device-edit-btn:hover {
+    color: var(--icon-color-hover, var(--text-normal));
 }
 
 /* The settings tab renders its whole page inside one declarative render definition, so that

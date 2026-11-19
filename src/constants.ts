@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     fontFamilies: [],         // Global font family grouping info (shared by all presets)
     autoLoadOnStartup: true,
     deviceTypeModeEnabled: false,
+    mergeMobileDeviceTypes: false,
     deviceTypePresets: {},
     deviceTypeOverrides: {},
 

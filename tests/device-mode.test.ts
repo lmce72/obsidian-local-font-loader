@@ -48,6 +48,25 @@ describe('optional device type mode', () => {
         expect(resolveDeviceTypePreset(settings, 'tablet')).toBe(custom);
     });
 
+    test('merged mobile devices share one preset and restore their separate presets when split', () => {
+        const settings = structuredClone(DEFAULT_SETTINGS);
+        const global = settings.presets[0];
+        const tablet = { ...structuredClone(global), id: 'tablet-preset' };
+        settings.presets.push(tablet);
+        settings.deviceTypeModeEnabled = true;
+        bindDeviceTypeToPreset(settings, 'tablet', tablet.id);
+        bindDeviceTypeToPreset(settings, 'phone', global.id);
+        settings.mergeMobileDeviceTypes = true;
+        expect(resolveDeviceTypePreset(settings, 'tablet')).toBeUndefined();
+        bindDeviceTypeToPreset(settings, 'phone', tablet.id);
+        expect(resolveDeviceTypePreset(settings, 'phone')).toBe(tablet);
+        expect(resolveDeviceTypePreset(settings, 'tablet')).toBe(tablet);
+        expect(resolveDeviceTypePreset(settings, 'computer')).toBeUndefined();
+        settings.mergeMobileDeviceTypes = false;
+        expect(resolveDeviceTypePreset(settings, 'tablet')).toBe(tablet);
+        expect(resolveDeviceTypePreset(settings, 'phone')).toBe(global);
+    });
+
     test('missing presets fall back and invalid assignments do not mutate settings', () => {
         const settings = structuredClone(DEFAULT_SETTINGS);
         settings.deviceTypeModeEnabled = true;

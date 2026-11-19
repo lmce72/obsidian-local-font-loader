@@ -27,6 +27,7 @@ class FolderInputSuggest extends AbstractInputSuggest<TFolder> {
         el.setText(folder.path);
     }
 
+    // 旧版 PopoverSuggest 的抽象方法同样需要实现；Also implements the legacy superclass contract.
     selectSuggestion(folder: TFolder): void {
         this.setValue(folder.path);
         this.onPick(folder.path);

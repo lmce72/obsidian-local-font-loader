@@ -1,10 +1,43 @@
+var __create = Object.create;
+var __getProtoOf = Object.getPrototypeOf;
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __toESM = (mod, isNodeMode, target) => {
+  target = mod != null ? __create(__getProtoOf(mod)) : {};
+  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  for (let key of __getOwnPropNames(mod))
+    if (!__hasOwnProp.call(to, key))
+      __defProp(to, key, {
+        get: () => mod[key],
+        enumerable: true
+      });
+  return to;
+};
 // src/plugin.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/i18n.ts
-var import_obsidian = require("obsidian");
+var Obsidian = __toESM(require("obsidian"));
+function getHostLanguage() {
+  const languageApi = Obsidian;
+  const locale = typeof languageApi.getLanguage === "function" ? languageApi.getLanguage() : typeof window !== "undefined" ? window.localStorage?.getItem("language") : null;
+  return locale || "en";
+}
 var TRANSLATIONS = {
   en: {
+    deviceTypeMode: "Group font presets by device type",
+    deviceTypeModeDesc: "Optional computer / tablet / phone mode. Assigned types take priority; unassigned types keep individual device bindings. Turning this off restores those bindings.",
+    deviceTypePresetDesc: "Use this preset for every device of this type. Leave unassigned to keep individual bindings.",
+    deviceTypeUseDeviceBinding: "Use individual device bindings",
+    deviceTypeLabel: "Device type",
+    deviceTypeAutomatic: "Automatic",
+    deviceTypeUnknown: "Not classified (keep individual binding)",
+    deviceTypeCardsDesc: "Cards below show saved individual bindings. Type assignments above override them while this mode is on. Classify older mobile devices manually if needed.",
+    deviceType_computer: "Computer",
+    deviceType_tablet: "Tablet",
+    deviceType_phone: "Phone",
+    deviceTypeSaveFailed: "Could not save or apply the device setting. See the console for details.",
     pluginName: "Local Font Loader",
     pluginDesc: "Load custom fonts from your local vault",
     headerDirectoryConfig: "Directory Configuration",
@@ -207,6 +240,18 @@ Non-Latin fonts typically do not require full Italic/Bold variants and can ignor
     confirmRemoveDevice: 'Remove device "{0}" from all presets? This action cannot be undone.'
   },
   zh: {
+    deviceTypeMode: "按设备类型区分字体预设",
+    deviceTypeModeDesc: "可选的电脑／平板／手机模式。已分配类型优先生效，未分配类型沿用单设备绑定；关闭后恢复原有绑定。",
+    deviceTypePresetDesc: "同类型设备共用此预设；不选择则沿用各设备原有绑定。",
+    deviceTypeUseDeviceBinding: "沿用单设备绑定",
+    deviceTypeLabel: "设备类型",
+    deviceTypeAutomatic: "自动识别",
+    deviceTypeUnknown: "待分类（沿用单设备绑定）",
+    deviceTypeCardsDesc: "下方卡片展示保留的单设备绑定。此模式开启时，上方类型预设优先生效；旧版移动设备可手工补充类型。",
+    deviceType_computer: "电脑",
+    deviceType_tablet: "平板",
+    deviceType_phone: "手机",
+    deviceTypeSaveFailed: "设备设置保存或应用失败，请查看控制台。",
     pluginName: "本地字体加载器",
     pluginDesc: "从本地 Vault 加载自定义字体",
     headerDirectoryConfig: "目录配置",
@@ -718,6 +763,18 @@ Para una correcta renderización de cursiva y negrita en contenido de escritura 
     path: "Ruta"
   },
   "zh-TW": {
+    deviceTypeMode: "依裝置類型區分字型預設",
+    deviceTypeModeDesc: "可選的電腦／平板／手機模式。已分配類型優先生效，未分配類型沿用個別裝置綁定；關閉後恢復原有綁定。",
+    deviceTypePresetDesc: "同類型裝置共用此預設；不選擇則沿用各裝置原有綁定。",
+    deviceTypeUseDeviceBinding: "沿用個別裝置綁定",
+    deviceTypeLabel: "裝置類型",
+    deviceTypeAutomatic: "自動辨識",
+    deviceTypeUnknown: "待分類（沿用個別裝置綁定）",
+    deviceTypeCardsDesc: "下方卡片展示保留的個別裝置綁定。此模式開啟時，上方類型預設優先生效；舊版行動裝置可手動補充類型。",
+    deviceType_computer: "電腦",
+    deviceType_tablet: "平板",
+    deviceType_phone: "手機",
+    deviceTypeSaveFailed: "裝置設定儲存或套用失敗，請查看主控台。",
     pluginName: "本地字型載入器",
     pluginDesc: "從本地 Vault 載入自訂字型",
     headerDirectoryConfig: "目錄設定",
@@ -915,7 +972,7 @@ function t(key, localeOrParams = null, params = {}) {
     locale = localeOrParams;
   }
   if (!locale) {
-    const fullLocale = import_obsidian.getLanguage() || "en";
+    const fullLocale = getHostLanguage();
     if (TRANSLATIONS_BY_LOCALE[fullLocale]) {
       locale = fullLocale;
     } else {
@@ -930,12 +987,345 @@ function t(key, localeOrParams = null, params = {}) {
   return text;
 }
 function getCurrentLocale() {
-  return (import_obsidian.getLanguage() || "en").split("-")[0];
+  return getHostLanguage().split("-")[0];
 }
 function isLatinScriptLocale() {
   const locale = getCurrentLocale();
   const latinLocales = ["en", "es", "fr", "de", "it", "pt", "pl", "nl", "sv", "no", "da", "fi"];
   return latinLocales.includes(locale);
+}
+
+// src/math-glyph-policy.ts
+function canReplaceMathGlyph(code, entry) {
+  if (!Number.isInteger(code) || code === 8730 || code < 32 || code > 1114111 || code >= 57344 && code <= 63743 || code >= 983040)
+    return false;
+  const extra = entry[3];
+  if (!extra || typeof extra !== "object")
+    return true;
+  const face = "f" in extra ? extra.f : undefined;
+  return face === undefined || face === "" || face === "I";
+}
+function mathGlyphSelector(code, entry, mathJax4) {
+  const extra = entry[3];
+  const italic = extra && typeof extra === "object" && "f" in extra && extra.f === "I";
+  const faceGuard = italic ? ".TEX-I" : ':not([class*="TEX-"])';
+  const assemblyGuard = ":not(mjx-stretchy-h *):not(mjx-stretchy-v *)";
+  return `body mjx-c.mjx-c${Number(code).toString(16).toUpperCase()}${faceGuard}${assemblyGuard}${mathJax4 ? "" : "::before"}`;
+}
+function replaceableMathEntries(font) {
+  const seen = new Set;
+  return Object.entries(font.variant.normal?.chars ?? {}).filter(([code, entry]) => {
+    if (!Array.isArray(entry) || entry.length < 3 || seen.has(entry) || !canReplaceMathGlyph(Number(code), entry))
+      return false;
+    seen.add(entry);
+    return true;
+  });
+}
+
+// src/constants.ts
+var DEFAULT_SETTINGS = {
+  fontSourceDir: "Local-Fonts",
+  availableFonts: [],
+  fontFamilies: [],
+  autoLoadOnStartup: true,
+  deviceTypeModeEnabled: false,
+  deviceTypePresets: {},
+  deviceTypeOverrides: {},
+  deviceFingerprints: {},
+  deviceNameMap: {},
+  deviceMeta: {},
+  deviceAliases: {},
+  latinFontForUI: false,
+  presets: [
+    {
+      id: "default-preset",
+      name: "Default",
+      targetDevices: [],
+      fonts: {
+        ui: "",
+        text: "",
+        heading: "",
+        monospace: "",
+        math: "",
+        latin: ""
+      },
+      headingApplyToFileTitle: false,
+      latinFontEnabled: false,
+      latinFontScope: {
+        letters: true,
+        numbers: true,
+        punctuation: true,
+        symbols: true
+      }
+    }
+  ]
+};
+
+// src/settings-validation.ts
+var unsafeKeys = new Set(["__proto__", "prototype", "constructor"]);
+var variantTypes = ["regular", "italic", "bold", "bolditalic"];
+function isRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+function text(value, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+function flag(value, fallback) {
+  return typeof value === "boolean" ? value : fallback;
+}
+function safeKey(value) {
+  return value.length > 0 && !unsafeKeys.has(value);
+}
+function hasControlCharacter(value) {
+  for (let index = 0;index < value.length; index++) {
+    if (value.charCodeAt(index) < 32)
+      return true;
+  }
+  return false;
+}
+function strings(value) {
+  return Array.isArray(value) ? [...new Set(value.filter((item) => typeof item === "string" && safeKey(item)))] : [];
+}
+function stringMap(value) {
+  const result = {};
+  if (!isRecord(value))
+    return result;
+  for (const [key, item] of Object.entries(value)) {
+    if (safeKey(key) && typeof item === "string")
+      result[key] = item;
+  }
+  return result;
+}
+function relativePath(value) {
+  if (typeof value !== "string" || !value || hasControlCharacter(value) || value.includes(":"))
+    return null;
+  const path = value.replace(/\\/g, "/");
+  if (path.startsWith("/") || path.split("/").some((part) => part === ".."))
+    return null;
+  const normalized = path.split("/").filter((part) => part && part !== ".").join("/");
+  return normalized || null;
+}
+function fonts(value) {
+  const source = isRecord(value) ? value : {};
+  return {
+    ui: text(source.ui),
+    text: text(source.text),
+    heading: text(source.heading),
+    monospace: text(source.monospace),
+    math: text(source.math),
+    latin: text(source.latin)
+  };
+}
+function scope(value) {
+  const source = isRecord(value) ? value : {};
+  return {
+    letters: flag(source.letters, true),
+    numbers: flag(source.numbers, true),
+    punctuation: flag(source.punctuation, true),
+    symbols: flag(source.symbols, true)
+  };
+}
+function preset(value) {
+  if (!isRecord(value) || typeof value.id !== "string" || !safeKey(value.id))
+    return null;
+  return {
+    id: value.id,
+    name: text(value.name, value.id),
+    targetDevices: strings(value.targetDevices),
+    fonts: fonts(value.fonts),
+    latinFontEnabled: flag(value.latinFontEnabled, false),
+    latinFontScope: scope(value.latinFontScope),
+    headingApplyToFileTitle: flag(value.headingApplyToFileTitle, false)
+  };
+}
+function isVariant(value) {
+  return variantTypes.some((variant) => value === variant);
+}
+function isDeviceType(value) {
+  return value === "computer" || value === "tablet" || value === "phone";
+}
+function deviceTypePresets(value) {
+  const result = {};
+  if (!isRecord(value))
+    return result;
+  for (const type of ["computer", "tablet", "phone"]) {
+    if (typeof value[type] === "string")
+      result[type] = value[type];
+  }
+  return result;
+}
+function deviceTypeOverrides(value) {
+  const result = {};
+  if (!isRecord(value))
+    return result;
+  for (const [key, item] of Object.entries(value)) {
+    if (safeKey(key) && isDeviceType(item))
+      result[key] = item;
+  }
+  return result;
+}
+function font(value) {
+  if (!isRecord(value) || typeof value.name !== "string" || !value.name)
+    return null;
+  const path = relativePath(value.path);
+  if (!path || !/\.(ttf|otf|woff|woff2)$/i.test(path))
+    return null;
+  const basename = path.split("/").pop() || "";
+  const result = {
+    name: value.name,
+    path,
+    basename,
+    ext: basename.slice(basename.lastIndexOf(".") + 1).toLowerCase(),
+    familyName: text(value.familyName, value.name),
+    variantType: isVariant(value.variantType) ? value.variantType : "regular"
+  };
+  if (typeof value.subfamilyName === "string")
+    result.subfamilyName = value.subfamilyName;
+  if (typeof value.exists === "boolean")
+    result.exists = value.exists;
+  return result;
+}
+function family(value) {
+  if (!isRecord(value) || typeof value.familyName !== "string" || !value.familyName)
+    return null;
+  const folderPath = relativePath(value.folderPath);
+  if (!folderPath)
+    return null;
+  return {
+    familyName: value.familyName,
+    folderPath,
+    hasRegular: flag(value.hasRegular, false),
+    hasItalic: flag(value.hasItalic, false),
+    hasBold: flag(value.hasBold, false),
+    hasBoldItalic: flag(value.hasBoldItalic, false)
+  };
+}
+function device(value) {
+  if (!isRecord(value) || value.platform !== "desktop" && value.platform !== "mobile")
+    return null;
+  const os = value.os;
+  const result = {
+    platform: value.platform,
+    os: os === "ios" || os === "ipados" || os === "android" || os === "windows" || os === "macos" || os === "linux" ? os : "unknown",
+    model: text(value.model),
+    hostname: text(value.hostname)
+  };
+  if (typeof value.firstSeen === "string")
+    result.firstSeen = value.firstSeen;
+  if (typeof value.lastSeen === "string")
+    result.lastSeen = value.lastSeen;
+  if (typeof value.osVersion === "string")
+    result.osVersion = value.osVersion;
+  if (isDeviceType(value.type))
+    result.type = value.type;
+  return result;
+}
+function deviceMap(value) {
+  const result = {};
+  if (!isRecord(value))
+    return result;
+  for (const [key, item] of Object.entries(value)) {
+    if (!safeKey(key))
+      continue;
+    const metadata = device(item);
+    if (metadata)
+      result[key] = metadata;
+  }
+  return result;
+}
+function arrayOf(value, parse) {
+  if (!Array.isArray(value))
+    return [];
+  const result = [];
+  for (const item of value) {
+    const parsed = parse(item);
+    if (parsed !== null)
+      result.push(parsed);
+  }
+  return result;
+}
+function normalizeSettings(raw) {
+  const source = isRecord(raw) ? raw : {};
+  const presets = arrayOf(source.presets, preset);
+  const seen = new Set;
+  const uniquePresets = presets.filter((item) => !seen.has(item.id) && Boolean(seen.add(item.id)));
+  if (!uniquePresets.some((item) => item.id === "default-preset")) {
+    uniquePresets.unshift({
+      id: "default-preset",
+      name: "Default",
+      targetDevices: [],
+      fonts: fonts(source.fonts),
+      latinFontEnabled: flag(source.latinFontEnabled, false),
+      latinFontScope: scope(source.latinFontScope),
+      headingApplyToFileTitle: flag(source.headingApplyToFileTitle, false)
+    });
+  }
+  return {
+    fontSourceDir: relativePath(source.fontSourceDir) || DEFAULT_SETTINGS.fontSourceDir,
+    autoLoadOnStartup: flag(source.autoLoadOnStartup, DEFAULT_SETTINGS.autoLoadOnStartup),
+    latinFontForUI: flag(source.latinFontForUI, DEFAULT_SETTINGS.latinFontForUI),
+    availableFonts: arrayOf(source.availableFonts, font),
+    fontFamilies: arrayOf(source.fontFamilies, family),
+    deviceFingerprints: stringMap(source.deviceFingerprints),
+    deviceNameMap: stringMap(source.deviceNameMap),
+    deviceAliases: stringMap(source.deviceAliases),
+    deviceMeta: deviceMap(source.deviceMeta),
+    presets: uniquePresets,
+    deviceTypeModeEnabled: source.deviceTypeModeEnabled === true,
+    deviceTypePresets: deviceTypePresets(source.deviceTypePresets),
+    deviceTypeOverrides: deviceTypeOverrides(source.deviceTypeOverrides)
+  };
+}
+function parseFontFamilyMetadata(raw) {
+  if (!isRecord(raw) || !isRecord(raw.variants))
+    return null;
+  const variants = {};
+  for (const key of variantTypes) {
+    const filename = raw.variants[key];
+    if (typeof filename === "string" && !hasControlCharacter(filename) && !/[\\/:]/.test(filename) && filename !== "." && filename !== ".." && /\.(ttf|otf|woff|woff2)$/i.test(filename)) {
+      variants[key] = filename;
+    }
+  }
+  if (Object.keys(variants).length === 0)
+    return null;
+  return typeof raw.familyName === "string" && raw.familyName ? { familyName: raw.familyName, variants } : { variants };
+}
+
+// src/device-mode.ts
+var DEVICE_TYPES = ["computer", "tablet", "phone"];
+function isDeviceType2(value) {
+  return value === "computer" || value === "tablet" || value === "phone";
+}
+function detectDeviceType(platform) {
+  return platform.isMobileApp ? platform.isTablet ? "tablet" : "phone" : "computer";
+}
+function getRecordedDeviceType(meta, override) {
+  if (override)
+    return override;
+  if (meta?.type)
+    return meta.type;
+  if (meta?.platform === "desktop")
+    return "computer";
+  if (meta?.os === "ipados" || meta?.model === "iPad")
+    return "tablet";
+  if (meta?.os === "ios" && meta.model === "iPhone")
+    return "phone";
+  return;
+}
+function resolveDeviceTypePreset(settings, type) {
+  if (!settings.deviceTypeModeEnabled || !type)
+    return;
+  const id = settings.deviceTypePresets[type];
+  return id ? settings.presets.find((preset2) => preset2.id === id) : undefined;
+}
+function bindDeviceTypeToPreset(settings, type, presetId) {
+  if (!DEVICE_TYPES.includes(type) || !settings.presets.some((preset2) => preset2.id === presetId)) {
+    throw new Error("Cannot assign a device type without a valid type and preset");
+  }
+  settings.deviceTypePresets[type] = presetId;
 }
 
 // src/font-metadata.ts
@@ -1062,42 +1452,6 @@ function parseFontMetadata(arrayBuffer) {
     return null;
   }
 }
-
-// src/constants.ts
-var DEFAULT_SETTINGS = {
-  fontSourceDir: "Local-Fonts",
-  availableFonts: [],
-  fontFamilies: [],
-  autoLoadOnStartup: true,
-  deviceFingerprints: {},
-  deviceNameMap: {},
-  deviceMeta: {},
-  deviceAliases: {},
-  latinFontForUI: false,
-  presets: [
-    {
-      id: "default-preset",
-      name: "Default",
-      targetDevices: [],
-      fonts: {
-        ui: "",
-        text: "",
-        heading: "",
-        monospace: "",
-        math: "",
-        latin: ""
-      },
-      headingApplyToFileTitle: false,
-      latinFontEnabled: false,
-      latinFontScope: {
-        letters: true,
-        numbers: true,
-        punctuation: true,
-        symbols: true
-      }
-    }
-  ]
-};
 
 // src/device-repair.ts
 var DEVICE_STALE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -1299,12 +1653,12 @@ function remapDeviceIds(deviceIds, aliases) {
 
 // src/device-presets.ts
 function bindDeviceToPreset(presets, deviceId, presetId) {
-  const target = presets.find((preset) => preset.id === presetId);
+  const target = presets.find((preset2) => preset2.id === presetId);
   if (!target || !deviceId.trim()) {
     throw new Error("Cannot assign a device without a valid device and preset");
   }
-  for (const preset of presets) {
-    preset.targetDevices = preset.targetDevices.filter((id) => id !== deviceId);
+  for (const preset2 of presets) {
+    preset2.targetDevices = preset2.targetDevices.filter((id) => id !== deviceId);
   }
   target.targetDevices.push(deviceId);
 }
@@ -1323,7 +1677,7 @@ function inheritSimilarDevicePresets(presets, meta, aliases) {
   let inherited = 0;
   for (const ids of groups.values()) {
     const members = new Set(ids);
-    const assigned = presets.filter((preset) => preset.targetDevices.some((id) => members.has(id)));
+    const assigned = presets.filter((preset2) => preset2.targetDevices.some((id) => members.has(id)));
     if (assigned.length !== 1)
       continue;
     const target = assigned[0];
@@ -1347,11 +1701,16 @@ function deviceLimitNotices(platform) {
 }
 
 // src/ui/settings-tab.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/ui/modals.ts
-var import_obsidian2 = require("obsidian");
-class TextInputModal extends import_obsidian2.Modal {
+var import_obsidian = require("obsidian");
+function reportModalError(error) {
+  console.error("[Local Font Loader] Modal action failed:", error);
+  new import_obsidian.Notice(error instanceof Error ? error.message : "Could not complete the action");
+}
+
+class TextInputModal extends import_obsidian.Modal {
   titleText;
   placeholder;
   defaultValue;
@@ -1385,8 +1744,13 @@ class TextInputModal extends import_obsidian2.Modal {
     submitBtn.addEventListener("click", () => {
       const value = inputEl.value.trim();
       if (value) {
-        this.onSubmit(value);
-        this.close();
+        submitBtn.disabled = true;
+        Promise.resolve().then(() => this.onSubmit(value)).then(() => {
+          this.close();
+        }).catch((error) => {
+          reportModalError(error);
+          submitBtn.disabled = false;
+        });
       } else {
         inputEl.addClass("is-invalid");
         inputEl.focus();
@@ -1415,7 +1779,7 @@ class TextInputModal extends import_obsidian2.Modal {
   }
 }
 
-class FontImportModal extends import_obsidian2.Modal {
+class FontImportModal extends import_obsidian.Modal {
   plugin;
   onImport;
   constructor(app, plugin, onImport) {
@@ -1428,7 +1792,7 @@ class FontImportModal extends import_obsidian2.Modal {
     titleEl.setText(t("importFont"));
     const dropZone = contentEl.createDiv({ cls: "lfl-import-dropzone" });
     const iconContainer = dropZone.createDiv({ cls: "lfl-import-icon" });
-    import_obsidian2.setIcon(iconContainer, "folder");
+    import_obsidian.setIcon(iconContainer, "folder");
     dropZone.createDiv({ cls: "lfl-import-title", text: t("importDropTitle") });
     dropZone.createDiv({ cls: "lfl-import-subtitle", text: t("importDropSubtitle") });
     dropZone.createDiv({ cls: "lfl-import-hint", text: t("importDropHint") });
@@ -1441,12 +1805,12 @@ class FontImportModal extends import_obsidian2.Modal {
     dropZone.onclick = () => {
       input.click();
     };
-    input.onchange = async () => {
+    input.onchange = () => {
       const files = input.files;
       if (!files || files.length === 0)
         return;
       this.close();
-      await this.onImport(files);
+      Promise.resolve().then(() => this.onImport(files)).catch(reportModalError);
     };
     dropZone.ondragover = (e) => {
       e.preventDefault();
@@ -1455,7 +1819,7 @@ class FontImportModal extends import_obsidian2.Modal {
     dropZone.ondragleave = () => {
       dropZone.removeClass("is-dragover");
     };
-    dropZone.ondrop = async (e) => {
+    dropZone.ondrop = (e) => {
       e.preventDefault();
       dropZone.removeClass("is-dragover");
       const transfer = e.dataTransfer;
@@ -1465,7 +1829,7 @@ class FontImportModal extends import_obsidian2.Modal {
       if (files.length === 0)
         return;
       this.close();
-      await this.onImport(files);
+      Promise.resolve().then(() => this.onImport(files)).catch(reportModalError);
     };
   }
   onClose() {
@@ -1474,27 +1838,31 @@ class FontImportModal extends import_obsidian2.Modal {
   }
 }
 function showConfirmDialog(app, title, message, onConfirm, isDangerous = false) {
-  const modal = new import_obsidian2.ConfirmationModal(app);
+  const modal = new import_obsidian.Modal(app);
   modal.setTitle(title);
   modal.contentEl.createEl("p", {
     text: message,
     cls: "lfl-confirm-message"
   });
-  modal.addButton((btn) => {
-    btn.setButtonText(t("confirm"));
-    btn.setCta();
-    if (isDangerous) {
-      btn.buttonEl.addClass("mod-warning");
-    }
-    btn.onClick(() => {
-      onConfirm();
+  const buttons = modal.contentEl.createDiv({ cls: "modal-button-container" });
+  const cancel = buttons.createEl("button", { text: t("cancel") });
+  cancel.addEventListener("click", () => modal.close());
+  const confirm = buttons.createEl("button", {
+    text: t("confirm"),
+    cls: isDangerous ? "mod-warning" : "mod-cta"
+  });
+  confirm.addEventListener("click", () => {
+    confirm.disabled = true;
+    Promise.resolve().then(onConfirm).then(() => modal.close()).catch((error) => {
+      reportModalError(error);
+      confirm.disabled = false;
     });
   });
-  modal.addCancelButton(t("cancel"));
+  (isDangerous ? cancel : confirm).setAttribute("autofocus", "");
   modal.open();
 }
 
-class FontStatusModal extends import_obsidian2.Modal {
+class FontStatusModal extends import_obsidian.Modal {
   rows;
   constructor(app, rows) {
     super(app);
@@ -1561,53 +1929,102 @@ class FontStatusModal extends import_obsidian2.Modal {
 }
 
 // src/ui/settings/device-preset.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian2 = require("obsidian");
+var INDIVIDUAL_BINDING_VALUE = "__device_binding__";
+var AUTOMATIC_DEVICE_TYPE_VALUE = "__automatic_device_type__";
+function runDeviceAction(tab, action) {
+  action().catch((error) => {
+    tab.plugin._logError("[Local Font Loader] Device setting failed:", error);
+    new import_obsidian2.Notice(t("deviceTypeSaveFailed"));
+  });
+}
+function renderDeviceTypeSettings(tab, containerEl) {
+  const settings = tab.plugin.settings;
+  new import_obsidian2.Setting(containerEl).setName(t("deviceTypeMode")).setDesc(t("deviceTypeModeDesc")).addToggle((toggle) => {
+    toggle.setValue(settings.deviceTypeModeEnabled);
+    toggle.toggleEl.setAttribute("aria-label", t("deviceTypeMode"));
+    toggle.onChange((enabled) => {
+      settings.deviceTypeModeEnabled = enabled;
+      runDeviceAction(tab, async () => {
+        await tab.plugin.saveSettings();
+        await tab.plugin.applyFonts();
+        tab.update();
+      });
+    });
+  });
+  if (!settings.deviceTypeModeEnabled)
+    return;
+  for (const type of DEVICE_TYPES) {
+    const name = t(`deviceType_${type}`);
+    new import_obsidian2.Setting(containerEl).setName(name).setDesc(t("deviceTypePresetDesc")).addDropdown((dropdown) => {
+      dropdown.selectEl.setAttribute("aria-label", name);
+      dropdown.addOption(INDIVIDUAL_BINDING_VALUE, t("deviceTypeUseDeviceBinding"));
+      for (const preset2 of settings.presets)
+        dropdown.addOption(preset2.id, preset2.name);
+      const assigned = settings.deviceTypePresets[type];
+      dropdown.setValue(assigned && settings.presets.some((preset2) => preset2.id === assigned) ? assigned : INDIVIDUAL_BINDING_VALUE);
+      dropdown.onChange((id) => {
+        if (id === INDIVIDUAL_BINDING_VALUE)
+          delete settings.deviceTypePresets[type];
+        else
+          bindDeviceTypeToPreset(settings, type, id);
+        runDeviceAction(tab, async () => {
+          await tab.plugin.saveSettings();
+          await tab.plugin.applyFonts();
+          tab.update();
+        });
+      });
+    });
+  }
+  containerEl.createEl("p", { cls: "setting-item-description", text: t("deviceTypeCardsDesc") });
+}
 function renderDeviceAndPresetSection(tab, containerEl) {
   const syncWarningCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "info" } });
   const syncWarningTitle = syncWarningCallout.createDiv({ cls: "callout-title" });
   const syncWarningIcon = syncWarningTitle.createDiv({ cls: "callout-icon" });
-  import_obsidian3.setIcon(syncWarningIcon, "info");
+  import_obsidian2.setIcon(syncWarningIcon, "info");
   syncWarningTitle.createDiv({ cls: "callout-title-inner", text: t("syncDelayTitle") });
   const syncWarningContent = syncWarningCallout.createDiv({ cls: "callout-content" });
   syncWarningContent.createEl("p", { text: t("syncDelayContent") });
   containerEl.createEl("h3", { text: t("headerPresetManagement") });
-  new import_obsidian3.Setting(containerEl).setName(t("createPreset")).setDesc(t("createPresetDesc")).addText((text) => {
-    text.setPlaceholder(t("presetNamePlaceholder"));
-    tab._newPresetNameInput = text;
+  new import_obsidian2.Setting(containerEl).setName(t("createPreset")).setDesc(t("createPresetDesc")).addText((text2) => {
+    text2.setPlaceholder(t("presetNamePlaceholder"));
+    tab._newPresetNameInput = text2;
   }).addButton((btn) => {
     btn.setIcon("plus");
     btn.setTooltip(t("addPreset"));
     btn.onClick(async () => {
       const presetName = (tab._newPresetNameInput?.getValue() ?? "").trim();
       if (!presetName) {
-        new import_obsidian3.Notice(t("presetNameRequired"), 3000);
+        new import_obsidian2.Notice(t("presetNameRequired"), 3000);
         return;
       }
       const exists = tab.plugin.settings.presets.some((p) => p.name === presetName);
       if (exists) {
-        new import_obsidian3.Notice(t("presetNameExists"), 3000);
+        new import_obsidian2.Notice(t("presetNameExists"), 3000);
         return;
       }
       await tab.plugin.createPreset(presetName);
-      new import_obsidian3.Notice(`✓ ${t("presetCreated")}: ${presetName}`, 2000);
+      new import_obsidian2.Notice(`✓ ${t("presetCreated")}: ${presetName}`, 2000);
       tab.update();
     });
   });
   const deviceManagementHeader = containerEl.createDiv({ cls: "setting-item-heading-with-button" });
   deviceManagementHeader.createEl("h4", { text: t("headerDeviceManagement") });
+  renderDeviceTypeSettings(tab, containerEl);
   {
     const calloutEl = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "warning" } });
     const titleEl = calloutEl.createDiv({ cls: "callout-title" });
-    import_obsidian3.setIcon(titleEl.createDiv({ cls: "callout-icon" }), "alert-triangle");
+    import_obsidian2.setIcon(titleEl.createDiv({ cls: "callout-icon" }), "alert-triangle");
     titleEl.createDiv({ cls: "callout-title-inner", text: t("deviceLimitTitle") });
     const contentEl = calloutEl.createDiv({ cls: "callout-content" });
-    for (const notice of deviceLimitNotices(import_obsidian3.Platform)) {
+    for (const notice of deviceLimitNotices(import_obsidian2.Platform)) {
       contentEl.createEl("p", { text: t(notice) });
     }
   }
   const refreshBtn = deviceManagementHeader.createEl("button", { cls: "clickable-icon" });
   refreshBtn.setAttribute("aria-label", t("refreshDeviceList"));
-  import_obsidian3.setIcon(refreshBtn, "refresh-cw");
+  import_obsidian2.setIcon(refreshBtn, "refresh-cw");
   tab._addEventListener(refreshBtn, "click", async () => {
     await tab.plugin.loadSettings();
     await tab.plugin.repairDeviceList();
@@ -1616,41 +2033,41 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     tab.update();
   });
   const dragContainer = containerEl.createDiv({ cls: "preset-drag-container" });
-  tab.plugin.settings.presets.forEach((preset) => {
+  tab.plugin.settings.presets.forEach((preset2) => {
     const presetSection = dragContainer.createDiv({ cls: "preset-section" });
     const presetHeader = presetSection.createDiv({ cls: "preset-header" });
     presetHeader.createEl("h5", {
-      text: preset.id === "default-preset" ? `${preset.name} (${t("global")})` : preset.name
+      text: preset2.id === "default-preset" ? `${preset2.name} (${t("global")})` : preset2.name
     });
     const presetActions = presetHeader.createDiv({ cls: "preset-actions" });
     const editBtn = presetActions.createEl("button", { cls: "clickable-icon" });
     editBtn.setAttribute("aria-label", t("editPresetName"));
-    import_obsidian3.setIcon(editBtn, "edit");
+    import_obsidian2.setIcon(editBtn, "edit");
     tab._addEventListener(editBtn, "click", async () => {
-      new TextInputModal(tab.plugin.app, t("editPresetName"), t("presetNamePlaceholder"), preset.name, async (newName) => {
-        if (newName !== preset.name) {
-          await tab.plugin.renamePreset(preset.id, newName);
+      new TextInputModal(tab.plugin.app, t("editPresetName"), t("presetNamePlaceholder"), preset2.name, async (newName) => {
+        if (newName !== preset2.name) {
+          await tab.plugin.renamePreset(preset2.id, newName);
           tab.update();
         }
       }).open();
     });
     const copyBtn = presetActions.createEl("button", { cls: "clickable-icon" });
     copyBtn.setAttribute("aria-label", t("copyPresetCopy"));
-    import_obsidian3.setIcon(copyBtn, "copy");
+    import_obsidian2.setIcon(copyBtn, "copy");
     tab._addEventListener(copyBtn, "click", async () => {
-      const copyName = `${preset.name}${t("copySuffix")}`;
-      await tab.plugin.copyPresetForDevice(preset.id, copyName);
-      new import_obsidian3.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
+      const copyName = `${preset2.name}${t("copySuffix")}`;
+      await tab.plugin.copyPresetForDevice(preset2.id, copyName);
+      new import_obsidian2.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
       tab.update();
     });
-    if (preset.id !== "default-preset") {
+    if (preset2.id !== "default-preset") {
       const deleteBtn = presetActions.createEl("button", { cls: "clickable-icon" });
       deleteBtn.setAttribute("aria-label", t("deletePreset"));
-      import_obsidian3.setIcon(deleteBtn, "trash");
+      import_obsidian2.setIcon(deleteBtn, "trash");
       tab._addEventListener(deleteBtn, "click", async () => {
         showConfirmDialog(tab.plugin.app, t("deletePreset"), t("deletePresetWarning"), async () => {
-          await tab.plugin.deletePreset(preset.id);
-          if (tab._activePresetId === preset.id) {
+          await tab.plugin.deletePreset(preset2.id);
+          if (tab._activePresetId === preset2.id) {
             const fallbackPreset = tab.plugin._getDevicePreset();
             tab._activePresetId = fallbackPreset ? fallbackPreset.id : "default-preset";
           }
@@ -1660,12 +2077,14 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     }
     const devicesContainer = presetSection.createDiv({
       cls: "devices-container",
-      attr: { "data-preset-id": preset.id }
+      attr: { "data-preset-id": preset2.id }
     });
-    if (preset.id === "default-preset") {
+    if (preset2.id === "default-preset") {
       devicesContainer.addClass("global-preset-zone");
     }
     tab._addEventListener(devicesContainer, "dragover", (e) => {
+      if (tab.plugin.settings.deviceTypeModeEnabled)
+        return;
       e.preventDefault();
       devicesContainer.classList.add("drag-over");
     });
@@ -1675,13 +2094,15 @@ function renderDeviceAndPresetSection(tab, containerEl) {
     tab._addEventListener(devicesContainer, "drop", async (e) => {
       e.preventDefault();
       devicesContainer.classList.remove("drag-over");
+      if (tab.plugin.settings.deviceTypeModeEnabled)
+        return;
       const deviceId = e.dataTransfer?.getData("text/plain") ?? "";
       const targetPresetId = devicesContainer.dataset.presetId ?? "";
       await tab.plugin.assignDeviceToPreset(deviceId, targetPresetId);
       tab.update();
     });
     let devicesToShow = [];
-    if (preset.id === "default-preset") {
+    if (preset2.id === "default-preset") {
       const allDeviceIds = new Set;
       if (tab.plugin.settings.deviceNameMap) {
         Object.keys(tab.plugin.settings.deviceNameMap).forEach((id) => {
@@ -1696,7 +2117,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
       });
       devicesToShow = Array.from(allDeviceIds).filter((id) => !assignedDevices.has(id));
     } else {
-      devicesToShow = preset.targetDevices;
+      devicesToShow = preset2.targetDevices;
     }
     if (devicesToShow.length === 0) {
       devicesContainer.createEl("p", {
@@ -1755,11 +2176,32 @@ function renderDeviceAndPresetSection(tab, containerEl) {
           });
         }
         const btnContainer = deviceItem.createDiv({ cls: "device-actions" });
+        if (tab.plugin.settings.deviceTypeModeEnabled) {
+          new import_obsidian2.Setting(textContainer).setName(t("deviceTypeLabel")).addDropdown((dropdown) => {
+            dropdown.selectEl.setAttribute("aria-label", `${deviceName}: ${t("deviceTypeLabel")}`);
+            const automaticType = isCurrent ? detectDeviceType(import_obsidian2.Platform) : getRecordedDeviceType(tab.plugin.settings.deviceMeta[deviceId]);
+            dropdown.addOption(AUTOMATIC_DEVICE_TYPE_VALUE, automaticType ? `${t("deviceTypeAutomatic")} (${t(`deviceType_${automaticType}`)})` : t("deviceTypeUnknown"));
+            for (const type of DEVICE_TYPES)
+              dropdown.addOption(type, t(`deviceType_${type}`));
+            dropdown.setValue(tab.plugin.settings.deviceTypeOverrides[deviceId] || AUTOMATIC_DEVICE_TYPE_VALUE);
+            dropdown.onChange((value) => {
+              if (isDeviceType2(value)) {
+                tab.plugin.settings.deviceTypeOverrides[deviceId] = value;
+              } else
+                delete tab.plugin.settings.deviceTypeOverrides[deviceId];
+              runDeviceAction(tab, async () => {
+                await tab.plugin.saveSettings();
+                await tab.plugin.applyFonts();
+                tab.update();
+              });
+            });
+          });
+        }
         const editBtn2 = btnContainer.createEl("button", {
           cls: "clickable-icon device-edit-btn",
           attr: { "aria-label": t("editDeviceName") }
         });
-        import_obsidian3.setIcon(editBtn2, "edit");
+        import_obsidian2.setIcon(editBtn2, "edit");
         tab._addEventListener(editBtn2, "click", async (e) => {
           e.stopPropagation();
           new TextInputModal(tab.plugin.app, t("editDeviceName"), t("deviceNamePlaceholder"), deviceName, async (newName) => {
@@ -1774,7 +2216,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
             cls: "clickable-icon",
             attr: { "aria-label": t("removeDevice") }
           });
-          import_obsidian3.setIcon(removeBtn, "trash-2");
+          import_obsidian2.setIcon(removeBtn, "trash-2");
           tab._addEventListener(removeBtn, "click", async (e) => {
             e.stopPropagation();
             showConfirmDialog(tab.plugin.app, t("removeDevice"), t("confirmRemoveDevice").replace("{0}", deviceName), async () => {
@@ -1786,20 +2228,20 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         if (isCurrent) {
           deviceItem.addClass("current-device");
         }
-        if (import_obsidian3.Platform.isMobile) {
+        if (import_obsidian2.Platform.isMobile && !tab.plugin.settings.deviceTypeModeEnabled) {
           const moveBtn = btnContainer.createEl("button", {
             cls: "clickable-icon",
             attr: { "aria-label": t("moveDeviceToPreset") }
           });
-          import_obsidian3.setIcon(moveBtn, "move");
+          import_obsidian2.setIcon(moveBtn, "move");
           tab._addEventListener(moveBtn, "click", (e) => {
             e.stopPropagation();
             const currentPreset = tab.plugin.settings.presets.find((p) => p.targetDevices.includes(deviceId));
-            const menu = new import_obsidian3.Menu;
-            tab.plugin.settings.presets.forEach((preset2) => {
-              menu.addItem((item) => item.setTitle(preset2.id === "default-preset" ? `${preset2.name} (${t("global")})` : preset2.name).setChecked(preset2.id === (currentPreset?.id || "default-preset")).onClick(() => {
-                tab.plugin.assignDeviceToPreset(deviceId, preset2.id).then(() => {
-                  new import_obsidian3.Notice(t("deviceReassigned"), 2000);
+            const menu = new import_obsidian2.Menu;
+            tab.plugin.settings.presets.forEach((preset3) => {
+              menu.addItem((item) => item.setTitle(preset3.id === "default-preset" ? `${preset3.name} (${t("global")})` : preset3.name).setChecked(preset3.id === (currentPreset?.id || "default-preset")).onClick(() => {
+                tab.plugin.assignDeviceToPreset(deviceId, preset3.id).then(() => {
+                  new import_obsidian2.Notice(t("deviceReassigned"), 2000);
                   tab.update();
                 }).catch((error) => {
                   tab.plugin._logError("[Local Font Loader] Failed to reassign the device:", error);
@@ -1810,7 +2252,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
             menu.showAtPosition({ x: rect.left, y: rect.bottom }, moveBtn.ownerDocument);
           });
         }
-        deviceItem.draggable = !import_obsidian3.Platform.isMobile;
+        deviceItem.draggable = !import_obsidian2.Platform.isMobile && !tab.plugin.settings.deviceTypeModeEnabled;
         tab._addEventListener(deviceItem, "dragstart", (e) => {
           e.dataTransfer?.setData("text/plain", deviceId);
           deviceItem.classList.add("dragging");
@@ -1820,7 +2262,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         });
       });
     }
-    if (preset.id === "default-preset") {
+    if (preset2.id === "default-preset") {
       const cleanupFooter = presetSection.createDiv({ cls: "device-cleanup-footer" });
       const cleanupBtn = cleanupFooter.createEl("button", {
         text: t("cleanupDevices"),
@@ -1829,13 +2271,13 @@ function renderDeviceAndPresetSection(tab, containerEl) {
       tab._addEventListener(cleanupBtn, "click", async () => {
         const prunable = tab.plugin.getPrunableDevices();
         if (prunable.length === 0) {
-          new import_obsidian3.Notice(t("cleanupDevicesNone"), 3000);
+          new import_obsidian2.Notice(t("cleanupDevicesNone"), 3000);
           return;
         }
-        const deviceNames = prunable.map((device) => device.name).join("、");
+        const deviceNames = prunable.map((device2) => device2.name).join("、");
         showConfirmDialog(tab.plugin.app, t("cleanupDevices"), t("confirmCleanupDevices").replace("{0}", deviceNames), async () => {
           const removedCount = await tab.plugin.pruneUnboundDevices();
-          new import_obsidian3.Notice(`✓ ${t("cleanupDevicesDone").replace("{0}", String(removedCount))}`, 3000);
+          new import_obsidian2.Notice(`✓ ${t("cleanupDevicesDone").replace("{0}", String(removedCount))}`, 3000);
           tab.update();
         }, true);
       });
@@ -1843,23 +2285,24 @@ function renderDeviceAndPresetSection(tab, containerEl) {
   });
   containerEl.createEl("h4", { text: t("devicePresetManagement"), cls: "setting-item-heading" });
   const devicePreset = tab.plugin._getDevicePreset();
-  new import_obsidian3.Setting(containerEl).setName(t("currentDevicePreset")).setDesc(t("currentDevicePresetDesc")).addDropdown((dropdown) => {
-    tab.plugin.settings.presets.forEach((preset) => {
-      const label = preset.id === "default-preset" ? `${preset.name} (${t("global")})` : preset.name;
-      dropdown.addOption(preset.id, label);
+  if (!tab.plugin.settings.deviceTypeModeEnabled)
+    new import_obsidian2.Setting(containerEl).setName(t("currentDevicePreset")).setDesc(t("currentDevicePresetDesc")).addDropdown((dropdown) => {
+      tab.plugin.settings.presets.forEach((preset2) => {
+        const label = preset2.id === "default-preset" ? `${preset2.name} (${t("global")})` : preset2.name;
+        dropdown.addOption(preset2.id, label);
+      });
+      dropdown.setValue(devicePreset ? devicePreset.id : "default-preset");
+      dropdown.onChange(async (newPresetId) => {
+        await tab.plugin.assignDeviceToPreset(tab.plugin.currentDeviceId, newPresetId);
+        new import_obsidian2.Notice(`✓ ${t("deviceReassigned")}`, 2000);
+        tab.update();
+      });
+    }).addButton((btn) => {
+      btn.setIcon("refresh-cw");
+      btn.setTooltip(t("refreshDeviceList"));
+      btn.onClick(() => tab.update());
     });
-    dropdown.setValue(devicePreset ? devicePreset.id : "default-preset");
-    dropdown.onChange(async (newPresetId) => {
-      await tab.plugin.assignDeviceToPreset(tab.plugin.currentDeviceId, newPresetId);
-      new import_obsidian3.Notice(`✓ ${t("deviceReassigned")}`, 2000);
-      tab.update();
-    });
-  }).addButton((btn) => {
-    btn.setIcon("refresh-cw");
-    btn.setTooltip(t("refreshDeviceList"));
-    btn.onClick(() => tab.update());
-  });
-  new import_obsidian3.Setting(containerEl).setName(t("copyPresetCopy")).setDesc(t("copyPresetCopyDesc")).addButton((btn) => {
+  new import_obsidian2.Setting(containerEl).setName(t("copyPresetCopy")).setDesc(t("copyPresetCopyDesc")).addButton((btn) => {
     btn.setButtonText(t("copyPresetCopy"));
     btn.onClick(async () => {
       const devicePreset2 = tab.plugin._getDevicePreset();
@@ -1868,19 +2311,19 @@ function renderDeviceAndPresetSection(tab, containerEl) {
       }
       const copyName = `${devicePreset2.name}${t("copySuffix")}`;
       await tab.plugin.copyPresetForDevice(devicePreset2.id, copyName);
-      new import_obsidian3.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
+      new import_obsidian2.Notice(`✓ ${t("presetCopied")}: ${copyName}`, 2000);
       tab.update();
     });
   });
 }
 
 // src/ui/settings/directory-application.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/ui/settings/folder-input.ts
+var import_obsidian3 = require("obsidian");
 var import_obsidian4 = require("obsidian");
-var import_obsidian5 = require("obsidian");
-class FolderInputSuggest extends import_obsidian4.AbstractInputSuggest {
+class FolderInputSuggest extends import_obsidian3.AbstractInputSuggest {
   onPick;
   constructor(app, textInputEl, onPick) {
     super(app, textInputEl);
@@ -1899,11 +2342,11 @@ class FolderInputSuggest extends import_obsidian4.AbstractInputSuggest {
     this.close();
   }
   vaultFolders() {
-    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian5.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian4.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
 }
 
-class FolderPickerModal extends import_obsidian4.FuzzySuggestModal {
+class FolderPickerModal extends import_obsidian3.FuzzySuggestModal {
   onPick;
   constructor(app, onPick) {
     super(app);
@@ -1911,7 +2354,7 @@ class FolderPickerModal extends import_obsidian4.FuzzySuggestModal {
     this.setPlaceholder(t("selectFolder"));
   }
   getItems() {
-    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian5.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((file) => file instanceof import_obsidian4.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
   getItemText(folder) {
     return folder.path;
@@ -1922,15 +2365,15 @@ class FolderPickerModal extends import_obsidian4.FuzzySuggestModal {
 }
 function addFolderPathInput(setting, app, initialValue, onChange, placeholder = "") {
   let field = null;
-  setting.addText((text) => {
-    field = text;
-    text.setValue(initialValue);
+  setting.addText((text2) => {
+    field = text2;
+    text2.setValue(initialValue);
     if (placeholder) {
-      text.setPlaceholder(placeholder);
+      text2.setPlaceholder(placeholder);
     }
-    text.onChange((value) => onChange(value));
-    new FolderInputSuggest(app, text.inputEl, (path) => {
-      text.setValue(path);
+    text2.onChange((value) => onChange(value));
+    new FolderInputSuggest(app, text2.inputEl, (path) => {
+      text2.setValue(path);
       onChange(path);
     });
   });
@@ -1945,21 +2388,20 @@ function addFolderPathInput(setting, app, initialValue, onChange, placeholder = 
 // src/ui/settings/directory-application.ts
 function renderDirectoryAndApplicationSection(tab, containerEl) {
   containerEl.createEl("h3", { text: t("headerDirectoryConfig") });
-  const sourceDirSetting = new import_obsidian6.Setting(containerEl).setName(t("fontSourceDir")).setDesc(t("fontSourceDirDesc"));
-  addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, async (value) => {
-    try {
-      tab.plugin.settings.fontSourceDir = value;
-      await tab.plugin.saveSettings();
-    } catch (error) {
+  const sourceDirSetting = new import_obsidian5.Setting(containerEl).setName(t("fontSourceDir")).setDesc(t("fontSourceDirDesc"));
+  addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, (value) => {
+    tab.plugin.settings.fontSourceDir = value;
+    tab.plugin.saveSettings().catch((error) => {
       tab.plugin._logError("[Local Font Loader] Failed to save the font source directory:", error);
-    }
+      new import_obsidian5.Notice(t("deleteError"));
+    });
   }, "Local-Fonts");
   sourceDirSetting.addButton((btn) => btn.setButtonText(t("scanFonts")).onClick(async () => {
     await tab.plugin.scanFonts();
-    new import_obsidian6.Notice("✓ Font list updated");
+    new import_obsidian5.Notice("✓ Font list updated");
     tab.update();
   }));
-  new import_obsidian6.Setting(containerEl).setName(t("autoLoad")).setDesc(t("autoLoadDesc")).addToggle((toggle) => toggle.setValue(tab.plugin.settings.autoLoadOnStartup).onChange(async (value) => {
+  new import_obsidian5.Setting(containerEl).setName(t("autoLoad")).setDesc(t("autoLoadDesc")).addToggle((toggle) => toggle.setValue(tab.plugin.settings.autoLoadOnStartup).onChange(async (value) => {
     tab.plugin.settings.autoLoadOnStartup = value;
     await tab.plugin.saveSettings();
   }));
@@ -1968,10 +2410,10 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
   if (!tab._activePresetId) {
     tab._activePresetId = currentDevicePreset ? currentDevicePreset.id : "default-preset";
   }
-  new import_obsidian6.Setting(containerEl).setName(t("selectPresetToEdit")).setDesc(t("selectPresetToEditDesc")).addDropdown((dropdown) => {
-    tab.plugin.settings.presets.forEach((preset) => {
-      const label = preset.id === "default-preset" ? `${preset.name} (${t("global")})` : preset.name;
-      dropdown.addOption(preset.id, label);
+  new import_obsidian5.Setting(containerEl).setName(t("selectPresetToEdit")).setDesc(t("selectPresetToEditDesc")).addDropdown((dropdown) => {
+    tab.plugin.settings.presets.forEach((preset2) => {
+      const label = preset2.id === "default-preset" ? `${preset2.name} (${t("global")})` : preset2.name;
+      dropdown.addOption(preset2.id, label);
     });
     dropdown.setValue(tab._activePresetId);
     dropdown.onChange(async (newPresetId) => {
@@ -1987,7 +2429,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     });
     const presetInfoTitle = presetInfoEl.createDiv({ cls: "callout-title" });
     const presetInfoIcon = presetInfoTitle.createDiv({ cls: "callout-icon" });
-    import_obsidian6.setIcon(presetInfoIcon, "list-checks");
+    import_obsidian5.setIcon(presetInfoIcon, "list-checks");
     presetInfoTitle.createDiv({
       cls: "callout-title-inner",
       text: `${t("presetName")}: ${activePreset.name}`
@@ -2000,7 +2442,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
     if (activePreset.id === "default-preset") {
       const warningContainer = presetInfoContent.createEl("p", { cls: "lfl-global-warning" });
       const warningIcon = warningContainer.createSpan({ cls: "lfl-warning-icon" });
-      import_obsidian6.setIcon(warningIcon, "alert-triangle");
+      import_obsidian5.setIcon(warningIcon, "alert-triangle");
       warningContainer.createSpan({ text: t("usingGlobalPreset") });
     }
   }
@@ -2037,18 +2479,18 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
   }
   const activePresetFonts = activePresetForFonts.fonts || {};
   for (const fontType of fontTypes) {
-    const settingItem = new import_obsidian6.Setting(containerEl).setName(fontType.name).setDesc(fontType.desc);
+    const settingItem = new import_obsidian5.Setting(containerEl).setName(fontType.name).setDesc(fontType.desc);
     const selectedFont = activePresetFonts[fontType.key];
     const fontExists = tab.plugin.isFontAvailable(selectedFont);
     if (selectedFont && !fontExists) {
       const warningIcon = settingItem.nameEl.createSpan({ cls: "font-missing-icon" });
-      import_obsidian6.setIcon(warningIcon, "x");
+      import_obsidian5.setIcon(warningIcon, "x");
       warningIcon.setAttribute("aria-label", t("fontNotFound"));
     }
     const mathVerdict = fontType.key === "math" && selectedFont && fontExists ? tab.plugin._evaluateMathFont(selectedFont) : null;
     if (mathVerdict && (mathVerdict.status === "mismatch" || mathVerdict.status === "notMathFont")) {
       const mathWarningIcon = settingItem.nameEl.createSpan({ cls: "font-incompatible-icon" });
-      import_obsidian6.setIcon(mathWarningIcon, "alert-triangle");
+      import_obsidian5.setIcon(mathWarningIcon, "alert-triangle");
       mathWarningIcon.setAttribute("aria-label", t(mathVerdict.status === "notMathFont" ? "mathFontNotMathTitle" : "mathFontMismatchTitle"));
     }
     settingItem.addDropdown((dropdown) => {
@@ -2063,8 +2505,8 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
         });
       }
       const uniqueFamilies = new Set;
-      tab.plugin.settings.availableFonts.forEach((font) => {
-        const familyName = font.familyName || font.name;
+      tab.plugin.settings.availableFonts.forEach((font2) => {
+        const familyName = font2.familyName || font2.name;
         uniqueFamilies.add(familyName);
       });
       Array.from(uniqueFamilies).sort().forEach((familyName) => {
@@ -2139,7 +2581,7 @@ function renderDirectoryAndApplicationSection(tab, containerEl) {
 }
 
 // src/ui/settings/font-status.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/ui/font-family-view.ts
 var TOGGLE_SELECTOR = ".font-family-toggle";
@@ -2173,7 +2615,7 @@ function renderFontStatusSection(tab, containerEl) {
       attr: { "aria-label": btnConfig.label }
     });
     const iconEl = btn.createSpan({ cls: "lfl-chip-icon" });
-    import_obsidian7.setIcon(iconEl, btnConfig.icon);
+    import_obsidian6.setIcon(iconEl, btnConfig.icon);
     btn.createSpan({ text: btnConfig.label });
     filterButtonElements.push({ btn, filter: btnConfig.filter });
   });
@@ -2184,7 +2626,7 @@ function renderFontStatusSection(tab, containerEl) {
     attr: { "aria-label": t("expandAll") }
   });
   const expandIcon = expandAllBtn.createSpan({ cls: "lfl-chip-icon" });
-  import_obsidian7.setIcon(expandIcon, "chevrons-down");
+  import_obsidian6.setIcon(expandIcon, "chevrons-down");
   expandAllBtn.createSpan({ text: t("expandAll") });
   tab._addEventListener(expandAllBtn, "click", () => {
     const allFamilies = fontListEl.querySelectorAll(".font-family-item");
@@ -2197,7 +2639,7 @@ function renderFontStatusSection(tab, containerEl) {
     attr: { "aria-label": t("collapseAll") }
   });
   const collapseIcon = collapseAllBtn.createSpan({ cls: "lfl-chip-icon" });
-  import_obsidian7.setIcon(collapseIcon, "chevrons-up");
+  import_obsidian6.setIcon(collapseIcon, "chevrons-up");
   collapseAllBtn.createSpan({ text: t("collapseAll") });
   tab._addEventListener(collapseAllBtn, "click", () => {
     const allFamilies = fontListEl.querySelectorAll(".font-family-item");
@@ -2219,7 +2661,7 @@ function renderFontStatusSection(tab, containerEl) {
   legends.forEach((legend) => {
     const item = legendsContainer.createDiv({ cls: "lfl-legend-item" });
     const iconEl = item.createSpan({ cls: `lfl-legend-icon is-${legend.state}` });
-    import_obsidian7.setIcon(iconEl, legend.icon);
+    import_obsidian6.setIcon(iconEl, legend.icon);
     item.createSpan({ text: legend.text });
   });
   const rescanBtn = legendEl.createEl("button", {
@@ -2227,12 +2669,12 @@ function renderFontStatusSection(tab, containerEl) {
     attr: { "aria-label": t("rescanFonts") || "重新扫描" }
   });
   const rescanIcon = rescanBtn.createSpan({ cls: "lfl-chip-icon" });
-  import_obsidian7.setIcon(rescanIcon, "rotate-cw");
+  import_obsidian6.setIcon(rescanIcon, "rotate-cw");
   rescanBtn.createSpan({ text: t("rescanFonts") || "重新扫描" });
   tab._addEventListener(rescanBtn, "click", async () => {
     rescanBtn.disabled = true;
     await tab.plugin.scanFonts();
-    new import_obsidian7.Notice(t("fontsRescanned") || "✓ 字体已重新扫描");
+    new import_obsidian6.Notice(t("fontsRescanned") || "✓ 字体已重新扫描");
     tab.update();
   });
   const fontListEl = containerEl.createDiv({ cls: "lfl-font-list" });
@@ -2241,7 +2683,7 @@ function renderFontStatusSection(tab, containerEl) {
       tab._fontFilter = filter;
       fontListEl.empty();
       if (tab.plugin.settings.availableFonts.length === 0) {
-        fontListEl.createEl("div", {
+        fontListEl.createDiv({
           text: t("notFoundFontFamily"),
           cls: "lfl-empty-note"
         });
@@ -2254,7 +2696,7 @@ function renderFontStatusSection(tab, containerEl) {
     });
   });
   if (tab.plugin.settings.availableFonts.length === 0) {
-    fontListEl.createEl("div", {
+    fontListEl.createDiv({
       text: t("notFoundFontFamily"),
       cls: "lfl-empty-note"
     });
@@ -2272,12 +2714,12 @@ function renderFontStatusSection(tab, containerEl) {
       importBtn.textContent = t("importing") || "导入中...";
       try {
         await tab.plugin.importFontsFromFiles(files);
-        new import_obsidian7.Notice(t("importedFonts", { count: files.length }));
+        new import_obsidian6.Notice(t("importedFonts", { count: files.length }));
         await tab.plugin.scanFonts();
         tab._debouncedDisplay();
       } catch (error) {
         tab.plugin._logError("[Local Font Loader] Import failed:", error);
-        new import_obsidian7.Notice(t("importError") || "导入失败");
+        new import_obsidian6.Notice(t("importError") || "导入失败");
       } finally {
         importBtn.disabled = false;
         importBtn.textContent = t("importFont");
@@ -2288,32 +2730,36 @@ function renderFontStatusSection(tab, containerEl) {
 }
 
 // src/ui/settings/fallback.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 function renderFallbackSection(tab, containerEl) {
   containerEl.createEl("h3", { text: t("headerFallback") });
-  new import_obsidian8.Setting(containerEl).setName(t("deleteUnusedFonts")).setDesc(t("deleteUnusedFontsDesc")).addButton((btn) => btn.setButtonText(t("deleteUnusedFonts")).setDestructive().onClick(async () => {
-    const unusedFonts = tab._getUnusedFonts();
-    if (unusedFonts.length === 0) {
-      new import_obsidian8.Notice(t("noUnusedFonts"));
-      return;
-    }
-    showConfirmDialog(tab.plugin.app, t("confirmDelete"), t("confirmDeleteUnusedFonts").replace("{count}", String(unusedFonts.length)), async () => {
-      await tab.deleteUnusedFonts();
-    }, true);
-  }));
-  new import_obsidian8.Setting(containerEl).setName(t("applyNow")).setDesc(t("applyNowDesc")).addButton((btn) => btn.setButtonText(t("applyFonts")).setCta().onClick(async () => {
+  new import_obsidian7.Setting(containerEl).setName(t("deleteUnusedFonts")).setDesc(t("deleteUnusedFontsDesc")).addButton((btn) => {
+    btn.buttonEl.addClass("mod-warning");
+    btn.setButtonText(t("deleteUnusedFonts")).onClick(() => {
+      const unusedFonts = tab._getUnusedFonts();
+      if (unusedFonts.length === 0) {
+        new import_obsidian7.Notice(t("noUnusedFonts"));
+        return;
+      }
+      showConfirmDialog(tab.plugin.app, t("confirmDelete"), t("confirmDeleteUnusedFonts").replace("{count}", String(unusedFonts.length)), async () => {
+        await tab.deleteUnusedFonts();
+      }, true);
+    });
+  });
+  new import_obsidian7.Setting(containerEl).setName(t("applyNow")).setDesc(t("applyNowDesc")).addButton((btn) => btn.setButtonText(t("applyFonts")).setCta().onClick(async () => {
     await tab.plugin.applyFonts();
-    new import_obsidian8.Notice(t("fontsApplied"));
+    new import_obsidian7.Notice(t("fontsApplied"));
   }));
 }
 
 // src/ui/settings-tab.ts
-class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
+class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
   plugin;
   _markdownComponents = [];
   _eventListeners = [];
   _displayDebounceTimer = null;
   _displayDebounceDelay = 300;
+  _renderToken = {};
   _isVisible = false;
   _settingsChangedHandler;
   _activePresetId = "default-preset";
@@ -2334,7 +2780,17 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
     this.plugin.registerEvent(this.plugin.app.workspace.on("local-font-loader:settings-changed", this._settingsChangedHandler));
   }
   _addEventListener(element, event, handler, options) {
-    const listener = handler;
+    const listener = (eventObject) => {
+      const reportError = (error) => {
+        this.plugin._logError("[Local Font Loader] Settings action failed:", error);
+        new import_obsidian8.Notice(error instanceof Error ? error.message : t("deleteError"));
+      };
+      try {
+        Promise.resolve(handler(eventObject)).catch(reportError);
+      } catch (error) {
+        reportError(error);
+      }
+    };
     element.addEventListener(event, listener, options);
     this._eventListeners.push({ element, event, handler: listener, options });
   }
@@ -2347,10 +2803,12 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
     this._markdownComponents = [];
   }
   _renderMarkdown(el, markdown) {
-    const component = new import_obsidian9.Component;
+    const component = new import_obsidian8.Component;
     component.load();
     this._markdownComponents.push(component);
-    import_obsidian9.MarkdownRenderer.render(this.app, markdown, el, "", component);
+    import_obsidian8.MarkdownRenderer.render(this.app, markdown, el, "", component).catch((error) => {
+      this.plugin._logError("[Local Font Loader] Could not render settings help:", error);
+    });
   }
   _debouncedDisplay() {
     if (this._displayDebounceTimer) {
@@ -2422,6 +2880,41 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
     }
     return true;
   }
+  display() {
+    this._renderPage(this.containerEl);
+  }
+  update() {
+    const restoreScroll = this._captureScroll(this.containerEl);
+    const host = import_obsidian8.PluginSettingTab.prototype;
+    if (typeof host.update === "function") {
+      host.update.call(this);
+    } else {
+      this._renderPage(this.containerEl);
+    }
+    restoreScroll();
+  }
+  _captureScroll(containerEl) {
+    const positions = [];
+    for (let element = containerEl;element; element = element.parentElement) {
+      positions.push({ element, top: element.scrollTop, left: element.scrollLeft });
+    }
+    const token = {};
+    this._renderToken = token;
+    const restore = () => {
+      if (!this._isVisible || token !== this._renderToken)
+        return;
+      for (const { element, top, left } of positions) {
+        element.scrollTop = top;
+        element.scrollLeft = left;
+      }
+    };
+    return () => {
+      this._renderToken = token;
+      restore();
+      const ownerWindow = containerEl.ownerDocument.defaultView;
+      ownerWindow?.requestAnimationFrame(() => ownerWindow.requestAnimationFrame(restore));
+    };
+  }
   getSettingDefinitions() {
     return [{
       type: "group",
@@ -2436,22 +2929,21 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
   }
   _renderPage(containerEl) {
     this._isVisible = true;
+    const restoreScroll = this._captureScroll(containerEl);
     this._cleanupEventListeners();
-    const scrollParent = containerEl.closest(".vertical-tab-content");
-    const savedScrollTop = scrollParent ? scrollParent.scrollTop : 0;
     containerEl.empty();
-    new import_obsidian9.Setting(containerEl).setName(t("pluginName")).setHeading();
+    new import_obsidian8.Setting(containerEl).setName(t("pluginName")).setHeading();
     const overrideInfoCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "info" } });
     const overrideInfoTitle = overrideInfoCallout.createDiv({ cls: "callout-title" });
     const overrideInfoIcon = overrideInfoTitle.createDiv({ cls: "callout-icon" });
-    import_obsidian9.setIcon(overrideInfoIcon, "info");
+    import_obsidian8.setIcon(overrideInfoIcon, "info");
     overrideInfoTitle.createDiv({ cls: "callout-title-inner", text: t("overrideSystemSettingsTitle") });
     const overrideInfoContent = overrideInfoCallout.createDiv({ cls: "callout-content" });
     overrideInfoContent.createEl("p", { text: t("overrideSystemSettingsContent") });
     const warningCallout = containerEl.createDiv({ cls: "callout", attr: { "data-callout": "warning" } });
     const warningTitle = warningCallout.createDiv({ cls: "callout-title" });
     const warningIcon = warningTitle.createDiv({ cls: "callout-icon" });
-    import_obsidian9.setIcon(warningIcon, "alert-triangle");
+    import_obsidian8.setIcon(warningIcon, "alert-triangle");
     warningTitle.createDiv({ cls: "callout-title-inner", text: t("performanceWarningTitle") });
     const warningContent = warningCallout.createDiv({ cls: "callout-content" });
     warningContent.createEl("p", { text: t("performanceWarningContent") });
@@ -2459,13 +2951,7 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
     renderDirectoryAndApplicationSection(this, containerEl);
     renderFontStatusSection(this, containerEl);
     renderFallbackSection(this, containerEl);
-    if (scrollParent && savedScrollTop > 0) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          scrollParent.scrollTop = savedScrollTop;
-        });
-      });
-    }
+    restoreScroll();
   }
   addLatinFontOptions(containerEl, activePreset) {
     const exampleCalloutEl = containerEl.createDiv({ cls: "lfl-callout lfl-callout--lead" });
@@ -2477,18 +2963,18 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
 > ${t("latinFontInfoDescForLatinUsers")}`;
     }
     this._renderMarkdown(exampleCalloutEl, exampleMarkdown);
-    new import_obsidian9.Setting(containerEl).setName(t("latinFontEnabled")).setDesc(t("latinFontEnabledDesc")).addToggle((toggle) => toggle.setValue(activePreset.latinFontEnabled ?? false).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName(t("latinFontEnabled")).setDesc(t("latinFontEnabledDesc")).addToggle((toggle) => toggle.setValue(activePreset.latinFontEnabled ?? false).onChange(async (value) => {
       activePreset.latinFontEnabled = value;
       await this.plugin.saveSettings();
       await this.plugin.applyFonts();
       this.update();
     }));
     if (activePreset.latinFontEnabled) {
-      new import_obsidian9.Setting(containerEl).setName(t("latinFont")).setDesc(t("latinFontDesc")).addDropdown((dropdown) => {
+      new import_obsidian8.Setting(containerEl).setName(t("latinFont")).setDesc(t("latinFontDesc")).addDropdown((dropdown) => {
         dropdown.addOption("", t("systemDefault"));
         const uniqueFamilies = new Set;
-        this.plugin.settings.availableFonts.forEach((font) => {
-          const familyName = font.familyName || font.name;
+        this.plugin.settings.availableFonts.forEach((font2) => {
+          const familyName = font2.familyName || font2.name;
           uniqueFamilies.add(familyName);
         });
         const allFamilies = Array.from(uniqueFamilies).sort();
@@ -2551,17 +3037,17 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
         { key: "punctuation", name: "Punctuation", desc: t("punctuationDesc") },
         { key: "symbols", name: "Symbols", desc: t("symbolsDesc") }
       ];
-      scopes.forEach((scope) => {
-        new import_obsidian9.Setting(containerEl).setName(scope.name).setDesc(scope.desc).addToggle((toggle) => toggle.setValue(activePreset.latinFontScope?.[scope.key] ?? true).onChange(async (value) => {
+      scopes.forEach((scope2) => {
+        new import_obsidian8.Setting(containerEl).setName(scope2.name).setDesc(scope2.desc).addToggle((toggle) => toggle.setValue(activePreset.latinFontScope?.[scope2.key] ?? true).onChange(async (value) => {
           if (!activePreset.latinFontScope) {
             activePreset.latinFontScope = { letters: true, numbers: true, punctuation: true, symbols: true };
           }
-          activePreset.latinFontScope[scope.key] = value;
+          activePreset.latinFontScope[scope2.key] = value;
           await this.plugin.saveSettings();
           await this.plugin.applyFonts();
         }));
       });
-      new import_obsidian9.Setting(containerEl).setName(t("latinFontForUI")).setDesc(t("latinFontForUIDesc")).addToggle((toggle) => toggle.setValue(this.plugin.settings.latinFontForUI ?? false).onChange(async (value) => {
+      new import_obsidian8.Setting(containerEl).setName(t("latinFontForUI")).setDesc(t("latinFontForUIDesc")).addToggle((toggle) => toggle.setValue(this.plugin.settings.latinFontForUI ?? false).onChange(async (value) => {
         this.plugin.settings.latinFontForUI = value;
         await this.plugin.saveSettings();
         await this.plugin.applyFonts();
@@ -2573,7 +3059,7 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
     if (headingFontValue === "use-text-font") {
       return;
     }
-    new import_obsidian9.Setting(containerEl).setName(t("headingApplyToFileTitle")).setDesc(t("headingApplyToFileTitleDesc")).addToggle((toggle) => toggle.setValue(activePreset.headingApplyToFileTitle || false).onChange(async (value) => {
+    new import_obsidian8.Setting(containerEl).setName(t("headingApplyToFileTitle")).setDesc(t("headingApplyToFileTitleDesc")).addToggle((toggle) => toggle.setValue(activePreset.headingApplyToFileTitle || false).onChange(async (value) => {
       activePreset.headingApplyToFileTitle = value;
       await this.plugin.saveSettings();
       await this.plugin.applyFonts();
@@ -2581,20 +3067,19 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
   }
   renderFontFamilies(containerEl, filter = "all") {
     const familiesMap = new Map;
-    this.plugin.settings.availableFonts.forEach((font) => {
-      const familyName = font.familyName || font.name;
-      if (!familiesMap.has(familyName)) {
-        familiesMap.set(familyName, []);
-      }
-      familiesMap.get(familyName).push(font);
+    this.plugin.settings.availableFonts.forEach((font2) => {
+      const familyName = font2.familyName || font2.name;
+      const family2 = familiesMap.get(familyName) ?? [];
+      family2.push(font2);
+      familiesMap.set(familyName, family2);
     });
-    const filteredFamilies = Array.from(familiesMap.entries()).filter(([familyName, fonts]) => {
+    const filteredFamilies = Array.from(familiesMap.entries()).filter(([, fonts2]) => {
       if (filter === "all") {
         return true;
       } else if (filter === "available") {
-        return fonts.some((f) => this.plugin._getFontExists(f));
+        return fonts2.some((f) => this.plugin._getFontExists(f));
       } else if (filter === "notExist") {
-        return fonts.some((f) => !this.plugin._getFontExists(f));
+        return fonts2.some((f) => !this.plugin._getFontExists(f));
       }
       return true;
     });
@@ -2603,13 +3088,13 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
       if (filter === "notExist") {
         emptyMessage = t("noNotExistFonts") || "没有缺失的字体";
       }
-      containerEl.createEl("div", {
+      containerEl.createDiv({
         text: emptyMessage,
         cls: "lfl-empty-note"
       });
       return;
     }
-    for (const [familyName, fonts] of filteredFamilies) {
+    for (const [familyName, fonts2] of filteredFamilies) {
       const familyEl = containerEl.createDiv({ cls: "font-family-item" });
       const headerEl = familyEl.createDiv({ cls: "font-family-header" });
       const leftEl = headerEl.createDiv({ cls: "font-family-title" });
@@ -2617,7 +3102,7 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
         cls: "font-family-toggle",
         attr: { "aria-label": t("expandCollapse") }
       });
-      import_obsidian9.setIcon(expandIcon, "chevron-right");
+      import_obsidian8.setIcon(expandIcon, "chevron-right");
       leftEl.createSpan({
         text: familyName,
         cls: "font-family-name"
@@ -2626,23 +3111,23 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
       this._addEventListener(headerEl, "click", () => {
         setFontFamilyExpanded(familyEl, !isFontFamilyExpanded(familyEl));
       });
-      fonts.forEach((font) => {
+      fonts2.forEach((font2) => {
         const variantEl = variantsEl.createDiv({ cls: "font-variant-item" });
         const infoEl = variantEl.createDiv({ cls: "font-variant-info" });
-        const fontSourceExists = this.plugin._getFontExists(font);
+        const fontSourceExists = this.plugin._getFontExists(font2);
         const status = fontSourceExists ? "available" : "missing";
         const iconName = fontSourceExists ? "check" : "help-circle";
         const statusIconEl = infoEl.createSpan({
           cls: `font-variant-status is-${status}`
         });
-        import_obsidian9.setIcon(statusIconEl, iconName);
+        import_obsidian8.setIcon(statusIconEl, iconName);
         const variantLabels = {
           regular: "Regular",
           italic: "Italic",
           bold: "Bold",
           bolditalic: "Bold Italic"
         };
-        const variantLabel = variantLabels[font.variantType] || "Unknown";
+        const variantLabel = variantLabels[font2.variantType] || "Unknown";
         infoEl.createSpan({
           text: variantLabel,
           cls: "font-variant-label"
@@ -2655,39 +3140,37 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
             "aria-label": t("deleteThisFont")
           }
         });
-        import_obsidian9.setIcon(deleteBtn, "trash-2");
+        import_obsidian8.setIcon(deleteBtn, "trash-2");
         this._addEventListener(deleteBtn, "click", async () => {
-          showConfirmDialog(this.plugin.app, t("confirmDelete"), t("confirmDeleteFont").replace("{fontName}", font.name), async () => {
-            await this.deleteSingleFont(font);
+          showConfirmDialog(this.plugin.app, t("confirmDelete"), t("confirmDeleteFont").replace("{fontName}", font2.name), async () => {
+            await this.deleteSingleFont(font2);
             this.update();
           }, true);
         });
       });
     }
   }
-  async deleteSingleFont(font) {
+  async deleteSingleFont(font2) {
     try {
-      try {
-        await this.plugin.app.vault.adapter.remove(font.path);
-      } catch {
-        this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
+      if (await this.plugin.app.vault.adapter.exists(font2.path)) {
+        await this.plugin.app.vault.adapter.remove(font2.path);
       }
-      const index = this.plugin.settings.availableFonts.indexOf(font);
+      const index = this.plugin.settings.availableFonts.indexOf(font2);
       if (index > -1) {
         this.plugin.settings.availableFonts.splice(index, 1);
       }
       await this.plugin.saveSettings();
-      new import_obsidian9.Notice(t("deletedFont", { fontName: font.name }));
+      new import_obsidian8.Notice(t("deletedFont", { fontName: font2.name }));
     } catch (error) {
-      this.plugin._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
-      new import_obsidian9.Notice(t("deleteFailedError", { error: error.message }));
+      this.plugin._logError(`[Local Font Loader] 删除失败: ${font2.name}`, error);
+      new import_obsidian8.Notice(t("deleteFailedError", { error: error instanceof Error ? error.message : t("deleteError") }));
     }
   }
   _getUnusedFonts() {
     const usedFontValues = new Set;
     const presets = this.plugin.settings.presets || [];
-    for (const preset of presets) {
-      const fontsConfig = preset.fonts || {};
+    for (const preset2 of presets) {
+      const fontsConfig = preset2.fonts || {};
       for (const value of Object.values(fontsConfig)) {
         if (value && value !== "use-text-font" && value !== "use-ui-font") {
           usedFontValues.add(value);
@@ -2695,44 +3178,41 @@ class FontManagerSettingTab extends import_obsidian9.PluginSettingTab {
       }
     }
     const availableFonts = this.plugin.settings.availableFonts || [];
-    return availableFonts.filter((font) => !usedFontValues.has(font.familyName) && !usedFontValues.has(font.name));
+    return availableFonts.filter((font2) => !usedFontValues.has(font2.familyName) && !usedFontValues.has(font2.name));
   }
   async deleteUnusedFonts() {
     const unusedFonts = this._getUnusedFonts();
     if (unusedFonts.length === 0) {
-      new import_obsidian9.Notice(t("noUnusedFonts"));
+      new import_obsidian8.Notice(t("noUnusedFonts"));
       return;
     }
-    this.plugin._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
     let deleted = 0;
     try {
-      for (const font of unusedFonts) {
+      for (const font2 of unusedFonts) {
         try {
-          try {
-            await this.app.vault.adapter.remove(font.path);
-          } catch {
-            this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
+          if (await this.app.vault.adapter.exists(font2.path)) {
+            await this.app.vault.adapter.remove(font2.path);
           }
-          const index = this.plugin.settings.availableFonts.indexOf(font);
+          const index = this.plugin.settings.availableFonts.indexOf(font2);
           if (index > -1) {
             this.plugin.settings.availableFonts.splice(index, 1);
           }
           deleted++;
         } catch (error) {
-          this.plugin._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
+          this.plugin._logError(`[Local Font Loader] 删除失败: ${font2.name}`, error);
         }
       }
       await this.plugin.saveSettings();
-      new import_obsidian9.Notice(t("deletedUnusedFonts", { count: deleted }));
-      this.plugin._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
+      new import_obsidian8.Notice(t("deletedUnusedFonts", { count: deleted }));
       this.update();
     } catch (error) {
       this.plugin._logError("[Local Font Loader] 批量删除失败:", error);
-      new import_obsidian9.Notice(t("deleteError"));
+      new import_obsidian8.Notice(t("deleteError"));
     }
   }
   hide() {
     this._isVisible = false;
+    this._renderToken = {};
     if (this._displayDebounceTimer) {
       window.clearTimeout(this._displayDebounceTimer);
       this._displayDebounceTimer = null;
@@ -2789,7 +3269,7 @@ function readOpenTypeMathTable(binary) {
     const header = findTable(new DataView(binary, base), "MATH");
     if (!header)
       return null;
-    const mathOff = base + header.offset;
+    const mathOff = header.offset;
     if (mathOff + 10 > binary.byteLength)
       return null;
     const version = dv.getUint16(mathOff);
@@ -2822,7 +3302,7 @@ function readUnitsPerEm(dv, base) {
     const head = findTable(new DataView(dv.buffer, dv.byteOffset + base), "head");
     if (!head)
       return 0;
-    return dv.getUint16(base + head.offset + 18);
+    return dv.getUint16(head.offset + 18);
   } catch {
     return 0;
   }
@@ -2843,7 +3323,7 @@ function readConstants(r, at, toEm) {
     p += 4;
     out.axisHeight = valueRecord(r, p, toEm);
     p += 4;
-    p += 31 * 4;
+    p += 32 * 4;
     out.fractionRuleThickness = valueRecord(r, p, toEm);
     p += 4;
     p += 6 * 4;
@@ -2885,7 +3365,6 @@ function readGlyphInfo(r, at, toEm) {
   const extendedShapes = new Set;
   try {
     const italicsOff = at + r.u16(at);
-    const topAccentOff = at + r.u16(at + 2);
     const extShapeOff = at + r.u16(at + 4);
     if (italicsOff > at) {
       const covOff = italicsOff + r.u16(italicsOff);
@@ -2945,7 +3424,7 @@ function readConstruction(r, at, toEm) {
       const partCount = r.u16(a + 4);
       const parts = [];
       for (let i = 0;i < partCount; i++) {
-        const rec = a + 6 + i * 8;
+        const rec = a + 6 + i * 10;
         parts.push({
           glyphId: r.u16(rec),
           startConnectorLength: toEm(r.u16(rec + 2)),
@@ -3859,22 +4338,22 @@ function readCmap3(dv, table) {
   } catch {}
   return out;
 }
-function glyphLayoutBox(font, glyphId) {
-  if (glyphId < 0 || glyphId >= font.numGlyphs) {
+function glyphLayoutBox(font2, glyphId) {
+  if (glyphId < 0 || glyphId >= font2.numGlyphs) {
     return null;
   }
-  const advance = font.advanceWidths[glyphId];
+  const advance = font2.advanceWidths[glyphId];
   if (!advance) {
     return null;
   }
   return {
-    height: font.verticals.ascent,
-    depth: font.verticals.descent,
-    width: advance / font.unitsPerEm
+    height: font2.verticals.ascent,
+    depth: font2.verticals.descent,
+    width: advance / font2.unitsPerEm
   };
 }
-function glyphForCodepoint(font, codepoint) {
-  const id = font.cmap[String(codepoint)];
+function glyphForCodepoint(font2, codepoint) {
+  const id = font2.cmap[String(codepoint)];
   return typeof id === "number" && id > 0 ? id : null;
 }
 var MAPPED_CODEPOINT_RANGES = [
@@ -3894,7 +4373,7 @@ var MAPPED_CODEPOINT_RANGES = [
   [10752, 11007],
   [119808, 120831]
 ];
-function buildCharsFromFont(font, gaps = [], ranges = MAPPED_CODEPOINT_RANGES) {
+function buildCharsFromFont(font2, gaps = [], ranges = MAPPED_CODEPOINT_RANGES) {
   const out = {
     chars: {},
     mapped: 0,
@@ -3912,12 +4391,12 @@ function buildCharsFromFont(font, gaps = [], ranges = MAPPED_CODEPOINT_RANGES) {
         }
         continue;
       }
-      const glyphId = glyphForCodepoint(font, code);
+      const glyphId = glyphForCodepoint(font2, code);
       if (glyphId === null) {
         out.skippedAbsent++;
         continue;
       }
-      const box = glyphLayoutBox(font, glyphId);
+      const box = glyphLayoutBox(font2, glyphId);
       if (!box) {
         out.skippedAbsent++;
         continue;
@@ -3942,12 +4421,12 @@ var latinModernMathAdapter = {
     return matchByFamilyName(this, familyName);
   },
   build(binary, _ctx) {
-    const font = readOpenTypeFontInfo(binary);
-    if (!font) {
+    const font2 = readOpenTypeFontInfo(binary);
+    if (!font2) {
       return null;
     }
     const math = readOpenTypeMathTable(binary);
-    const built = buildCharsFromFont(font, KNOWN_GAPS);
+    const built = buildCharsFromFont(font2, KNOWN_GAPS);
     if (built.mapped === 0) {
       return null;
     }
@@ -5584,7 +6063,7 @@ function readHhea(dv) {
       descent: dv.getInt16(ref.offset + 6),
       numHMetrics: dv.getUint16(ref.offset + 34)
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -5811,9 +6290,9 @@ var cambriaMathAdapter = {
       if (!binary || binary.byteLength < 12) {
         return null;
       }
-      const font = extractSingleFont(binary, notes);
-      const dv = new DataView(font);
-      mathTable = readOpenTypeMathTable(font);
+      const font2 = extractSingleFont(binary, notes);
+      const dv = new DataView(font2);
+      mathTable = readOpenTypeMathTable(font2);
       if (!mathTable) {
         return null;
       }
@@ -6231,12 +6710,12 @@ var notoMathAdapter = {
     return matchByFamilyName(this, familyName);
   },
   build(binary, _ctx) {
-    const font = readOpenTypeFontInfo(binary);
-    if (!font) {
+    const font2 = readOpenTypeFontInfo(binary);
+    if (!font2) {
       return null;
     }
     const math = readOpenTypeMathTable(binary);
-    const built = buildCharsFromFont(font);
+    const built = buildCharsFromFont(font2);
     if (built.mapped === 0) {
       return null;
     }
@@ -6269,12 +6748,12 @@ var firaMathAdapter = {
     return matchByFamilyName(this, familyName);
   },
   build(binary, _ctx) {
-    const font = readOpenTypeFontInfo(binary);
-    if (!font) {
+    const font2 = readOpenTypeFontInfo(binary);
+    if (!font2) {
       return null;
     }
     const math = readOpenTypeMathTable(binary);
-    const built = buildCharsFromFont(font);
+    const built = buildCharsFromFont(font2);
     if (built.mapped === 0) {
       return null;
     }
@@ -6283,8 +6762,8 @@ var firaMathAdapter = {
       math ? "Read from the font's OpenType MATH table; nothing was measured." : "No MATH table found — boxes come from the font's own hmtx/OS-2 metrics.",
       `Mapped ${built.mapped} glyphs; left ${built.skippedAbsent} uncovered ones to MathJax.`
     ];
-    if (font.verticals.xHeight) {
-      notes.push(`x-height ${font.verticals.xHeight.toFixed(3)}em, ascent ${font.verticals.ascent.toFixed(3)}em.`);
+    if (font2.verticals.xHeight) {
+      notes.push(`x-height ${font2.verticals.xHeight.toFixed(3)}em, ascent ${font2.verticals.ascent.toFixed(3)}em.`);
     }
     return {
       source: math ? "opentype-math" : "tex-tfm",
@@ -6711,23 +7190,23 @@ var computerModernAdapter = {
     return matchByFamilyName(this, familyName);
   },
   build(binary, _ctx) {
-    const font = readOpenTypeFontInfo(binary);
-    if (!font) {
+    const font2 = readOpenTypeFontInfo(binary);
+    if (!font2) {
       return null;
     }
     const math = readOpenTypeMathTable(binary);
-    const built = buildCharsFromFont(font);
+    const built = buildCharsFromFont(font2);
     if (built.mapped === 0) {
       return null;
     }
-    const verticalsLookSane = Math.abs(font.verticals.ascent - TEX_DESIGN_CONSTANTS.ascent) < 0.15;
+    const verticalsLookSane = Math.abs(font2.verticals.ascent - TEX_DESIGN_CONSTANTS.ascent) < 0.15;
     const notes = [
       "Computer Modern lineage: TeX TFM design constants apply.",
       math ? "Read from the font's OpenType MATH table; nothing was measured." : "No MATH table — boxes come from the font's own hmtx/OS-2 metrics.",
       `Mapped ${built.mapped} glyphs; left ${built.skippedAbsent} uncovered ones to MathJax.`
     ];
     if (!verticalsLookSane) {
-      notes.push(`Font states ascent ${font.verticals.ascent.toFixed(3)}em against the CM design's ` + `${TEX_DESIGN_CONSTANTS.ascent}em — kept the font's own value.`);
+      notes.push(`Font states ascent ${font2.verticals.ascent.toFixed(3)}em against the CM design's ` + `${TEX_DESIGN_CONSTANTS.ascent}em — kept the font's own value.`);
     }
     return {
       source: math ? "opentype-math" : "tex-tfm",
@@ -6784,9 +7263,9 @@ function isPrivateUse7(code) {
 function isControl7(code) {
   return code < 32 || code >= 127 && code <= 159;
 }
-function measureWith(ctx, family, text) {
-  ctx.font = `${PROBE_SIZE}px "${family.replace(/"/g, "")}"`;
-  const m = ctx.measureText(text);
+function measureWith(ctx, family2, text2) {
+  ctx.font = `${PROBE_SIZE}px "${family2.replace(/"/g, "")}"`;
+  const m = ctx.measureText(text2);
   return {
     width: m.width,
     ascent: m.actualBoundingBoxAscent || 0,
@@ -6809,7 +7288,7 @@ var measurementFallbackAdapter = {
     if (!familyName) {
       return null;
     }
-    const canvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+    const canvas = typeof document !== "undefined" ? createEl("canvas") : null;
     const c2d = canvas ? canvas.getContext("2d") : null;
     if (!c2d) {
       return null;
@@ -6841,8 +7320,8 @@ var measurementFallbackAdapter = {
         if (isPrivateUse7(code) || isControl7(code)) {
           continue;
         }
-        const text = String.fromCodePoint(code);
-        const ink = measureWith(c2d, familyName, text);
+        const text2 = String.fromCodePoint(code);
+        const ink = measureWith(c2d, familyName, text2);
         if (sameInk(ink, notdef)) {
           skippedMissing++;
           continue;
@@ -6924,16 +7403,20 @@ function buildMathMetrics(binary, familyName, unitsPerEm) {
 
 // src/plugin.ts
 var browserNavigator = window.navigator;
-var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen"];
+var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "lastSeen", "type"];
 var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 var FONT_CSS_SNIPPET = "local-font-loader";
 var FONT_FACES_ID = "local-font-loader-faces";
 var FONT_GLYPHS_ID = "local-font-loader-glyphs";
 var MATH_ADOPTION_RETRY_MS = 5000;
 
-class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
+class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   currentDeviceId;
   _mathAdoptionAttemptAt = 0;
+  _mathGeneration = 0;
+  _activeMathFamily = "";
+  _mathAdoptionJob = null;
+  _mathAdoptionTimer = null;
   _mathFontSnapshot = null;
   _mathAdaptationLayer = null;
   _mathAdaptationSource = "MathJax's own metrics";
@@ -6947,12 +7430,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   _isSaving = false;
   _dataReloadTimer = null;
   _settingsFilePresent = false;
-  _logEnabled = false;
-  _log(...args) {
-    if (this._logEnabled) {
-      console.log(...args);
-    }
-  }
   _logError(...args) {
     console.error(...args);
   }
@@ -6981,18 +7458,18 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._saveSettingsTimer = null;
     }, 300);
   }
-  getUnicodeRange(scope) {
+  getUnicodeRange(scope2) {
     const ranges = [];
-    if (scope?.letters !== false) {
+    if (scope2?.letters !== false) {
       ranges.push("U+0041-005A", "U+0061-007A");
     }
-    if (scope?.numbers !== false) {
+    if (scope2?.numbers !== false) {
       ranges.push("U+0030-0039");
     }
-    if (scope?.punctuation !== false) {
+    if (scope2?.punctuation !== false) {
       ranges.push("U+0020-002F", "U+003A-0040", "U+005B-0060", "U+007B-007E");
     }
-    if (scope?.symbols !== false) {
+    if (scope2?.symbols !== false) {
       ranges.push("U+00A0-00FF");
     }
     return ranges.length > 0 ? ranges.join(", ") : null;
@@ -7123,8 +7600,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     return css;
   }
   async onload() {
-    this._log("[Local Font Loader] Plugin loading...");
-    this._fontDocuments.add(document);
+    this._fontDocuments.add(activeDocument);
     this.app.workspace.iterateAllLeaves((leaf) => {
       this._fontDocuments.add(leaf.view.containerEl.ownerDocument);
     });
@@ -7138,7 +7614,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     await this._sanitizePersistedFontSnippet();
     try {
       await this.loadSettings();
-      this._log("[Local Font Loader] Settings loaded successfully");
       if (!this.settings.presets || this.settings.presets.length === 0) {
         this._logError("[Local Font Loader] Critical: presets array is empty or undefined");
         throw new Error("Settings validation failed: presets missing");
@@ -7156,10 +7631,10 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       }
       await this.repairDeviceList();
       const activeDeviceId = this.currentDeviceId;
-      const deviceInfo = this._detectDeviceInfo();
+      const deviceInfo = { ...this._detectDeviceInfo(), type: detectDeviceType(import_obsidian9.Platform) };
       const previousMeta = this.settings.deviceMeta[activeDeviceId];
       const legacyShape = previousMeta ? Object.keys(previousMeta).some((key) => !RECORDED_META_KEYS.includes(key)) : false;
-      const metaChanged = !previousMeta || previousMeta.platform !== deviceInfo.platform || previousMeta.os !== deviceInfo.os || previousMeta.model !== deviceInfo.model || previousMeta.hostname !== deviceInfo.hostname || legacyShape;
+      const metaChanged = !previousMeta || previousMeta.platform !== deviceInfo.platform || previousMeta.os !== deviceInfo.os || previousMeta.model !== deviceInfo.model || previousMeta.hostname !== deviceInfo.hostname || previousMeta.type !== deviceInfo.type || legacyShape;
       const seenAt = new Date().toISOString();
       const lastSeenTime = previousMeta && previousMeta.lastSeen ? Date.parse(previousMeta.lastSeen) : Number.NaN;
       const seenStale = Number.isNaN(lastSeenTime) || Date.now() - lastSeenTime > SEEN_REFRESH_MS;
@@ -7174,20 +7649,14 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
         this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
         await this._persistStartupState();
-        this._log(`[Local Font Loader] New device registered: ${activeDeviceId} (${this.settings.deviceNameMap[activeDeviceId]})`);
       } else if (metaChanged || generatedNameOutdated || seenStale) {
         this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
         if (generatedNameOutdated) {
           this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
-          this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[activeDeviceId]}`);
         }
         await this._persistStartupState();
-        this._log(`[Local Font Loader] Device metadata refreshed: ${activeDeviceId}`);
-      } else {
-        this._log(`[Local Font Loader] Device recognized: ${activeDeviceId}`);
       }
       await this._ensureDevicePreset();
-      this._log("[Local Font Loader] Device preset ensured");
     } catch (error) {
       this._logError("[Local Font Loader] Failed during initialization:", error);
     }
@@ -7208,7 +7677,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       name: "Reload Fonts",
       callback: async () => {
         await this.applyFonts();
-        new import_obsidian10.Notice("✓ Fonts reloaded");
+        new import_obsidian9.Notice("✓ Fonts reloaded");
       }
     });
     this.addCommand({
@@ -7216,7 +7685,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       name: "Rescan Fonts",
       callback: async () => {
         await this.scanFonts();
-        new import_obsidian10.Notice("✓ Font list updated");
+        new import_obsidian9.Notice("✓ Font list updated");
       }
     });
     this.addCommand({
@@ -7227,7 +7696,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
           new FontStatusModal(this.app, this._collectFontStatusRows()).open();
         } catch (error) {
           this._logError("[Local Font Loader] Could not show the font status:", error);
-          new import_obsidian10.Notice("Could not show the font status");
+          new import_obsidian9.Notice("Could not show the font status");
         }
       }
     });
@@ -7241,7 +7710,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }));
     this.registerEvent(this.app.vault.on("modify", (file) => {
       if (file.path === `${this.manifest.dir}/data.json`) {
-        this._log("[Local Font Loader] data.json modified, checking for content changes...");
         if (this._dataReloadTimer) {
           window.clearTimeout(this._dataReloadTimer);
         }
@@ -7251,31 +7719,26 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       }
     }));
     if (this.settings.availableFonts.length === 0) {
-      this._log("[Local Font Loader] Font list is empty, scanning...");
-      await this.scanFonts();
+      await this.scanFonts(false);
     }
     try {
       await this._refreshFontExistence();
-      this._log("[Local Font Loader] Font existence check completed");
     } catch (error) {
       this._logError("[Local Font Loader] Font existence check failed:", error);
     }
     if (this.settings.autoLoadOnStartup) {
-      this._log("[Local Font Loader] Auto-loading fonts...");
       try {
         await this.applyFonts();
-        this._log("[Local Font Loader] Fonts applied successfully");
       } catch (error) {
         this._logError("[Local Font Loader] Failed to apply fonts:", error);
-        new import_obsidian10.Notice("⚠️ Local Font Loader: 字体加载失败，请检查控制台日志", 5000);
+        new import_obsidian9.Notice("⚠️ Local Font Loader: 字体加载失败，请检查控制台日志", 5000);
       }
     } else {
-      this._log("[Local Font Loader] Auto-load disabled, skipping font application");
+      this.removeFontStyles();
+      await this._snippetSync;
     }
-    this._log("[Local Font Loader] ✓ Plugin loaded");
   }
   onunload() {
-    this._log("[Local Font Loader] Plugin unloading");
     if (this._saveSettingsTimer) {
       window.clearTimeout(this._saveSettingsTimer);
       this._saveSettingsTimer = null;
@@ -7286,7 +7749,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
     this.removeFontStyles();
     this._fontDocuments.clear();
-    const presetStyle = document.getElementById("local-font-loader-preset-styles");
+    const presetStyle = activeDocument.getElementById("local-font-loader-preset-styles");
     if (presetStyle)
       presetStyle.remove();
   }
@@ -7302,48 +7765,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     };
   }
   async loadSettings() {
-    const hadSettings = Boolean(this.settings && Object.keys(this.settings).length > 0);
     const data = await this.loadData();
-    this._settingsFilePresent = Boolean(data && Object.keys(data).length > 0);
-    if (!this._isCompleteSettingsSnapshot(data)) {
-      if (hadSettings) {
-        this._log("[Local Font Loader] data.json read back incomplete; keeping the settings already in memory");
-        return;
-      }
-      this._log("[Local Font Loader] No usable settings on disk; starting from the defaults");
-    }
-    if (!this._isCompleteSettingsSnapshot(data) && this.settings && this._settingsFilePresent === false) {
-      this._log("[Local Font Loader] data.json read back incomplete; keeping the settings already in memory");
+    this._settingsFilePresent = isRecord(data) && Object.keys(data).length > 0;
+    if (!this._isCompleteSettingsSnapshot(data) && this.settings)
       return;
-    }
-    if (!this._isCompleteSettingsSnapshot(data) && this.settings && Object.keys(this.settings).length > 0 && this._settingsFilePresent) {
-      this._log("[Local Font Loader] data.json read back incomplete; keeping the settings already in memory");
-      return;
-    }
-    if (data && (!data.presets || data.presets.length === 0)) {
-      this._log("[Local Font Loader] Legacy configuration detected, migrating into a default preset");
-      data.presets = [this._buildLegacyDefaultPreset(data)];
-      this._log("[Local Font Loader] Legacy configuration migrated");
-    } else if (data && !data.presets.some((p) => p.id === "default-preset")) {
-      this._log("[Local Font Loader] Default preset missing, adding it back");
-      data.presets.unshift(this._buildLegacyDefaultPreset(data));
-    }
-    if (data && data.deviceId !== undefined) {
-      delete data.deviceId;
-    }
-    if (data && data.deviceName !== undefined) {
-      delete data.deviceName;
-    }
-    if (data && !data.deviceFingerprints) {
-      data.deviceFingerprints = {};
-    }
-    if (data && !data.deviceNameMap) {
-      data.deviceNameMap = {};
-    }
-    if (data && !data.deviceAliases) {
-      data.deviceAliases = {};
-    }
-    this.settings = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), data);
+    this.settings = normalizeSettings(data);
   }
   async saveSettings() {
     this._isSaving = true;
@@ -7355,21 +7781,31 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   async _persistStartupState() {
     if (!this._settingsFilePresent) {
-      this._log("[Local Font Loader] No settings file loaded yet; not writing startup state");
       return;
     }
     await this.saveSettings();
   }
+  getDeviceType(deviceId = this.currentDeviceId) {
+    const override = this.settings.deviceTypeOverrides?.[deviceId];
+    if (override)
+      return override;
+    if (deviceId === this.currentDeviceId)
+      return detectDeviceType(import_obsidian9.Platform);
+    return getRecordedDeviceType(this.settings.deviceMeta[deviceId]);
+  }
   _getDevicePreset() {
+    const grouped = resolveDeviceTypePreset(this.settings, this.getDeviceType());
+    if (grouped)
+      return grouped;
     const deviceId = this.currentDeviceId;
-    let preset = this.settings.presets.find((p) => p.targetDevices.includes(deviceId));
-    if (!preset) {
-      preset = this.settings.presets.find((p) => p.id === "default-preset");
+    let preset2 = this.settings.presets.find((p) => p.targetDevices.includes(deviceId));
+    if (!preset2) {
+      preset2 = this.settings.presets.find((p) => p.id === "default-preset");
     }
-    if (!preset) {
-      preset = this.settings.presets[0];
+    if (!preset2) {
+      preset2 = this.settings.presets[0];
     }
-    return preset;
+    return preset2;
   }
   _getDeviceFontContext() {
     const devicePreset = this._getDevicePreset();
@@ -7385,35 +7821,40 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       id: this._generateUUID(),
       name,
       targetDevices: [],
-      fonts: defaultPreset ? JSON.parse(JSON.stringify(defaultPreset.fonts)) : { ui: "", text: "", heading: "", monospace: "", math: "", latin: "" },
+      fonts: defaultPreset ? structuredClone(defaultPreset.fonts) : { ui: "", text: "", heading: "", monospace: "", math: "", latin: "" },
       latinFontEnabled: defaultPreset ? defaultPreset.latinFontEnabled : false,
-      latinFontScope: defaultPreset ? JSON.parse(JSON.stringify(defaultPreset.latinFontScope)) : { letters: true, numbers: true, punctuation: true, symbols: true },
+      latinFontScope: defaultPreset?.latinFontScope ? structuredClone(defaultPreset.latinFontScope) : { letters: true, numbers: true, punctuation: true, symbols: true },
       headingApplyToFileTitle: defaultPreset ? defaultPreset.headingApplyToFileTitle : false
     };
     this.settings.presets.push(newPreset);
     await this.saveSettings();
   }
   async renamePreset(presetId, newName) {
-    const preset = this.settings.presets.find((p) => p.id === presetId);
-    if (preset) {
-      preset.name = newName;
+    const preset2 = this.settings.presets.find((p) => p.id === presetId);
+    if (preset2) {
+      preset2.name = newName;
       await this.saveSettings();
     }
   }
   async deletePreset(presetId) {
     if (presetId === "default-preset") {
-      new import_obsidian10.Notice(t("cannotDeleteDefaultPreset"), 3000);
+      new import_obsidian9.Notice(t("cannotDeleteDefaultPreset"), 3000);
       return;
     }
-    const preset = this.settings.presets.find((p) => p.id === presetId);
-    if (!preset)
+    const preset2 = this.settings.presets.find((p) => p.id === presetId);
+    if (!preset2)
       return;
     this.settings.presets = this.settings.presets.filter((p) => p.id !== presetId);
     await this.saveSettings();
   }
   async assignDeviceToPreset(deviceId, targetPresetId) {
-    bindDeviceToPreset(this.settings.presets, deviceId, targetPresetId);
-    inheritSimilarDevicePresets(this.settings.presets, this.settings.deviceMeta, this.settings.deviceAliases);
+    const type = this.getDeviceType(deviceId);
+    if (this.settings.deviceTypeModeEnabled && type) {
+      bindDeviceTypeToPreset(this.settings, type, targetPresetId);
+    } else {
+      bindDeviceToPreset(this.settings.presets, deviceId, targetPresetId);
+      inheritSimilarDevicePresets(this.settings.presets, this.settings.deviceMeta, this.settings.deviceAliases);
+    }
     await this.saveSettings();
     await this.applyFonts();
   }
@@ -7425,7 +7866,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       ...structuredClone(sourcePreset),
       id: this._generateUUID(),
       name: newPresetName,
-      targetDevices: [this.currentDeviceId]
+      targetDevices: this.settings.deviceTypeModeEnabled ? [] : [this.currentDeviceId]
     };
     this.settings.presets.push(newPreset);
     await this.assignDeviceToPreset(this.currentDeviceId, newPreset.id);
@@ -7438,8 +7879,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     });
   }
   async removeDeviceFromPresets(deviceId) {
-    this.settings.presets.forEach((preset) => {
-      preset.targetDevices = preset.targetDevices.filter((id) => id !== deviceId);
+    delete this.settings.deviceTypeOverrides?.[deviceId];
+    this.settings.presets.forEach((preset2) => {
+      preset2.targetDevices = preset2.targetDevices.filter((id) => id !== deviceId);
     });
     if (this.settings.deviceNameMap && this.settings.deviceNameMap[deviceId]) {
       delete this.settings.deviceNameMap[deviceId];
@@ -7451,8 +7893,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   getPrunableDevices() {
     const boundDeviceIds = new Set;
-    this.settings.presets.forEach((preset) => {
-      (preset.targetDevices || []).forEach((id) => boundDeviceIds.add(id));
+    this.settings.presets.forEach((preset2) => {
+      (preset2.targetDevices || []).forEach((id) => boundDeviceIds.add(id));
     });
     const prunable = [];
     Object.keys(this.settings.deviceNameMap || {}).forEach((deviceId) => {
@@ -7483,8 +7925,18 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     if (prunable.length > 0 || orphanCount > 0) {
       await this.saveSettings();
     }
-    this._log(`[Local Font Loader] Pruned ${prunable.length} unbound device(s), ${orphanCount} orphaned metadata entr(ies)`);
     return prunable.length + orphanCount;
+  }
+  _remapDeviceTypeOverrides(aliases) {
+    const overrides = this.settings.deviceTypeOverrides ?? {};
+    for (const [id, type] of Object.entries(overrides)) {
+      const target = resolveDeviceAlias(id, aliases);
+      if (target === id)
+        continue;
+      overrides[target] ??= type;
+      delete overrides[id];
+    }
+    this.settings.deviceTypeOverrides = overrides;
   }
   async repairDeviceList() {
     const plan = planDeviceRepair({
@@ -7492,10 +7944,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       meta: this.settings.deviceMeta || {},
       aliases: this.settings.deviceAliases || {},
       now: Date.now()
-    });
-    plan.ambiguous.forEach((group) => {
-      const names = group.ids.map((id) => this._getDeviceName(id)).join(", ");
-      this._log(`[Local Font Loader] Similar devices kept separate (history: ${group.history}): ${names}`);
     });
     if (!plan.changed) {
       return 0;
@@ -7514,8 +7962,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       delete this.settings.deviceNameMap[id];
       delete this.settings.deviceMeta[id];
     });
-    this.settings.presets.forEach((preset) => {
-      preset.targetDevices = remapDeviceIds(preset.targetDevices, plan.aliases);
+    this.settings.presets.forEach((preset2) => {
+      preset2.targetDevices = remapDeviceIds(preset2.targetDevices, plan.aliases);
     });
     Object.keys(this.settings.deviceFingerprints || {}).forEach((fingerprint) => {
       const claimed = this.settings.deviceFingerprints[fingerprint];
@@ -7524,17 +7972,16 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         this.settings.deviceFingerprints[fingerprint] = mapped;
       }
     });
+    this._remapDeviceTypeOverrides(plan.aliases);
     this.settings.deviceAliases = plan.aliases;
     const adopted = resolveDeviceAlias(this.currentDeviceId, plan.aliases);
     if (adopted !== this.currentDeviceId) {
-      this._log(`[Local Font Loader] Device id adopted from repair: ${this.currentDeviceId} -> ${adopted}`);
       this.currentDeviceId = adopted;
       await this._persistLocalDeviceId(adopted);
     }
     await this.saveSettings();
     const merged = plan.merges.length;
-    this._log(`[Local Font Loader] Device list repaired: ${merged} duplicate group(s) merged`);
-    new import_obsidian10.Notice(t("deviceListRepaired").replace("{0}", String(merged)), 4000);
+    new import_obsidian9.Notice(t("deviceListRepaired").replace("{0}", String(merged)), 4000);
     return merged;
   }
   _getDeviceName(deviceId) {
@@ -7567,18 +8014,32 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     this.settings.deviceNameMap[deviceId] = trimmedName;
     await this.saveSettings();
   }
+  _readLocalDeviceId(key) {
+    const host = this.app;
+    if (typeof host.loadLocalStorage === "function")
+      return host.loadLocalStorage(key);
+    const raw = window.localStorage.getItem(`${host.appId || this.app.vault.getName()}-${key}`);
+    return raw === null ? null : JSON.parse(raw);
+  }
+  _writeLocalDeviceId(key, value) {
+    const host = this.app;
+    if (typeof host.saveLocalStorage === "function")
+      host.saveLocalStorage(key, value);
+    else
+      window.localStorage.setItem(`${host.appId || this.app.vault.getName()}-${key}`, JSON.stringify(value));
+  }
   async _getOrCreateLocalDeviceId() {
     const STORAGE_KEY = "local-font-loader-device-id";
     let storedId = null;
     try {
-      storedId = this.app.loadLocalStorage(STORAGE_KEY);
+      storedId = this._readLocalDeviceId(STORAGE_KEY);
     } catch (error) {
       this._logError("[Local Font Loader] Failed to read device-local id:", error);
     }
-    if (import_obsidian10.Platform.isMobile) {
+    if (import_obsidian9.Platform.isMobile) {
       const derivedId = await this._getPlatformDeviceId();
       if (derivedId) {
-        if (storedId && storedId !== derivedId) {
+        if (typeof storedId === "string" && storedId && storedId !== derivedId) {
           await this._adoptDerivedDeviceId(storedId, derivedId);
         }
         if (storedId !== derivedId) {
@@ -7592,12 +8053,10 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
       if (adoptedId !== storedId) {
         await this._persistLocalDeviceId(adoptedId);
-        this._log(`[Local Font Loader] Device id adopted from a device-list repair: ${storedId} -> ${adoptedId}`);
         return adoptedId;
       }
       if (this._sealLegacyEntries(storedId)) {
         await this.saveSettings();
-        this._log(`[Local Font Loader] Legacy ledger sealed for held id: ${storedId}`);
       }
       return storedId;
     }
@@ -7608,12 +8067,10 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   async _persistLocalDeviceId(deviceId) {
     const STORAGE_KEY = "local-font-loader-device-id";
     try {
-      this.app.saveLocalStorage(STORAGE_KEY, deviceId);
-      const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
+      this._writeLocalDeviceId(STORAGE_KEY, deviceId);
+      const confirmed = this._readLocalDeviceId(STORAGE_KEY);
       if (confirmed !== deviceId) {
-        this._logError(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
-      } else {
-        this._log(`[Local Font Loader] Device id persisted: ${deviceId}`);
+        this._logError(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${typeof confirmed === "string" ? confirmed : "invalid value"}); this device may register again on the next launch.`);
       }
     } catch (error) {
       this._logError("[Local Font Loader] Failed to persist device-local id:", error);
@@ -7629,7 +8086,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       if (!identifier) {
         return null;
       }
-      return await this._hashDeviceIdentifier(`${import_obsidian10.Platform.isAndroidApp ? "android" : "ios"}:${identifier}`);
+      return await this._hashDeviceIdentifier(`${import_obsidian9.Platform.isAndroidApp ? "android" : "ios"}:${identifier}`);
     } catch (error) {
       this._logError("[Local Font Loader] Failed to read the platform device identifier:", error);
       return null;
@@ -7658,8 +8115,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     this.settings.deviceNameMap = nameMap;
     this.settings.deviceMeta = meta;
     const aliases = { [fromId]: toId };
-    this.settings.presets.forEach((preset) => {
-      preset.targetDevices = remapDeviceIds(preset.targetDevices, aliases);
+    this._remapDeviceTypeOverrides(aliases);
+    this.settings.presets.forEach((preset2) => {
+      preset2.targetDevices = remapDeviceIds(preset2.targetDevices, aliases);
     });
     Object.keys(this.settings.deviceFingerprints || {}).forEach((fingerprint) => {
       if (this.settings.deviceFingerprints[fingerprint] === fromId) {
@@ -7671,7 +8129,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
     this.settings.deviceAliases[fromId] = toId;
     await this.saveSettings();
-    this._log(`[Local Font Loader] Device id derived from the platform: ${fromId} -> ${toId}`);
   }
   async _claimLegacyDeviceId() {
     const ledger = this.settings.deviceFingerprints;
@@ -7685,7 +8142,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
     this._sealLegacyEntries(claimedId);
     await this.saveSettings();
-    this._log(`[Local Font Loader] Legacy device id claimed and sealed: ${claimedId}`);
     return claimedId;
   }
   _sealLegacyEntries(deviceId) {
@@ -7704,10 +8160,10 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   _detectDeviceInfo() {
     const ua = browserNavigator.userAgent;
-    const platform = import_obsidian10.Platform.isMobile ? "mobile" : "desktop";
+    const platform = import_obsidian9.Platform.isMobile ? "mobile" : "desktop";
     const hostname = this._getDesktopHostname();
-    if (import_obsidian10.Platform.isIosApp || /iPhone|iPad|iPod/.test(ua)) {
-      const isTablet = import_obsidian10.Platform.isTablet || /iPad/.test(ua);
+    if (import_obsidian9.Platform.isIosApp || /iPhone|iPad|iPod/.test(ua)) {
+      const isTablet = import_obsidian9.Platform.isTablet || /iPad/.test(ua);
       return {
         platform: "mobile",
         os: isTablet ? "ipados" : "ios",
@@ -7763,7 +8219,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     return { platform, os: "unknown", model: "", hostname };
   }
   _getDesktopOsPlatform() {
-    if (!import_obsidian10.Platform.isDesktopApp) {
+    if (!import_obsidian9.Platform.isDesktopApp) {
       return null;
     }
     try {
@@ -7775,7 +8231,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
   }
   _getDesktopHostname() {
-    if (!import_obsidian10.Platform.isDesktopApp) {
+    if (!import_obsidian9.Platform.isDesktopApp) {
       return "";
     }
     try {
@@ -7826,7 +8282,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     return meta && meta.model ? meta.model : "";
   }
   _generateDeviceFingerprint() {
-    const platform = import_obsidian10.Platform.isMobile ? "mobile" : "desktop";
+    const platform = import_obsidian9.Platform.isMobile ? "mobile" : "desktop";
     const ua = browserNavigator.userAgent;
     const features = [
       ua,
@@ -7849,7 +8305,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   async _ensureDevicePreset() {
     let changed = false;
-    if (!this.settings.presets.some((preset) => preset.id === "default-preset")) {
+    if (!this.settings.presets.some((preset2) => preset2.id === "default-preset")) {
       const base = this.settings.presets[0] || DEFAULT_SETTINGS.presets[0];
       this.settings.presets.unshift({
         ...structuredClone(base),
@@ -7860,9 +8316,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       changed = true;
     }
     const inherited = inheritSimilarDevicePresets(this.settings.presets, this.settings.deviceMeta, this.settings.deviceAliases);
-    if (inherited > 0) {
-      this._log(`[Local Font Loader] Inherited presets for ${inherited} similar device(s)`);
-    }
     if (changed || inherited > 0) {
       await this._persistStartupState();
     }
@@ -7882,7 +8335,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
   }
   async importFontsFromFiles(files) {
-    this._log(`[Local Font Loader] Starting to import ${files.length} font files...`);
     let imported = 0;
     for (const file of files) {
       try {
@@ -7892,44 +8344,36 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         await this._ensureFolder(targetDir);
         await this.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
         imported++;
-        this._log(`[Local Font Loader] Imported: ${file.name}`);
       } catch (error) {
         this._logError(`[Local Font Loader] Failed to import ${file.name}:`, error);
       }
     }
-    this._log(`[Local Font Loader] Import completed: ${imported}/${files.length} fonts`);
     return imported;
   }
-  async scanFonts() {
-    const startTime = performance.now();
+  async scanFonts(persist = true) {
     if (this._isScanning) {
-      this._log("[Local Font Loader] Scan already in progress, ignoring duplicate call");
       return;
     }
     this._isScanning = true;
     try {
-      this._log("[Local Font Loader] Scanning font family folders...");
       await this._ensureFolder(this.settings.fontSourceDir);
       const dirList = await this.app.vault.adapter.list(this.settings.fontSourceDir);
       const fontDirs = dirList.folders;
-      this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
       const previousFonts = this.settings.availableFonts;
       this.settings.availableFonts = [];
       this.settings.fontFamilies = [];
       const fontMap = new Map;
       for (const fontDir of fontDirs) {
         try {
-          const folderName = fontDir.split("/").pop();
+          const folderName = fontDir.split("/").pop() || fontDir;
           const metadataPath = `${fontDir}/.fontfamily.json`;
           let metadata = null;
           try {
             const metadataContent = await this.app.vault.adapter.read(metadataPath);
-            metadata = JSON.parse(metadataContent);
-            this._log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
-          } catch {
-            this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
-          }
-          const family = {
+            const raw = JSON.parse(metadataContent);
+            metadata = parseFontFamilyMetadata(raw);
+          } catch {}
+          const family2 = {
             familyName: metadata?.familyName || folderName,
             folderPath: fontDir,
             hasRegular: false,
@@ -7952,29 +8396,25 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
                   path: fontPath,
                   basename,
                   ext,
-                  familyName: family.familyName,
+                  familyName: family2.familyName,
                   variantType
                 };
                 if (!fontMap.has(name)) {
                   fontMap.set(name, fontInfo);
                 }
                 if (variantType === "regular")
-                  family.hasRegular = true;
+                  family2.hasRegular = true;
                 else if (variantType === "italic")
-                  family.hasItalic = true;
+                  family2.hasItalic = true;
                 else if (variantType === "bold")
-                  family.hasBold = true;
+                  family2.hasBold = true;
                 else if (variantType === "bolditalic")
-                  family.hasBoldItalic = true;
-                this._log(`[Local Font Loader] Identified font: ${family.familyName} (${variantType})`);
-              } catch {
-                this._log(`[Local Font Loader] Font file does not exist: ${fontPath}`);
-              }
+                  family2.hasBoldItalic = true;
+              } catch {}
             }
           } else {
             const files = await this.app.vault.adapter.list(fontDir);
             const fontFiles = files.files.filter((f) => /\.(ttf|otf|woff|woff2)$/i.test(f));
-            this._log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
             const scanPromises = fontFiles.map(async (fontPath) => {
               try {
                 const basename = fontPath.split("/").pop() || "";
@@ -7982,7 +8422,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
                 const ext = (basename.split(".").pop() || "").toLowerCase();
                 const arrayBuffer = await this.app.vault.adapter.readBinary(fontPath);
                 const fontMetadata = parseFontMetadata(arrayBuffer);
-                const realFamilyName = fontMetadata?.familyName || family.familyName;
+                const realFamilyName = fontMetadata?.familyName || family2.familyName;
                 const variantType = fontMetadata?.variantType || "regular";
                 const fontInfo = {
                   name,
@@ -7992,7 +8432,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
                   familyName: realFamilyName,
                   variantType
                 };
-                this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
                 return { success: true, fontInfo, variantType };
               } catch (error) {
                 this._logError(`[Local Font Loader] Failed to scan font: ${fontPath}`, error);
@@ -8007,18 +8446,18 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
                   fontMap.set(scannedFont.name, scannedFont);
                 }
                 if (result.variantType === "regular")
-                  family.hasRegular = true;
+                  family2.hasRegular = true;
                 else if (result.variantType === "italic")
-                  family.hasItalic = true;
+                  family2.hasItalic = true;
                 else if (result.variantType === "bold")
-                  family.hasBold = true;
+                  family2.hasBold = true;
                 else if (result.variantType === "bolditalic")
-                  family.hasBoldItalic = true;
+                  family2.hasBoldItalic = true;
               }
             }
           }
-          if (family.hasRegular || family.hasItalic || family.hasBold || family.hasBoldItalic) {
-            this.settings.fontFamilies.push(family);
+          if (family2.hasRegular || family2.hasItalic || family2.hasBold || family2.hasBoldItalic) {
+            this.settings.fontFamilies.push(family2);
           }
         } catch (error) {
           this._logError(`[Local Font Loader] Failed to process font family: ${fontDir}`, error);
@@ -8041,14 +8480,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         }
       }
       this.settings.availableFonts = Array.from(fontMap.values());
-      await this.saveSettings();
+      if (persist || this._settingsFilePresent)
+        await this.saveSettings();
       await this._refreshFontExistence();
-      const endTime = performance.now();
-      this._log(`[Local Font Loader] Scan completed: ${this.settings.fontFamilies.length} font families, ${this.settings.availableFonts.length} variants, took ${(endTime - startTime).toFixed(2)}ms`);
     } catch (error) {
-      const endTime = performance.now();
-      this._logError(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
-      await this.saveSettings();
+      this._logError("[Local Font Loader] Font scan failed:", error);
     } finally {
       this._isScanning = false;
     }
@@ -8085,37 +8521,42 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   async _waitForMathFont(familyName, attempts = 12, delayMs = 250) {
     for (let attempt = 0;attempt < attempts; attempt++) {
       try {
-        await document.fonts.load(`16px "${familyName}"`);
+        const loaded = await activeDocument.fonts.load(`16px "${this._escapeCssString(familyName)}"`);
+        if (loaded.length > 0)
+          return true;
       } catch (error) {
         this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
-      }
-      if (document.fonts.check(`16px "${familyName}"`)) {
-        return true;
       }
       await new Promise((resolve) => window.setTimeout(resolve, delayMs));
     }
     return false;
   }
   async _retryMathMetricAdoption() {
-    try {
-      const preset = this._getDevicePreset();
-      const familyName = preset && preset.fonts ? preset.fonts.math : "";
-      if (!familyName || this._mathFontSnapshot) {
-        return;
+    const family2 = this._activeMathFamily;
+    if (!family2 || this._mathFontSnapshot)
+      return;
+    if (Date.now() - this._mathAdoptionAttemptAt < MATH_ADOPTION_RETRY_MS)
+      return;
+    this._mathAdoptionAttemptAt = Date.now();
+    await this._runMathMetricAdoption(family2);
+  }
+  async _runMathMetricAdoption(family2) {
+    const generation = this._mathGeneration;
+    if (this._mathAdoptionJob?.generation === generation)
+      return this._mathAdoptionJob.promise;
+    const promise = (async () => {
+      try {
+        const adopted = await this._adoptMathFontMetrics(family2);
+        if (adopted && generation === this._mathGeneration)
+          await this._afterMetricAdoption();
+      } catch (error) {
+        this._logError("[Local Font Loader] Could not adopt math font metrics:", error);
       }
-      const now = Date.now();
-      if (now - this._mathAdoptionAttemptAt < MATH_ADOPTION_RETRY_MS) {
-        return;
-      }
-      this._mathAdoptionAttemptAt = now;
-      const adopted = await this._adoptMathFontMetrics(familyName);
-      if (adopted) {
-        await this._afterMetricAdoption();
-        this._log("[Local Font Loader] Math font metrics adopted on a later attempt");
-      }
-    } catch (error) {
-      this._logError("[Local Font Loader] Could not adopt the math font metrics:", error);
-    }
+    })();
+    this._mathAdoptionJob = { generation, promise };
+    await promise;
+    if (this._mathAdoptionJob?.promise === promise)
+      this._mathAdoptionJob = null;
   }
   async _afterMetricAdoption() {
     this.applyCss(this._buildMathGlyphRules(), FONT_GLYPHS_ID);
@@ -8123,8 +8564,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     this._refreshMathViews();
   }
   _collectFontStatusRows() {
-    const preset = this._getDevicePreset();
-    const fonts = preset && preset.fonts || {};
+    const preset2 = this._getDevicePreset();
+    const fonts2 = preset2 && preset2.fonts || {};
     const categories = [
       { key: "ui", label: "Interface" },
       { key: "text", label: "Text" },
@@ -8133,17 +8574,17 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       { key: "math", label: "Math" }
     ];
     return categories.map(({ key, label }) => {
-      const family = (fonts[key] || "").trim();
-      const variants = (this.settings.availableFonts || []).filter((f) => f.familyName && f.familyName === family || f.name === family);
+      const family2 = (fonts2[key] || "").trim();
+      const variants = (this.settings.availableFonts || []).filter((f) => f.familyName && f.familyName === family2 || f.name === family2);
       const row = {
         category: label,
-        family,
+        family: family2,
         adaptation: [],
         source: "",
         files: variants.map((v) => v.variantType).join(", "),
         gaps: []
       };
-      if (!family) {
+      if (!family2) {
         return row;
       }
       if (key === "math") {
@@ -8178,12 +8619,14 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       if (!await this.app.vault.adapter.exists(record.path)) {
         return { kind: "declined", adapterName: adapter.name };
       }
+      if (adapter.id === "fallback-measure" && !await this._waitForMathFont(familyName)) {
+        return { kind: "declined", adapterName: adapter.name };
+      }
       const binary = await this.app.vault.adapter.readBinary(record.path);
       const result = buildMathMetrics(binary, familyName);
       if (!result) {
         return { kind: "declined", adapterName: adapter.name };
       }
-      this._log(`[Local Font Loader] Math metrics from "${result.adapterName}" (${result.metrics.source})`);
       return { kind: "metrics", metrics: result.metrics, adapterName: result.adapterName };
     } catch (error) {
       this._logError("[Local Font Loader] Could not read the math font's own metrics:", error);
@@ -8195,40 +8638,26 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       this._restoreMathFontMetrics();
       const snapshot = { chars: [], delimiters: [] };
       let adopted = 0;
-      for (const variantName of Object.keys(fontData.variant ?? {})) {
-        const chars = fontData.variant[variantName]?.chars;
-        if (!chars) {
+      for (const [code, entry] of replaceableMathEntries(fontData)) {
+        const wanted = metrics.chars[code];
+        if (!wanted || !wanted.every(Number.isFinite))
           continue;
-        }
-        for (const code of Object.keys(metrics.chars)) {
-          const wanted = metrics.chars[code];
-          const entry = chars[code];
-          if (!Array.isArray(entry) || entry.length < 3) {
-            continue;
-          }
-          const before = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
-          if (before[0] === wanted[0] && before[1] === wanted[1] && before[2] === wanted[2]) {
-            continue;
-          }
-          snapshot.chars.push({ variantName, code, values: before });
-          entry[0] = wanted[0];
-          entry[1] = wanted[1];
-          entry[2] = wanted[2];
-          adopted++;
-        }
+        const before = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
+        if (before.every((value, i) => value === wanted[i]))
+          continue;
+        snapshot.chars.push({ variantName: "normal", code, values: before });
+        entry[0] = wanted[0];
+        entry[1] = wanted[1];
+        entry[2] = wanted[2];
+        adopted++;
       }
       if (adopted === 0) {
-        this._log("[Local Font Loader] The family adapter found nothing to change; leaving MathJax metrics as they are.");
         return false;
       }
       this._mathFontSnapshot = snapshot;
       this._mathAdaptationLayer = `${adapterName} — ${adopted} glyph sizes read from the font`;
       this._mathAdaptationSource = metrics.source === "opentype-math" ? "Its own OpenType MATH table" : metrics.source === "tex-tfm" ? "The TeX design constants this font follows" : metrics.source === "measured" ? "Worked out from rendered text — a guess, not the font’s own numbers" : "Read from the font file";
       this._mathCoverageGaps = metrics.gaps ?? [];
-      for (const note of metrics.notes ?? []) {
-        this._log(`[Local Font Loader] ${adapterName}: ${note}`);
-      }
-      this._log(`[Local Font Loader] Adopted ${adopted} glyph boxes from ${adapterName}; delimiter sizes left to MathJax.`);
       return true;
     } catch (error) {
       this._logError("[Local Font Loader] Could not apply the font's own metrics:", error);
@@ -8236,94 +8665,34 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
   }
   async _adoptMathFontMetrics(familyName) {
+    const generation = this._mathGeneration;
     const mathJax = window.MathJax;
-    if (!familyName || !mathJax || !document.fonts) {
+    if (!familyName || !mathJax || !activeDocument.fonts) {
       return false;
     }
     const fontData = await this._waitForMathFontData();
+    if (generation !== this._mathGeneration)
+      return false;
     if (!fontData) {
-      this._log("[Local Font Loader] MathJax's font table never became available; metrics not adopted");
       return false;
     }
     const fromStandard = await this._resolveMathMetricsFromStandards(familyName);
+    if (generation !== this._mathGeneration)
+      return false;
     if (fromStandard.kind === "metrics") {
       return this._applyMathMetrics(fontData, fromStandard.metrics, fromStandard.adapterName);
     }
     if (fromStandard.kind === "declined") {
       this._mathAdaptationLayer = `${fromStandard.adapterName} declined — MathJax's own numbers kept`;
       this._mathAdaptationSource = "The MathJax defaults";
-      this._log(`[Local Font Loader] ${fromStandard.adapterName} declined this family; nothing measured.`);
       return false;
     }
-    if (!await this._waitForMathFont(familyName)) {
-      this._log(`[Local Font Loader] Math font "${familyName}" did not become available; metrics not adopted`);
-      return false;
-    }
-    const canvas = createEl("canvas");
-    canvas.width = 8;
-    canvas.height = 8;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return false;
-    }
-    const SIZE = 200;
-    const measure = (char) => {
-      try {
-        ctx.font = `${SIZE}px "${familyName}"`;
-        const m = ctx.measureText(char);
-        return {
-          h: (m.actualBoundingBoxAscent || 0) / SIZE,
-          d: (m.actualBoundingBoxDescent || 0) / SIZE,
-          w: m.width / SIZE
-        };
-      } catch {
-        return null;
-      }
-    };
-    this._restoreMathFontMetrics();
-    const snapshot = { chars: [], delimiters: [] };
-    let adopted = 0;
-    Object.keys(fontData.variant).forEach((variantName) => {
-      const chars = fontData.variant[variantName].chars;
-      if (!chars)
-        return;
-      Object.keys(chars).forEach((code) => {
-        const entry = chars[code];
-        if (!Array.isArray(entry) || entry.length < 3)
-          return;
-        const extra = entry[3] || {};
-        const codePoint = Number(code);
-        const isMathItalicRange = codePoint >= 119860 && codePoint <= 119911;
-        const drawChar = isMathItalicRange ? String.fromCodePoint(codePoint) : extra.c ? String(extra.c) : String.fromCodePoint(codePoint);
-        const measured = measure(drawChar);
-        if (!measured || measured.w === 0 && measured.h === 0) {
-          return;
-        }
-        snapshot.chars.push({ variantName, code, values: [Number(entry[0]), Number(entry[1]), Number(entry[2])] });
-        entry[0] = measured.h;
-        entry[1] = measured.d;
-        entry[2] = measured.w;
-        adopted++;
-      });
-    });
-    Object.keys(fontData.delimiters || {}).forEach((code) => {
-      const delimiter = fontData.delimiters[code];
-      if (!delimiter || !Array.isArray(delimiter.HDW))
-        return;
-      const measured = measure(String.fromCodePoint(Number(code)));
-      if (!measured || measured.w === 0 && measured.h === 0)
-        return;
-      snapshot.delimiters.push({ code, values: delimiter.HDW.slice() });
-      delimiter.HDW = [measured.h, measured.d, measured.w];
-    });
-    this._mathFontSnapshot = snapshot;
-    this._mathAdaptationLayer = `Worked out by rendering the text — ${adopted} glyph sizes measured`;
-    this._mathAdaptationSource = "Worked out from rendered text — a guess, not the font’s own numbers";
-    this._mathCoverageGaps = [];
-    this._log(`[Local Font Loader] Math font metrics adopted from "${familyName}": ${adopted} glyphs, ${snapshot.delimiters.length} delimiters`);
-    return true;
+    return false;
   }
   _restoreMathFontMetrics() {
+    this._mathAdaptationLayer = null;
+    this._mathAdaptationSource = "The MathJax defaults";
+    this._mathCoverageGaps = [];
     const snapshot = this._mathFontSnapshot;
     if (!snapshot) {
       return;
@@ -8346,76 +8715,31 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         fontData.delimiters[code].HDW = values.slice();
       }
     });
-    this._log(`[Local Font Loader] Math font metrics restored (${snapshot.chars.length} glyphs)`);
     this._mathFontSnapshot = null;
   }
   _buildMathGlyphRules() {
-    try {
-      const fontData = this._getMathFontData();
-      if (!fontData || !fontData.variant) {
-        return "";
-      }
-      const guards = {
-        normal: "",
-        bold: ".TEX-B",
-        italic: ".TEX-I",
-        "bold-italic": ".TEX-BI"
-      };
-      const original = new Map;
-      for (const saved of this._mathFontSnapshot?.chars ?? []) {
-        original.set(`${saved.variantName}@${saved.code}`, saved.values.map((v) => Number(v).toFixed(4)).join(","));
-      }
-      let css = `/* Per-glyph boxes that differ from MathJax's own, so display does not depend on its stylesheet */
-`;
-      let count = 0;
-      for (const variantName of Object.keys(guards)) {
-        const variant = fontData.variant[variantName];
-        const chars = variant && variant.chars;
-        if (!chars) {
-          continue;
-        }
-        const guard = guards[variantName];
-        for (const code of Object.keys(chars)) {
-          const entry = chars[code];
-          if (!Array.isArray(entry) || entry.length < 3) {
-            continue;
-          }
-          const height = Number(entry[0]);
-          const depth = Number(entry[1]);
-          const width = Number(entry[2]);
-          if (!Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(width)) {
-            continue;
-          }
-          const key = `${variantName}@${code}`;
-          const now = [height, depth, width].map((v) => v.toFixed(4)).join(",");
-          if (original.get(key) === now) {
-            continue;
-          }
-          const glyphClass = "mjx-c" + Number(code).toString(16).toUpperCase();
-          css += `body mjx-c.${glyphClass}${guard} {
-`;
-          css += `  padding-top: ${Math.max(0, height).toFixed(4)}em !important;
-`;
-          css += `  padding-right: ${Math.max(0, width).toFixed(4)}em !important;
-`;
-          css += `  padding-bottom: ${Math.max(0, depth).toFixed(4)}em !important;
-`;
-          css += `  padding-left: 0 !important;
-`;
-          css += `}
-`;
-          count++;
-        }
-      }
-      return count ? css + `
-` : "";
-    } catch (error) {
-      this._logError("[Local Font Loader] Could not generate the per-glyph rules:", error);
+    const font2 = this._getMathFontData();
+    if (!font2 || !this._mathFontSnapshot)
       return "";
+    const modern = Number(window.MathJax?.version?.split(".")[0]) >= 4;
+    let css = "";
+    for (const saved of this._mathFontSnapshot.chars) {
+      const entry = font2.variant[saved.variantName]?.chars[saved.code];
+      if (!entry)
+        continue;
+      const dimensions = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
+      if (!dimensions.every(Number.isFinite))
+        continue;
+      const [h, d, w] = dimensions.map((value) => Math.max(0, value).toFixed(4));
+      css += mathGlyphSelector(saved.code, entry, modern) + ` {
+` + "  padding: " + h + "em " + w + "em " + d + `em 0 !important;
+}
+`;
     }
+    return css;
   }
   async _rebuildMathJaxStyles() {
-    return !!document.getElementById("MJX-CHTML-styles");
+    return !!activeDocument.getElementById("MJX-CHTML-styles");
   }
   _refreshMathViews() {
     try {
@@ -8438,11 +8762,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       plus: 0.778
     };
     const TOLERANCE = 0.1;
-    if (!familyName || typeof document === "undefined" || !document.fonts) {
+    if (!familyName || typeof activeDocument === "undefined" || !activeDocument.fonts) {
       return { status: "unavailable", deviations: [] };
     }
     try {
-      if (!document.fonts.check(`16px "${familyName}"`)) {
+      if (!activeDocument.fonts.check(`16px "${familyName}"`)) {
         return { status: "unavailable", deviations: [] };
       }
     } catch {
@@ -8518,32 +8842,32 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   }
   _fontExistsMap = {};
   async _refreshFontExistence() {
-    const fonts = this.settings.availableFonts || [];
+    const fonts2 = this.settings.availableFonts || [];
     const map = {};
-    await Promise.all(fonts.map(async (font) => {
+    await Promise.all(fonts2.map(async (font2) => {
       let exists = false;
-      if (font.path) {
+      if (font2.path) {
         try {
-          exists = await this.app.vault.adapter.exists(font.path);
+          exists = await this.app.vault.adapter.exists(font2.path);
         } catch (error) {
-          this._logError(`[Local Font Loader] 检查字体存在性失败: ${font.path}`, error);
+          this._logError(`[Local Font Loader] 检查字体存在性失败: ${font2.path}`, error);
           exists = false;
         }
       }
-      map[font.name] = exists;
+      map[font2.name] = exists;
     }));
     this._fontExistsMap = map;
   }
-  _getFontExists(font) {
-    return this._fontExistsMap[font.name] !== false;
+  _getFontExists(font2) {
+    return this._fontExistsMap[font2.name] !== false;
   }
   async applyFonts() {
     const startTime = performance.now();
+    this.removeFontStyles();
+    const generation = this._mathGeneration;
     try {
-      this._log("[Local Font Loader] Starting to apply fonts...");
       const devicePreset = this._getDevicePreset();
       if (!devicePreset) {
-        this._log("[LocalFontLoader] No preset found for current device, using default preset");
         return;
       }
       const fontsConfig = devicePreset.fonts || {};
@@ -8552,70 +8876,62 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       const usedFonts = new Set;
       const usedFamilies = new Set;
       const missingFonts = [];
-      for (const fontName of Object.values(fontsConfig)) {
+      for (const fontName of [fontsConfig.ui, fontsConfig.text, fontsConfig.heading, fontsConfig.monospace, fontsConfig.math, fontsConfig.latin]) {
         if (fontName) {
           if (!this.isFontAvailable(fontName)) {
             missingFonts.push(fontName);
-            this._log(`[Local Font Loader] ⚠️ Font "${fontName}" not found in vault, will fallback to system default`);
             continue;
           }
           usedFonts.add(fontName);
-          const fonts = this.settings.availableFonts.filter((f) => f.name === fontName || f.familyName === fontName);
-          if (fonts.length > 0) {
-            const familyName = fonts[0].familyName || fontName;
+          const fonts2 = this.settings.availableFonts.filter((f) => f.name === fontName || f.familyName === fontName);
+          if (fonts2.length > 0) {
+            const familyName = fonts2[0].familyName || fontName;
             usedFamilies.add(familyName);
           }
         }
       }
       if (missingFonts.length > 0) {
-        new import_obsidian10.Notice(t("fontMissingWarning"), 5000);
+        new import_obsidian9.Notice(t("fontMissingWarning"), 5000);
       }
       if (usedFonts.size === 0) {
-        this._log("[Local Font Loader] No fonts configured");
         this.removeFontStyles();
         return;
       }
-      this._log("[Local Font Loader] Fonts to load:", Array.from(usedFonts));
-      this._log("[Local Font Loader] Font families involved:", Array.from(usedFamilies));
       let fontFaceCss = `/* Local Font Loader - Font Faces */
 
 `;
-      let loadedCount = 0;
       let failedFonts = [];
       for (const familyOrFontName of usedFamilies) {
         try {
           const familyFonts = this.settings.availableFonts.filter((f) => f.familyName && f.familyName === familyOrFontName || f.name === familyOrFontName);
           if (familyFonts.length === 0) {
-            this._log(`[Local Font Loader] Font family not found: ${familyOrFontName}`);
             failedFonts.push(`${familyOrFontName} (未找到)`);
             continue;
           }
-          this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
           const deviceFontContext = this._getDeviceFontContext();
-          const results = await Promise.all(familyFonts.map(async (font) => {
-            const fontResourceSrc = this._getFontResourceSrc(font);
+          const results = await Promise.all(familyFonts.map(async (font2) => {
+            const fontResourceSrc = this._getFontResourceSrc(font2);
             if (!fontResourceSrc) {
-              return { success: false, font, error: new Error("no resource URL") };
+              return { success: false, font: font2, error: new Error("no resource URL") };
             }
-            const built = this._buildFontFaceCss(font, deviceFontContext, fontResourceSrc);
-            this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || "Unknown"})`);
-            return { success: true, css: built.css, font };
+            const built = this._buildFontFaceCss(font2, deviceFontContext, fontResourceSrc);
+            return { success: true, css: built.css, font: font2 };
           }));
           for (const result of results) {
             if (result.success) {
               fontFaceCss += result.css + `
 `;
-              loadedCount++;
             } else {
               failedFonts.push(`${result.font.name} (读取失败: ${result.error?.message ?? "unknown"})`);
             }
           }
         } catch (error) {
           this._logError(`[Local Font Loader] ✗ 无法加载字体家族 ${familyOrFontName}:`, error);
-          failedFonts.push(`${familyOrFontName} (读取失败: ${error.message})`);
+          failedFonts.push(`${familyOrFontName} (读取失败: ${error instanceof Error ? error.message : "unknown error"})`);
         }
       }
-      this._log(`[Local Font Loader] @font-face CSS total size: ${(fontFaceCss.length / 1024 / 1024).toFixed(2)} MB`);
+      if (generation !== this._mathGeneration)
+        return;
       this.applyCss(fontFaceCss, FONT_FACES_ID);
       let varsCss = `/* Local Font Loader - Variables */
 
@@ -8660,8 +8976,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         }
       }
       if (fontDeclarations.length > 0) {
-        for (const scope of [":root", "body"]) {
-          varsCss += `${scope} {
+        for (const scope2 of [":root", "body"]) {
+          varsCss += `${scope2} {
 `;
           for (const declaration of fontDeclarations) {
             varsCss += `  ${declaration}
@@ -8671,14 +8987,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
 
 `;
         }
-        this._log(`[Local Font Loader] ${fontDeclarations.length} font variables declared on :root and re-declared on <body> to override Obsidian core inline styles`);
       }
       if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
         varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.ui)}"`);
-        this._log(`[Local Font Loader] Latin font also applied to UI elements (desktop + mobile)`);
       } else if (fontsConfig.ui) {
         varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.ui)}"`);
-        this._log(`[Local Font Loader] UI font applied (workspace chrome + floating UI)`);
       }
       if (fontsConfig.text) {
         varsCss += `/* Body Text Font */
@@ -8686,10 +8999,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         let textFontFamily = `"${this._escapeCssString(fontsConfig.text)}"`;
         if (latinFontEnabled && fontsConfig.latin) {
           textFontFamily = `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.text)}"`;
-          this._log(`[Local Font Loader] Enable Latin font separation: ${fontsConfig.latin} (Latin) + ${fontsConfig.text} (Non-Latin)`);
-          if (this.settings.latinFontForUI) {
-            this._log(`[Local Font Loader] Latin font also applied to UI elements`);
-          }
         }
         varsCss += `.markdown-preview-view,
 `;
@@ -8709,7 +9018,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       }
       if (fontsConfig.monospace) {
         varsCss += this._buildCodeFontRules(fontsConfig.monospace);
-        this._log(`[Local Font Loader] Code font applied (inline code, code blocks, line numbers)`);
       }
       if (fontsConfig.heading) {
         varsCss += `/* Heading Font */
@@ -8751,120 +9059,50 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
 }
 
 `;
-          this._log(`[Local Font Loader] Apply heading font: ${headingFontFamily}${headingApplyToFileTitle ? " (including file title)" : ""}`);
         }
       }
-      if (fontsConfig.math) {
+      if (fontsConfig.math && usedFonts.has(fontsConfig.math)) {
+        this._activeMathFamily = fontsConfig.math;
         varsCss += `/* LaTeX Math Font (High Priority) - Fixes MathJax CHTML content */
 `;
-        const mathItalicUpperStart = 119860;
-        const mathItalicLowerStart = 119886;
-        for (let i = 0;i < 26; i++) {
-          const upperCode = mathItalicUpperStart + i;
-          const lowerCode = mathItalicLowerStart + i;
-          varsCss += `body .mjx-c${upperCode.toString(16).toUpperCase()}.TEX-I::before { content: "${String.fromCodePoint(upperCode)}" !important; }
+        const base = 'body mjx-c:not([class*="TEX-"]):not(.mjx-c221A):not(mjx-stretchy-h *):not(mjx-stretchy-v *)';
+        const italic = "body mjx-c.TEX-I:not(mjx-stretchy-h *):not(mjx-stretchy-v *)";
+        const target = base + `,
+` + base + `:empty::before,
+` + italic + ":empty::before";
+        varsCss += target + ` {
+  font-family: "` + this._escapeCssString(fontsConfig.math) + `", MJX-TEX-ZERO, MJX-TEX-N, MJXZERO, MJXTEX, serif !important;
+}
 `;
-          varsCss += `body .mjx-c${lowerCode.toString(16).toUpperCase()}.TEX-I::before { content: "${String.fromCodePoint(lowerCode)}" !important; }
+        varsCss += base + `:not(:empty) { clip-path: none !important; }
 `;
+        for (const [from, to] of [[119860, 119911], [120546, 120603]]) {
+          for (let code = from;code <= to; code++) {
+            if (code === 119893)
+              continue;
+            varsCss += mathGlyphSelector(String(code), [0, 0, 0, { f: "I" }], false).replace("::before", ":empty::before") + ' { content: "' + String.fromCodePoint(code) + `" !important; }
+`;
+          }
         }
-        varsCss += `
-/* Apply fonts */
+        varsCss += mathGlyphSelector(String(8462), [0, 0, 0, { f: "I" }], false).replace("::before", ":empty::before") + ' { content: "' + String.fromCodePoint(8462) + `" !important; }
 `;
-        const sizeVariantGuard = [1, 2, 3, 4].map((n) => `:not(.TEX-S${n})`).join("");
-        varsCss += `/* Italic variables */
-`;
-        varsCss += `body mjx-c.TEX-I${sizeVariantGuard},
-`;
-        varsCss += `body mjx-c.TEX-I${sizeVariantGuard}::before {
-`;
-        varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXTEX-I, MJXZERO, serif !important;
-`;
-        varsCss += `  font-style: normal !important;
-`;
-        varsCss += `}
-
-`;
-        varsCss += `/* Numbers and operators */
-`;
-        varsCss += `body mjx-mn mjx-c${sizeVariantGuard},
-`;
-        varsCss += `body mjx-mn mjx-c${sizeVariantGuard}::before,
-`;
-        varsCss += `body mjx-mo mjx-c${sizeVariantGuard},
-`;
-        varsCss += `body mjx-mo mjx-c${sizeVariantGuard}::before,
-`;
-        varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard},
-`;
-        varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard}::before {
-`;
-        varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;
-`;
-        varsCss += `}
-
-`;
-        varsCss += `/* Glyphs are clipped to their box by MathJax; that net is for its own fonts */
-`;
-        varsCss += `body mjx-c { clip-path: none !important; }
-
-`;
-        varsCss += `/* Container */
-`;
-        varsCss += `body mjx-container,
-`;
-        varsCss += `body.is-mobile mjx-container {
-`;
-        varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;
-`;
-        varsCss += `}
-
-`;
-        varsCss += `/* Stretchy assembly pieces — keep MathJax's own glyphs */
-`;
-        const stretchyScopes = [
-          "mjx-stretchy-h mjx-c",
-          "mjx-stretchy-v mjx-c",
-          "mjx-stretchy-h mjx-ext mjx-c",
-          "mjx-stretchy-v mjx-ext mjx-c"
-        ];
-        stretchyScopes.forEach((scope, index) => {
-          varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard},
-`;
-          varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard}::before`;
-          varsCss += index === stretchyScopes.length - 1 ? ` {
-` : `,
-`;
-        });
-        varsCss += `  font-family: MJXZERO, MJXTEX, serif !important;
-`;
-        varsCss += `}
-
-`;
-        this._log(`[Local Font Loader] Math font applied with high priority selectors`);
-        window.setTimeout(() => {
-          this._adoptMathFontMetrics(fontsConfig.math).then((adopted) => {
-            if (!adopted)
-              return;
-            return this._afterMetricAdoption();
-          }).catch((error) => {
-            this._logError("[Local Font Loader] Failed to adopt math font metrics:", error);
-          });
+        const generation2 = this._mathGeneration;
+        this._mathAdoptionTimer = window.setTimeout(() => {
+          this._mathAdoptionTimer = null;
+          if (generation2 !== this._mathGeneration)
+            return;
+          this._runMathMetricAdoption(fontsConfig.math);
         }, 300);
       }
       this.applyCss(varsCss, "local-font-loader-vars");
-      const endTime = performance.now();
-      this._log(`[Local Font Loader] ✓ Fonts applied successfully. Loaded ${loadedCount} variants, failed ${failedFonts.length}. Time: ${(endTime - startTime).toFixed(2)}ms`);
-      if (failedFonts.length > 0) {
-        this._log(`[Local Font Loader] Failed fonts:`, failedFonts);
-      }
     } catch (error) {
       const endTime = performance.now();
       this._logError(`[Local Font Loader] Apply fonts失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
     }
   }
-  _getFontResourceSrc(font) {
+  _getFontResourceSrc(font2) {
     try {
-      const resourcePath = this.app.vault.adapter.getResourcePath(import_obsidian10.normalizePath(font.path));
+      const resourcePath = this.app.vault.adapter.getResourcePath(import_obsidian9.normalizePath(font2.path));
       if (!resourcePath) {
         return null;
       }
@@ -8875,11 +9113,11 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       return null;
     }
   }
-  _buildFontFaceCss(font, ctx, srcValue) {
+  _buildFontFaceCss(font2, ctx, srcValue) {
     const { fontsConfig, latinFontEnabled, latinFontScope } = ctx;
-    const fontFamily = font.familyName || font.name;
-    const variantType = font.variantType || "regular";
-    const isLatinFont = latinFontEnabled && fontsConfig.latin && (fontFamily === fontsConfig.latin || font.name === fontsConfig.latin);
+    const fontFamily = font2.familyName || font2.name;
+    const variantType = font2.variantType || "regular";
+    const isLatinFont = latinFontEnabled && fontsConfig.latin && (fontFamily === fontsConfig.latin || font2.name === fontsConfig.latin);
     const needsUnicodeRange = isLatinFont;
     let fontWeight = 400;
     let fontStyle = "normal";
@@ -8928,7 +9166,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         continue;
       }
       if (!element) {
-        element = doc.createElement("style");
+        element = doc.head.createEl("style");
         element.id = FONT_FACES_ID;
         doc.head.appendChild(element);
       }
@@ -8973,7 +9211,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
   _removeGeneratedStyles(cssId) {
     if (cssId === FONT_FACES_ID)
       this._applyRuntimeFontFaces("");
-    const element = document.getElementById(cssId);
+    const element = activeDocument.getElementById(cssId);
     if (element) {
       element.remove();
     }
@@ -8996,7 +9234,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     }
     this._snippetEnabled = true;
     customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
-    this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off elsewhere; switching it back on.`);
   }
   async _syncSnippet() {
     const customCss = this.app.customCss;
@@ -9012,7 +9249,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       }
       this._snippetEnabled = false;
       customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
-      this._log(`[Local Font Loader] No generated CSS left; the "${FONT_CSS_SNIPPET}" snippet is switched off.`);
       return;
     }
     const snippetPath = customCss.getSnippetPath(FONT_CSS_SNIPPET);
@@ -9021,7 +9257,6 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
       if (!isSnippetEnabled) {
         this._snippetEnabled = true;
         customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
-        this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off; switching it back on.`);
       }
       return;
     }
@@ -9031,9 +9266,7 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
     if (!isSnippetEnabled) {
       this._snippetEnabled = true;
       customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
-      this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
     }
-    this._log(`[Local Font Loader] Applied ${(css.length / 1024).toFixed(1)} KB of portable CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
   }
   async _readSnippet(snippetPath) {
     try {
@@ -9061,20 +9294,24 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
 `);
   }
   removeFontStyles() {
+    this._mathGeneration++;
+    this._activeMathFamily = "";
+    if (this._mathAdoptionTimer !== null)
+      window.clearTimeout(this._mathAdoptionTimer);
+    this._mathAdoptionTimer = null;
     this._removeGeneratedStyles(FONT_FACES_ID);
     this._removeGeneratedStyles(FONT_GLYPHS_ID);
     this._removeGeneratedStyles("local-font-loader-vars");
     this._restoreMathFontMetrics();
+    this._queueSnippetSync();
   }
   async _reloadSettingsFromDisk() {
     try {
       if (this._isSaving) {
-        this._log("[Local Font Loader] Save in progress, skipping reload");
         return;
       }
       const data = await this.loadData();
       if (!this._isCompleteSettingsSnapshot(data)) {
-        this._log("[Local Font Loader] data.json is incomplete on disk; waiting for the write to finish");
         if (this._dataReloadTimer) {
           window.clearTimeout(this._dataReloadTimer);
         }
@@ -9084,11 +9321,9 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         return;
       }
       if (this._settingsEqual(data, this.settings)) {
-        this._log("[Local Font Loader] data.json content unchanged, skipping reload");
         return;
       }
       await this.loadSettings();
-      this._log("[Local Font Loader] Settings reloaded from data.json");
       try {
         await this.repairDeviceList();
         await this._ensureDevicePreset();
@@ -9096,10 +9331,8 @@ class LocalFontLoaderPlugin extends import_obsidian10.Plugin {
         this._logError("[Local Font Loader] Device-list repair failed:", error);
       }
       if (this.settings.autoLoadOnStartup) {
-        this._log("[Local Font Loader] Re-applying fonts after settings reload...");
         try {
           await this.applyFonts();
-          this._log("[Local Font Loader] Fonts re-applied successfully");
         } catch (error) {
           this._logError("[Local Font Loader] Failed to re-apply fonts:", error);
         }

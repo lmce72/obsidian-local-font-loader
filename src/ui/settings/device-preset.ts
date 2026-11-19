@@ -9,8 +9,66 @@ import { Menu, Notice, Platform, Setting, setIcon } from 'obsidian';
 
 import { t } from '../../i18n';
 import { deviceLimitNotices } from '../../device-presets';
+import { DEVICE_TYPES, bindDeviceTypeToPreset, detectDeviceType, getRecordedDeviceType, isDeviceType } from '../../device-mode';
 import { TextInputModal, showConfirmDialog } from '../modals';
 import type FontManagerSettingTab from '../settings-tab';
+
+/** 空字符串会触发新版下拉的标签回填；Keep UI-only values distinct from persisted preset IDs. */
+const INDIVIDUAL_BINDING_VALUE = '__device_binding__';
+const AUTOMATIC_DEVICE_TYPE_VALUE = '__automatic_device_type__';
+
+/** 统一处理设置操作失败；DOM callbacks remain synchronous and rejection-safe. */
+function runDeviceAction(tab: FontManagerSettingTab, action: () => Promise<void>): void {
+    void action().catch(error => {
+        tab.plugin._logError('[Local Font Loader] Device setting failed:', error);
+        new Notice(t('deviceTypeSaveFailed'));
+    });
+}
+
+function renderDeviceTypeSettings(tab: FontManagerSettingTab, containerEl: HTMLElement): void {
+    const settings = tab.plugin.settings;
+    new Setting(containerEl)
+        .setName(t('deviceTypeMode'))
+        .setDesc(t('deviceTypeModeDesc'))
+        .addToggle(toggle => {
+            toggle.setValue(settings.deviceTypeModeEnabled);
+            toggle.toggleEl.setAttribute('aria-label', t('deviceTypeMode'));
+            toggle.onChange(enabled => {
+                settings.deviceTypeModeEnabled = enabled;
+                runDeviceAction(tab, async () => {
+                    await tab.plugin.saveSettings();
+                    await tab.plugin.applyFonts();
+                    tab.update();
+                });
+            });
+        });
+    if (!settings.deviceTypeModeEnabled) return;
+
+    for (const type of DEVICE_TYPES) {
+        const name = t(`deviceType_${type}`);
+        new Setting(containerEl)
+            .setName(name)
+            .setDesc(t('deviceTypePresetDesc'))
+            .addDropdown(dropdown => {
+                dropdown.selectEl.setAttribute('aria-label', name);
+                dropdown.addOption(INDIVIDUAL_BINDING_VALUE, t('deviceTypeUseDeviceBinding'));
+                for (const preset of settings.presets) dropdown.addOption(preset.id, preset.name);
+                const assigned = settings.deviceTypePresets[type];
+                dropdown.setValue(assigned && settings.presets.some(preset => preset.id === assigned)
+                    ? assigned : INDIVIDUAL_BINDING_VALUE);
+                dropdown.onChange(id => {
+                    if (id === INDIVIDUAL_BINDING_VALUE) delete settings.deviceTypePresets[type];
+                    else bindDeviceTypeToPreset(settings, type, id);
+                    runDeviceAction(tab, async () => {
+                        await tab.plugin.saveSettings();
+                        await tab.plugin.applyFonts();
+                        tab.update();
+                    });
+                });
+            });
+    }
+    containerEl.createEl('p', { cls: 'setting-item-description', text: t('deviceTypeCardsDesc') });
+}
 
 /**
  * Renders this section into the given container.
@@ -69,6 +127,8 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
         // ========================================
         const deviceManagementHeader = containerEl.createDiv({ cls: 'setting-item-heading-with-button' });
         deviceManagementHeader.createEl('h4', { text: t('headerDeviceManagement') });
+
+        renderDeviceTypeSettings(tab, containerEl);
 
         // 桌面也展示移动端局限，沿用原生样式；Show mobile limitations to desktop managers as well.
         {
@@ -171,6 +231,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
             }
 
             tab._addEventListener(devicesContainer, 'dragover', (e: DragEvent) => {
+                if (tab.plugin.settings.deviceTypeModeEnabled) return;
                 e.preventDefault();
                 devicesContainer.classList.add('drag-over');
             });
@@ -182,6 +243,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
             tab._addEventListener(devicesContainer, 'drop', async (e: DragEvent) => {
                 e.preventDefault();
                 devicesContainer.classList.remove('drag-over');
+                if (tab.plugin.settings.deviceTypeModeEnabled) return;
 
                 const deviceId = e.dataTransfer?.getData('text/plain') ?? '';
                 const targetPresetId = devicesContainer.dataset.presetId ?? '';
@@ -305,6 +367,32 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     // Button container
                     const btnContainer = deviceItem.createDiv({ cls: 'device-actions' });
 
+                    if (tab.plugin.settings.deviceTypeModeEnabled) {
+                        // 旧设备可显式补充类型，原 ID 分配不变；Classification is separate from assignment.
+                        new Setting(textContainer)
+                            .setName(t('deviceTypeLabel'))
+                            .addDropdown(dropdown => {
+                                dropdown.selectEl.setAttribute('aria-label', `${deviceName}: ${t('deviceTypeLabel')}`);
+                                const automaticType = isCurrent ? detectDeviceType(Platform)
+                                    : getRecordedDeviceType(tab.plugin.settings.deviceMeta[deviceId]);
+                                dropdown.addOption(AUTOMATIC_DEVICE_TYPE_VALUE, automaticType
+                                    ? `${t('deviceTypeAutomatic')} (${t(`deviceType_${automaticType}`)})`
+                                    : t('deviceTypeUnknown'));
+                                for (const type of DEVICE_TYPES) dropdown.addOption(type, t(`deviceType_${type}`));
+                                dropdown.setValue(tab.plugin.settings.deviceTypeOverrides[deviceId] || AUTOMATIC_DEVICE_TYPE_VALUE);
+                                dropdown.onChange(value => {
+                                    if (isDeviceType(value)) {
+                                        tab.plugin.settings.deviceTypeOverrides[deviceId] = value;
+                                    } else delete tab.plugin.settings.deviceTypeOverrides[deviceId];
+                                    runDeviceAction(tab, async () => {
+                                        await tab.plugin.saveSettings();
+                                        await tab.plugin.applyFonts();
+                                        tab.update();
+                                    });
+                                });
+                            });
+                    }
+
                     // Edit button (shown for all devices) - uses a white icon
                     const editBtn = btnContainer.createEl('button', {
                         cls: 'clickable-icon device-edit-btn',
@@ -355,7 +443,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                         deviceItem.addClass('current-device');
                     }
 
-                    if (Platform.isMobile) {
+                    if (Platform.isMobile && !tab.plugin.settings.deviceTypeModeEnabled) {
                         const moveBtn = btnContainer.createEl('button', {
                             cls: 'clickable-icon',
                             attr: { 'aria-label': t('moveDeviceToPreset') }
@@ -387,7 +475,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
                     }
 
                     // 移动端使用菜单分配，避免长按拖拽干扰滚动；Keep touch scrolling free of card dragging.
-                    deviceItem.draggable = !Platform.isMobile;
+                    deviceItem.draggable = !Platform.isMobile && !tab.plugin.settings.deviceTypeModeEnabled;
                     tab._addEventListener(deviceItem, 'dragstart', (e: DragEvent) => {
                         e.dataTransfer?.setData('text/plain', deviceId);
                         deviceItem.classList.add('dragging');
@@ -442,7 +530,7 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
 
         const devicePreset = tab.plugin._getDevicePreset();
 
-        new Setting(containerEl)
+        if (!tab.plugin.settings.deviceTypeModeEnabled) new Setting(containerEl)
             .setName(t('currentDevicePreset'))
             .setDesc(t('currentDevicePresetDesc'))
             .addDropdown(dropdown => {

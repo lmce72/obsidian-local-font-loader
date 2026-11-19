@@ -23,7 +23,10 @@ function documentDouble() {
         nodes,
         getElementById: (id: string) => nodes.get(id) || null,
         createElement: (tag: string) => ({ tagName: tag, id: '', textContent: '', remove() { nodes.delete(this.id); } }),
-        head: { appendChild: (node: any) => nodes.set(node.id, node) },
+        head: {
+            createEl: (tag: string) => ({ tagName: tag, id: '', textContent: '', remove() { nodes.delete(this.id); } }),
+            appendChild: (node: any) => nodes.set(node.id, node),
+        },
     };
 }
 const roots: string[] = [];
@@ -33,7 +36,7 @@ async function fixture(prefix = 'app://desktop-session/') {
     const root = await mkdtemp(join(tmpdir(), 'local-font-empty-vault-'));
     roots.push(root);
     const doc = documentDouble();
-    Object.assign(globalThis, { document: doc });
+    Object.assign(globalThis, { document: doc, activeDocument: doc });
     const plugin = new LocalFontLoaderPlugin() as any;
     const errors: unknown[] = [];
     plugin._log = () => {};
@@ -56,6 +59,133 @@ async function fixture(prefix = 'app://desktop-session/') {
 }
 const font = { name: 'Test', familyName: 'Test', path: 'Fonts/Test.TTF', variantType: 'regular' };
 const faces = (plugin: any) => plugin._buildFontFaceCss(font, { fontsConfig: {}, latinFontEnabled: false, latinFontScope: {} }, plugin._getFontResourceSrc(font)).css;
+
+describe('math font geometry and lifecycle', () => {
+    test('shared base entries restore exactly and native size/assembly metrics remain unchanged', async () => {
+        const { plugin } = await fixture();
+        const shared = [0.75, 0.25, 0.5, { f: '' }];
+        const large = [1.15, 0.65, 0.67, { f: 'LO' }];
+        const table = { variant: { normal: { chars: { 125: shared } }, italic: { chars: { 125: shared } }, '-largeop': { chars: { 125: large } } }, delimiters: { 125: { HDW: [1, 2, 3] } } };
+        plugin._getMathFontData = () => table;
+        window.MathJax = { version: '4.1.3' } as any;
+        for (let i = 0; i < 2; i++) {
+            expect(plugin._applyMathMetrics(table, { source: 'measured', chars: { 125: [0.8, 0.2, 0.4] } }, 'Test')).toBe(true);
+            expect(plugin._mathFontSnapshot.chars).toHaveLength(1);
+            expect(large.slice(0, 3)).toEqual([1.15, 0.65, 0.67]);
+            expect(table.delimiters[125].HDW).toEqual([1, 2, 3]);
+            const css = plugin._buildMathGlyphRules();
+            expect(css).toContain(':not([class*="TEX-"])');
+            expect(css).toContain(':not(mjx-stretchy-v *)');
+            expect(css).not.toContain('::before');
+            plugin._restoreMathFontMetrics();
+            expect(shared.slice(0, 3)).toEqual([0.75, 0.25, 0.5]);
+        }
+    });
+
+    test('cold start CSS supports MathJax 3 and 4 without duplicating text or the italic h/Greek glyphs', async () => {
+        const { plugin } = await fixture();
+        delete window.MathJax;
+        plugin.settings = structuredClone(DEFAULT_SETTINGS);
+        plugin.currentDeviceId = 'test-device';
+        plugin.settings.availableFonts = [font];
+        plugin.settings.presets[0].fonts.math = 'Test';
+        plugin._fontExistsMap = { Test: true };
+        Object.assign(window, { setTimeout: () => 1, clearTimeout: () => {} });
+        await plugin.applyFonts();
+        await plugin._snippetSync;
+        const css = plugin._appliedCss.get('local-font-loader-vars');
+        expect(css).toContain(':empty::before');
+        expect(css).toContain('MJX-TEX-N, MJXZERO, MJXTEX');
+        expect(css).toContain('mjx-c210E');
+        expect(css).toContain('content: "ℎ"');
+        expect(css).toContain('mjx-c1D6FC');
+        expect(css).toContain(':not(.mjx-c221A)');
+        expect(css).not.toContain('mjx-c1D455');
+    });
+
+    test('layout events do not adopt metrics when fonts were never applied', async () => {
+        const { plugin } = await fixture();
+        let calls = 0;
+        plugin._adoptMathFontMetrics = async () => { calls++; return false; };
+        await plugin._retryMathMetricAdoption();
+        expect(calls).toBe(0);
+    });
+
+    test('clearing fonts disables a persisted snippet even before the new instance applied any CSS', async () => {
+        const { plugin, customCss } = await fixture();
+        customCss.enabledSnippets.add('local-font-loader');
+        expect(plugin._snippetCss.size).toBe(0);
+        plugin.removeFontStyles();
+        await plugin._snippetSync;
+        expect(customCss.enabledSnippets.has('local-font-loader')).toBe(false);
+    });
+
+    test('startup scanning does not create defaults over a settings file still arriving from sync', async () => {
+        const { plugin } = await fixture();
+        plugin.settings = structuredClone(DEFAULT_SETTINGS);
+        plugin.app.vault.adapter.list = async () => ({ files: [], folders: [] });
+        plugin._ensureFolder = async () => {};
+        let saves = 0;
+        plugin.saveSettings = async () => { saves++; };
+        await plugin.scanFonts(false);
+        expect(saves).toBe(0);
+        await plugin.scanFonts();
+        expect(saves).toBe(1);
+    });
+
+    test('reentrant jobs share work and an old generation cannot unlock or block the new font', async () => {
+        const { plugin } = await fixture();
+        const finish: Array<(value: boolean) => void> = [];
+        let calls = 0;
+        let after = 0;
+        plugin._adoptMathFontMetrics = () => { calls++; return new Promise<boolean>(resolve => finish.push(resolve)); };
+        plugin._afterMetricAdoption = async () => { after++; };
+        const first = plugin._runMathMetricAdoption('Old');
+        const same = plugin._runMathMetricAdoption('Old');
+        expect(calls).toBe(1);
+        plugin.removeFontStyles();
+        const next = plugin._runMathMetricAdoption('New');
+        expect(calls).toBe(2);
+        finish[0](true);
+        await Promise.all([first, same]);
+        expect(plugin._mathAdoptionJob).not.toBeNull();
+        expect(after).toBe(0);
+        finish[1](true);
+        await next;
+        expect(after).toBe(1);
+        expect(plugin._mathAdoptionJob).toBeNull();
+    });
+
+    test('unload or a font change invalidates a pending adapter result before it mutates MathJax', async () => {
+        const { plugin } = await fixture();
+        window.MathJax = { version: '4.1.3' } as any;
+        (globalThis as any).activeDocument.fonts = {};
+        plugin._waitForMathFontData = async () => ({ variant: {}, delimiters: {} });
+        let resolve!: (value: unknown) => void;
+        plugin._resolveMathMetricsFromStandards = () => new Promise(done => { resolve = done; });
+        let applied = false;
+        plugin._applyMathMetrics = () => { applied = true; return true; };
+        const pending = plugin._adoptMathFontMetrics('Old');
+        await Promise.resolve();
+        plugin.removeFontStyles();
+        resolve({ kind: 'metrics', metrics: { source: 'measured', chars: {} }, adapterName: 'Test' });
+        expect(await pending).toBe(false);
+        expect(applied).toBe(false);
+    });
+
+    test('manual device type corrections follow identity aliases and are deleted with the device', async () => {
+        const { plugin } = await fixture();
+        plugin.settings = structuredClone(DEFAULT_SETTINGS);
+        plugin.settings.deviceTypeOverrides = { old: 'tablet', target: 'phone' };
+        plugin._remapDeviceTypeOverrides({ old: 'new' });
+        expect(plugin.settings.deviceTypeOverrides).toEqual({ new: 'tablet', target: 'phone' });
+        plugin._remapDeviceTypeOverrides({ new: 'target' });
+        expect(plugin.settings.deviceTypeOverrides).toEqual({ target: 'phone' });
+        plugin.saveSettings = async () => {};
+        await plugin.removeDeviceFromPresets('target');
+        expect(plugin.settings.deviceTypeOverrides).toEqual({});
+    });
+});
 
 describe('session-local font resources', () => {
     test('empty vault creates snippet folders and keeps font addresses out of disk', async () => {

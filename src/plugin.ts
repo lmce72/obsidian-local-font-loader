@@ -5,6 +5,11 @@ import { Plugin, Notice, Platform, normalizePath } from 'obsidian';
 import type { MathJaxFontData } from './obsidian-extras';
 
 import { t } from './i18n';
+import { replaceableMathEntries, mathGlyphSelector } from './math-glyph-policy';
+import { isRecord, normalizeSettings, parseFontFamilyMetadata } from './settings-validation';
+import type { FontFamilyMetadata } from './settings-validation';
+import { detectDeviceType, getRecordedDeviceType, resolveDeviceTypePreset, bindDeviceTypeToPreset } from './device-mode';
+import type { DeviceType, FontFamily, FontVariantType } from './types';
 import { parseFontMetadata } from './font-metadata';
 import { DEFAULT_SETTINGS } from './constants';
 import { bindDeviceToPreset, inheritSimilarDevicePresets } from './device-presets';
@@ -39,7 +44,7 @@ const browserNavigator: Navigator = window.navigator;
  * marks it for a rewrite. `firstSeen` and `lastSeen` are history rather than detection: they are
  * listed here so the refresh does not mistake them for such a leftover and erase them.
  */
-const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 'lastSeen'];
+const RECORDED_META_KEYS = ['platform', 'os', 'model', 'hostname', 'firstSeen', 'lastSeen', 'type'];
 
 /** How long a device entry's "last seen" timestamp may go unrefreshed. */
 const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
@@ -85,6 +90,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     /** When the math metric adoption was last attempted, so the retry below cannot thrash. */
     _mathAdoptionAttemptAt = 0;
+    /** 异步任务按代失效；Invalidate stale math work on apply/unload. */
+    _mathGeneration = 0;
+    _activeMathFamily = '';
+    _mathAdoptionJob: { generation: number; promise: Promise<void> } | null = null;
+    _mathAdoptionTimer: number | null = null;
 
     /** MathJax's original glyph metrics, kept so adoption can be undone. */
     _mathFontSnapshot: MathFontMetricSnapshot | null = null;
@@ -141,15 +151,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Read by _persistStartupState(): a plugin that has not seen the file yet must not write one.
      */
     _settingsFilePresent = false;
-
-    // Log level control
-    _logEnabled = false; // logging disabled by default
-
-    _log(...args: unknown[]) {
-        if (this._logEnabled) {
-            console.log(...args);
-        }
-    }
 
     _logError(...args: unknown[]) {
         console.error(...args); // error logs are always emitted
@@ -435,9 +436,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     async onload() {
-        this._log('[Local Font Loader] Plugin loading...');
 
-        this._fontDocuments.add(document);
+        this._fontDocuments.add(activeDocument);
         this.app.workspace.iterateAllLeaves(leaf => {
             this._fontDocuments.add(leaf.view.containerEl.ownerDocument);
         });
@@ -454,7 +454,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             // Load settings
             await this.loadSettings();
-            this._log('[Local Font Loader] Settings loaded successfully');
 
             // Validate settings structure
             if (!this.settings.presets || this.settings.presets.length === 0) {
@@ -492,7 +491,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // device onto the id that survived, and every write below has to land on that one.
             const activeDeviceId = this.currentDeviceId;
 
-            const deviceInfo = this._detectDeviceInfo();
+            const deviceInfo = { ...this._detectDeviceInfo(), type: detectDeviceType(Platform) };
             const previousMeta = this.settings.deviceMeta[activeDeviceId];
             // A shape mismatch counts as a change too, so metadata written by an older version
             // (an entry still carrying a dropped key, for instance) is rewritten instead of
@@ -507,6 +506,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 || previousMeta.os !== deviceInfo.os
                 || previousMeta.model !== deviceInfo.model
                 || previousMeta.hostname !== deviceInfo.hostname
+                || previousMeta.type !== deviceInfo.type
                 || legacyShape;
 
             // When this device was last here. Refreshed at most every few hours: the evidence a
@@ -532,24 +532,22 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
                 this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
                 await this._persistStartupState();
-                this._log(`[Local Font Loader] New device registered: ${activeDeviceId} (${this.settings.deviceNameMap[activeDeviceId]})`);
+
             } else if (metaChanged || generatedNameOutdated || seenStale) {
                 this.settings.deviceMeta[activeDeviceId] = { ...deviceInfo, ...lifetime };
 
                 if (generatedNameOutdated) {
                     this.settings.deviceNameMap[activeDeviceId] = this._getDefaultDeviceName(deviceInfo);
-                    this._log(`[Local Font Loader] Default device name refreshed: ${storedName} -> ${this.settings.deviceNameMap[activeDeviceId]}`);
+
                 }
 
                 await this._persistStartupState();
-                this._log(`[Local Font Loader] Device metadata refreshed: ${activeDeviceId}`);
-            } else {
-                this._log(`[Local Font Loader] Device recognized: ${activeDeviceId}`);
+
             }
 
         // Ensure the current device has a preset
         await this._ensureDevicePreset();
-        this._log('[Local Font Loader] Device preset ensured');
+
     } catch (error) {
         this._logError('[Local Font Loader] Failed during initialization:', error);
         // Continue loading the plugin even if initialization failed, so Obsidian is not blocked
@@ -635,7 +633,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this.app.vault.on('modify', (file) => {
                 // Check if it is this plugin's data.json
                 if (file.path === `${this.manifest.dir}/data.json`) {
-                    this._log('[Local Font Loader] data.json modified, checking for content changes...');
+
                     // Delay the reload to avoid frequent triggers
                     if (this._dataReloadTimer) {
                         window.clearTimeout(this._dataReloadTimer);
@@ -649,38 +647,38 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         // Scan fonts (if the list is empty)
         if (this.settings.availableFonts.length === 0) {
-            this._log('[Local Font Loader] Font list is empty, scanning...');
-            await this.scanFonts();
+
+            await this.scanFonts(false);
         }
 
         // Scan font source-file existence once at startup (not persisted; status-only)
         try {
             await this._refreshFontExistence();
-            this._log('[Local Font Loader] Font existence check completed');
+
         } catch (error) {
             this._logError('[Local Font Loader] Font existence check failed:', error);
         }
 
         // Auto-load fonts on startup
         if (this.settings.autoLoadOnStartup) {
-            this._log('[Local Font Loader] Auto-loading fonts...');
+
             try {
                 await this.applyFonts();
-                this._log('[Local Font Loader] Fonts applied successfully');
+
             } catch (error) {
                 this._logError('[Local Font Loader] Failed to apply fonts:', error);
                 // Show a user-friendly error
                 new Notice('⚠️ Local Font Loader: 字体加载失败，请检查控制台日志', 5000);
             }
         } else {
-            this._log('[Local Font Loader] Auto-load disabled, skipping font application');
+            // 清理上次会话的已启用片段；A disabled auto-load must not retain stale geometry CSS.
+            this.removeFontStyles();
+            await this._snippetSync;
         }
 
-        this._log('[Local Font Loader] ✓ Plugin loaded');
     }
 
     onunload() {
-        this._log('[Local Font Loader] Plugin unloading');
 
         // Clean up the debounce timer
         if (this._saveSettingsTimer) {
@@ -698,7 +696,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this._fontDocuments.clear();
 
         // Remove preset styles injected by the settings tab (incl. device SVG icons) to prevent leftovers after unload
-        const presetStyle = document.getElementById('local-font-loader-preset-styles');
+        const presetStyle = activeDocument.getElementById('local-font-loader-preset-styles');
         if (presetStyle) presetStyle.remove();
     }
 
@@ -724,84 +722,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     async loadSettings() {
-        // Remembered before the read, because the read is exactly what may come back unusable.
-        const hadSettings = Boolean(this.settings && Object.keys(this.settings).length > 0);
-
-        const data = await this.loadData();
-
-        // Whether there is a settings file to work from at all. An empty object is not one: a file
-        // sync created but has not filled yet reads back as null or {}, and treating that as
-        // settings is what lets the plugin persist a fresh-install snapshot over the real file —
-        // see _persistStartupState().
-        this._settingsFilePresent = Boolean(data && Object.keys(data).length > 0);
-
-        // A file a sync service is mid-way through writing is not a configuration. Adopting it
-        // would replace the real settings with the defaults, and the write that then follows would
-        // persist those defaults over the real file — which is how a sync became a reset. Keep what
-        // is already in memory: the writer finishes on its own and the next read gets the whole
-        // document.
-        if (!this._isCompleteSettingsSnapshot(data)) {
-            if (hadSettings) {
-                this._log('[Local Font Loader] data.json read back incomplete; keeping the settings already in memory');
-                return;
-            }
-            this._log('[Local Font Loader] No usable settings on disk; starting from the defaults');
-        }
-
-        // A file a sync service is mid-way through writing is not a configuration, and adopting it
-        // would replace the real settings with the defaults. Keep what is in memory instead: the
-        // write finishes on its own, and the next read gets the whole document.
-        if (!this._isCompleteSettingsSnapshot(data) && this.settings && this._settingsFilePresent === false) {
-            this._log('[Local Font Loader] data.json read back incomplete; keeping the settings already in memory');
-            return;
-        }
-        if (!this._isCompleteSettingsSnapshot(data) && this.settings && Object.keys(this.settings).length > 0 && this._settingsFilePresent) {
-            this._log('[Local Font Loader] data.json read back incomplete; keeping the settings already in memory');
-            return;
-        }
-
-        // Backward compatibility: lift a pre-preset configuration — which kept fonts at the top
-        // level — into a default preset.
-        //
-        // The preset list is never REPLACED here. An earlier version rebuilt it whenever the
-        // default preset's fonts looked empty, which is not a broken state: a device that assigns
-        // its fonts through its own device preset leaves the global one empty on purpose. On a
-        // synced vault that turned one device's empty preset into every device's missing presets.
-        if (data && (!data.presets || data.presets.length === 0)) {
-            this._log('[Local Font Loader] Legacy configuration detected, migrating into a default preset');
-
-            data.presets = [this._buildLegacyDefaultPreset(data)];
-
-            this._log('[Local Font Loader] Legacy configuration migrated');
-        } else if (data && !data.presets.some((p: FontPreset) => p.id === 'default-preset')) {
-            // Every device preset falls back to the global one, so it has to exist. Added rather
-            // than substituted: the presets already there keep their names and their fonts.
-            this._log('[Local Font Loader] Default preset missing, adding it back');
-
-            data.presets.unshift(this._buildLegacyDefaultPreset(data));
-        }
-
-        // Clean up legacy deviceId and deviceName fields (deprecated)
-        if (data && data.deviceId !== undefined) {
-            delete data.deviceId;
-        }
-        if (data && data.deviceName !== undefined) {
-            delete data.deviceName;
-        }
-
-        // Initialize new device management fields
-        if (data && !data.deviceFingerprints) {
-            data.deviceFingerprints = {};
-        }
-        if (data && !data.deviceNameMap) {
-            data.deviceNameMap = {};
-        }
-        if (data && !data.deviceAliases) {
-            data.deviceAliases = {};
-        }
-
-        // Deep-clone the default base so settings.presets never shares nested references with the module constant when data is null
-        this.settings = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), data);
+        const data: unknown = await this.loadData();
+        this._settingsFilePresent = isRecord(data) && Object.keys(data).length > 0;
+        // 同步文件不完整时保留已加载设置；Keep live settings during partial sync writes.
+        if (!this._isCompleteSettingsSnapshot(data) && this.settings) return;
+        this.settings = normalizeSettings(data);
     }
 
     async saveSettings() {
@@ -829,7 +754,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      */
     async _persistStartupState(): Promise<void> {
         if (!this._settingsFilePresent) {
-            this._log('[Local Font Loader] No settings file loaded yet; not writing startup state');
+
             return;
         }
 
@@ -844,7 +769,17 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Get the preset assigned to the current device
      * @returns {Object} The preset object
      */
+    /** 当前设备按平台分类，旧设备可手动纠正；Use platform type or an explicit override. */
+    getDeviceType(deviceId = this.currentDeviceId): DeviceType | undefined {
+        const override = this.settings.deviceTypeOverrides?.[deviceId];
+        if (override) return override;
+        if (deviceId === this.currentDeviceId) return detectDeviceType(Platform);
+        return getRecordedDeviceType(this.settings.deviceMeta[deviceId]);
+    }
+
     _getDevicePreset(): FontPreset | undefined {
+        const grouped = resolveDeviceTypePreset(this.settings, this.getDeviceType());
+        if (grouped) return grouped;
         const deviceId = this.currentDeviceId;
 
         // Find the preset containing the current device
@@ -891,9 +826,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
             name: name,
             targetDevices: [], // new presets start empty, awaiting device assignment
             // Clone the global preset's font config
-            fonts: defaultPreset ? JSON.parse(JSON.stringify(defaultPreset.fonts)) : { ui: '', text: '', heading: '', monospace: '', math: '', latin: '' },
+            fonts: defaultPreset ? structuredClone(defaultPreset.fonts) : { ui: '', text: '', heading: '', monospace: '', math: '', latin: '' },
             latinFontEnabled: defaultPreset ? defaultPreset.latinFontEnabled : false,
-            latinFontScope: defaultPreset ? JSON.parse(JSON.stringify(defaultPreset.latinFontScope)) : { letters: true, numbers: true, punctuation: true, symbols: true },
+            latinFontScope: defaultPreset?.latinFontScope ? structuredClone(defaultPreset.latinFontScope) : { letters: true, numbers: true, punctuation: true, symbols: true },
             headingApplyToFileTitle: defaultPreset ? defaultPreset.headingApplyToFileTitle : false
         };
 
@@ -945,8 +880,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} targetPresetId - The target preset ID
      */
     async assignDeviceToPreset(deviceId: string, targetPresetId: string) {
-        bindDeviceToPreset(this.settings.presets, deviceId, targetPresetId);
-        inheritSimilarDevicePresets(this.settings.presets, this.settings.deviceMeta, this.settings.deviceAliases);
+        const type = this.getDeviceType(deviceId);
+        if (this.settings.deviceTypeModeEnabled && type) {
+            bindDeviceTypeToPreset(this.settings, type, targetPresetId);
+        } else {
+            bindDeviceToPreset(this.settings.presets, deviceId, targetPresetId);
+            inheritSimilarDevicePresets(this.settings.presets, this.settings.deviceMeta, this.settings.deviceAliases);
+        }
         await this.saveSettings();
         await this.applyFonts(); // apply the new preset font config immediately
     }
@@ -966,7 +906,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             ...structuredClone(sourcePreset),
             id: this._generateUUID(),
             name: newPresetName, // use the passed-in name ("<original>_Copy")
-            targetDevices: [this.currentDeviceId] // new preset contains only the current device
+            targetDevices: this.settings.deviceTypeModeEnabled ? [] : [this.currentDeviceId] // new preset contains only the current device
         };
 
         this.settings.presets.push(newPreset);
@@ -991,6 +931,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {string} deviceId - The device ID to remove
      */
     async removeDeviceFromPresets(deviceId: string) {
+        delete this.settings.deviceTypeOverrides?.[deviceId];
         // Remove the device from all presets' targetDevices
         this.settings.presets.forEach(preset => {
             preset.targetDevices = preset.targetDevices.filter(id => id !== deviceId);
@@ -1067,7 +1008,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
             await this.saveSettings();
         }
 
-        this._log(`[Local Font Loader] Pruned ${prunable.length} unbound device(s), ${orphanCount} orphaned metadata entr(ies)`);
         return prunable.length + orphanCount;
     }
 
@@ -1086,6 +1026,18 @@ export default class LocalFontLoaderPlugin extends Plugin {
      *
      * @returns {Promise<number>} How many duplicate groups were merged
      */
+    /** 分类覆盖随设备别名迁移，保留目标显式值；Keep manual classification on identity repair. */
+    _remapDeviceTypeOverrides(aliases: Record<string, string>): void {
+        const overrides = this.settings.deviceTypeOverrides ?? {};
+        for (const [id, type] of Object.entries(overrides)) {
+            const target = resolveDeviceAlias(id, aliases);
+            if (target === id) continue;
+            overrides[target] ??= type;
+            delete overrides[id];
+        }
+        this.settings.deviceTypeOverrides = overrides;
+    }
+
     async repairDeviceList() {
         const plan = planDeviceRepair({
             nameMap: this.settings.deviceNameMap || {},
@@ -1098,10 +1050,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // touch is visible in the log instead of looking like one it failed to find. The history
         // says whether they were ever seen at the same time, which is the whole of what the
         // timestamps can establish.
-        plan.ambiguous.forEach(group => {
-            const names = group.ids.map(id => this._getDeviceName(id)).join(', ');
-            this._log(`[Local Font Loader] Similar devices kept separate (history: ${group.history}): ${names}`);
-        });
+
 
         if (!plan.changed) {
             return 0;
@@ -1140,6 +1089,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
         });
 
+        this._remapDeviceTypeOverrides(plan.aliases);
         this.settings.deviceAliases = plan.aliases;
 
         // If this device is one of the collapsed ids, it adopts the survivor and re-persists its
@@ -1147,7 +1097,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // the next launch would register it again — putting the duplicate straight back.
         const adopted = resolveDeviceAlias(this.currentDeviceId, plan.aliases);
         if (adopted !== this.currentDeviceId) {
-            this._log(`[Local Font Loader] Device id adopted from repair: ${this.currentDeviceId} -> ${adopted}`);
+
             this.currentDeviceId = adopted;
             await this._persistLocalDeviceId(adopted);
         }
@@ -1155,7 +1105,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         await this.saveSettings();
 
         const merged = plan.merges.length;
-        this._log(`[Local Font Loader] Device list repaired: ${merged} duplicate group(s) merged`);
+
         new Notice(t('deviceListRepaired').replace('{0}', String(merged)), 4000);
 
         return merged;
@@ -1238,12 +1188,27 @@ export default class LocalFontLoaderPlugin extends Plugin {
      *
      * @returns {Promise<string>} The device id
      */
+    /** 旧版使用设备本地存储回退；No vault writes or shared device identity. */
+    _readLocalDeviceId(key: string): unknown {
+        const host = this.app as unknown as { appId?: string; loadLocalStorage?: (key: string) => unknown };
+        if (typeof host.loadLocalStorage === 'function') return host.loadLocalStorage(key);
+        // 使用宿主相同的键和 JSON 格式，升级后设备 ID 不变；Match the modern storage format.
+        const raw = window.localStorage.getItem(`${host.appId || this.app.vault.getName()}-${key}`);
+        return raw === null ? null : JSON.parse(raw) as unknown;
+    }
+
+    _writeLocalDeviceId(key: string, value: string): void {
+        const host = this.app as unknown as { appId?: string; saveLocalStorage?: (key: string, value: unknown) => void };
+        if (typeof host.saveLocalStorage === 'function') host.saveLocalStorage(key, value);
+        else window.localStorage.setItem(`${host.appId || this.app.vault.getName()}-${key}`, JSON.stringify(value));
+    }
+
     async _getOrCreateLocalDeviceId() {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
-        let storedId = null;
+        let storedId: unknown = null;
         try {
-            storedId = this.app.loadLocalStorage(STORAGE_KEY);
+            storedId = this._readLocalDeviceId(STORAGE_KEY);
         } catch (error) {
             this._logError('[Local Font Loader] Failed to read device-local id:', error);
         }
@@ -1257,7 +1222,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         if (Platform.isMobile) {
             const derivedId = await this._getPlatformDeviceId();
             if (derivedId) {
-                if (storedId && storedId !== derivedId) {
+                if (typeof storedId === 'string' && storedId && storedId !== derivedId) {
                     await this._adoptDerivedDeviceId(storedId, derivedId);
                 }
                 if (storedId !== derivedId) {
@@ -1274,7 +1239,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const adoptedId = resolveDeviceAlias(storedId, this.settings.deviceAliases || {});
             if (adoptedId !== storedId) {
                 await this._persistLocalDeviceId(adoptedId);
-                this._log(`[Local Font Loader] Device id adopted from a device-list repair: ${storedId} -> ${adoptedId}`);
+
                 return adoptedId;
             }
 
@@ -1282,7 +1247,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // their ledger entries would otherwise stay claimable by an identical device.
             if (this._sealLegacyEntries(storedId)) {
                 await this.saveSettings();
-                this._log(`[Local Font Loader] Legacy ledger sealed for held id: ${storedId}`);
+
             }
             return storedId;
         }
@@ -1311,12 +1276,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
         const STORAGE_KEY = 'local-font-loader-device-id';
 
         try {
-            this.app.saveLocalStorage(STORAGE_KEY, deviceId);
-            const confirmed = this.app.loadLocalStorage(STORAGE_KEY);
+            this._writeLocalDeviceId(STORAGE_KEY, deviceId);
+            const confirmed: unknown = this._readLocalDeviceId(STORAGE_KEY);
             if (confirmed !== deviceId) {
-                this._logError(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${confirmed}); this device may register again on the next launch.`);
-            } else {
-                this._log(`[Local Font Loader] Device id persisted: ${deviceId}`);
+                this._logError(`[Local Font Loader] Device id did not persist (wrote ${deviceId}, read back ${typeof confirmed === "string" ? confirmed : "invalid value"}); this device may register again on the next launch.`);
             }
         } catch (error) {
             this._logError('[Local Font Loader] Failed to persist device-local id:', error);
@@ -1357,7 +1320,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Hashes a platform identifier into the id this plugin stores.
      *
      * `crypto.subtle` is available in both contexts the plugin runs in: the desktop `app://`
-     * document and the mobile `http://localhost/` one, which the webview treats as a secure
+     * activeDocument and the mobile `http://localhost/` one, which the webview treats as a secure
      * context. A missing implementation returns null rather than falling back to a weaker hash —
      * two different hashes for one device would fork its identity, which is the whole failure this
      * code exists to avoid.
@@ -1402,6 +1365,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this.settings.deviceMeta = meta;
 
         const aliases = { [fromId]: toId };
+        this._remapDeviceTypeOverrides(aliases);
         this.settings.presets.forEach(preset => {
             preset.targetDevices = remapDeviceIds(preset.targetDevices, aliases);
         });
@@ -1416,7 +1380,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         this.settings.deviceAliases[fromId] = toId;
 
         await this.saveSettings();
-        this._log(`[Local Font Loader] Device id derived from the platform: ${fromId} -> ${toId}`);
+
     }
 
     /**
@@ -1446,7 +1410,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         this._sealLegacyEntries(claimedId);
         await this.saveSettings();
-        this._log(`[Local Font Loader] Legacy device id claimed and sealed: ${claimedId}`);
 
         return claimedId;
     }
@@ -1775,9 +1738,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         const inherited = inheritSimilarDevicePresets(
             this.settings.presets, this.settings.deviceMeta, this.settings.deviceAliases,
         );
-        if (inherited > 0) {
-            this._log(`[Local Font Loader] Inherited presets for ${inherited} similar device(s)`);
-        }
+
         if (changed || inherited > 0) {
             await this._persistStartupState();
         }
@@ -1821,7 +1782,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @param {FileList} files - The list of font files selected by the user
      */
     async importFontsFromFiles(files: FileList) {
-        this._log(`[Local Font Loader] Starting to import ${files.length} font files...`);
+
         let imported = 0;
 
         for (const file of files) {
@@ -1837,28 +1798,25 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                 await this.app.vault.adapter.writeBinary(targetPath, arrayBuffer);
                 imported++;
-                this._log(`[Local Font Loader] Imported: ${file.name}`);
+
             } catch (error) {
                 this._logError(`[Local Font Loader] Failed to import ${file.name}:`, error);
             }
         }
 
-        this._log(`[Local Font Loader] Import completed: ${imported}/${files.length} fonts`);
         return imported;
     }
 
-    async scanFonts() {
-        const startTime = performance.now();
+    async scanFonts(persist = true) {
 
         // Concurrency lock: prevent multiple simultaneous scans
         if (this._isScanning) {
-            this._log('[Local Font Loader] Scan already in progress, ignoring duplicate call');
+
             return;
         }
         this._isScanning = true;
 
         try {
-            this._log('[Local Font Loader] Scanning font family folders...');
 
             // Create the source directory on first run instead of failing to list it. The entire
             // chain is created, because a configured source path can be several levels deep.
@@ -1869,8 +1827,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             const fontDirs = dirList.folders;
 
-            this._log(`[Local Font Loader] Found ${fontDirs.length} font family folders`);
-
             // Capture the old list so entries whose source file is missing can be merged back after scanning
             const previousFonts = this.settings.availableFonts;
 
@@ -1879,26 +1835,25 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this.settings.fontFamilies = [];
 
             // Use a Map for deduplication
-            const fontMap = new Map(); // key: font.name, value: fontInfo
+            const fontMap = new Map<string, FontInfo>(); // key: font.name, value: fontInfo
 
             // Scan each font family folder
             for (const fontDir of fontDirs) {
                 try {
-                    const folderName = fontDir.split('/').pop();
+                    const folderName = fontDir.split('/').pop() || fontDir;
                     const metadataPath = `${fontDir}/.fontfamily.json`;
 
                     // Try to read the metadata file
-                    let metadata = null;
+                    let metadata: FontFamilyMetadata | null = null;
                     try {
                         const metadataContent = await this.app.vault.adapter.read(metadataPath);
-                        metadata = JSON.parse(metadataContent);
-                        this._log(`[Local Font Loader] Reading family metadata: ${metadata.familyName || folderName}`);
-                    } catch {
-                        this._log(`[Local Font Loader] Metadata file not found: ${metadataPath}, will auto-scan`);
-                    }
+                        const raw: unknown = JSON.parse(metadataContent);
+                        metadata = parseFontFamilyMetadata(raw);
+
+                    } catch { /* 缺少可选元数据时扫描原文件；Fall back to scanning the source files. */ }
 
                     // Prefer the metadata's familyName
-                    const family = {
+                    const family: FontFamily = {
                         familyName: metadata?.familyName || folderName,
                         folderPath: fontDir,
                         hasRegular: false,
@@ -1909,7 +1864,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                     // If metadata exists, load by metadata
                     if (metadata && metadata.variants) {
-                        for (const [variantType, filename] of Object.entries(metadata.variants as Record<string, string>)) {
+                        for (const [variantType, filename] of Object.entries(metadata.variants)) {
                             const fontPath = `${fontDir}/${filename}`;
 
                             try {
@@ -1934,7 +1889,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                     basename,
                                     ext,
                                     familyName: family.familyName, // use the correct family name from the metadata
-                                    variantType
+                                    variantType: variantType as FontVariantType
                                 };
 
                                 // Deduplicate: avoid adding duplicate fonts
@@ -1948,17 +1903,12 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                 else if (variantType === 'bold') family.hasBold = true;
                                 else if (variantType === 'bolditalic') family.hasBoldItalic = true;
 
-                                this._log(`[Local Font Loader] Identified font: ${family.familyName} (${variantType})`);
-                            } catch {
-                                this._log(`[Local Font Loader] Font file does not exist: ${fontPath}`);
-                            }
+                            } catch { /* 缺少可选元数据时扫描原文件；Fall back to scanning the source files. */ }
                         }
                     } else {
                         // Read font file metadata in parallel
                         const files = await this.app.vault.adapter.list(fontDir);
                         const fontFiles = files.files.filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
-
-                        this._log(`[Local Font Loader] Auto-scanning ${fontFiles.length} font files in ${folderName}...`);
 
                         // Read all font file metadata in parallel
                         const scanPromises = fontFiles.map(async (fontPath) => {
@@ -1984,7 +1934,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
                                     variantType
                                 };
 
-                                this._log(`[Local Font Loader] Auto-detected: ${realFamilyName} (${variantType})`);
                                 return { success: true, fontInfo, variantType };
                             } catch (error) {
                                 this._logError(`[Local Font Loader] Failed to scan font: ${fontPath}`, error);
@@ -2038,19 +1987,15 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // Convert the Map to an array
             this.settings.availableFonts = Array.from(fontMap.values());
 
-            await this.saveSettings();
+            // 启动扫描不覆盖尚未同步到本机的设置；Only explicit scans may create fresh settings.
+            if (persist || this._settingsFilePresent) await this.saveSettings();
 
             // Rebuild the runtime existence cache after scanning (status is memory-only; never written to data.json)
             await this._refreshFontExistence();
 
-            const endTime = performance.now();
-            this._log(`[Local Font Loader] Scan completed: ${this.settings.fontFamilies.length} font families, ${this.settings.availableFonts.length} variants, took ${(endTime - startTime).toFixed(2)}ms`);
-
         } catch (error) {
-            const endTime = performance.now();
-            this._logError(`[Local Font Loader] 扫描失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
-            // Keep existing data to avoid UI issues from clearing
-            await this.saveSettings();
+            this._logError('[Local Font Loader] Font scan failed:', error);
+            // 扫描失败时不持久化半成品；Never persist a partial scan after failure.
         } finally {
             // Release the lock
             this._isScanning = false;
@@ -2133,7 +2078,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
     /**
      * Waits for the math font to be usable, up to a few seconds.
      *
-     * `document.fonts.load()` resolves immediately — with nothing — when no declared face matches
+     * `activeDocument.fonts.load()` resolves immediately — with nothing — when no declared face matches
      * the request yet, which is exactly the state of a cold start: the faces arrive with the CSS
      * snippet, and Obsidian re-reads that a moment after it is written. One attempt is therefore
      * not enough to tell "this font is missing" from "this font is not there yet".
@@ -2144,13 +2089,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
     async _waitForMathFont(familyName: string, attempts = 12, delayMs = 250): Promise<boolean> {
         for (let attempt = 0; attempt < attempts; attempt++) {
             try {
-                await document.fonts.load(`16px "${familyName}"`);
+                const loaded = await activeDocument.fonts.load(`16px "${this._escapeCssString(familyName)}"`);
+                if (loaded.length > 0) return true;
             } catch (error) {
                 this._logError(`[Local Font Loader] Could not load math font "${familyName}":`, error);
-            }
-
-            if (document.fonts.check(`16px "${familyName}"`)) {
-                return true;
             }
 
             await new Promise(resolve => window.setTimeout(resolve, delayMs));
@@ -2163,26 +2105,28 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Adopts the math font's metrics once MathJax is ready, if the apply was too early.
      */
     async _retryMathMetricAdoption(): Promise<void> {
-        try {
-            const preset = this._getDevicePreset();
-            const familyName = preset && preset.fonts ? preset.fonts.math : '';
-            if (!familyName || this._mathFontSnapshot) {
-                return;
-            }
-            const now = Date.now();
-            if (now - this._mathAdoptionAttemptAt < MATH_ADOPTION_RETRY_MS) {
-                return;
-            }
-            this._mathAdoptionAttemptAt = now;
+        const family = this._activeMathFamily;
+        if (!family || this._mathFontSnapshot) return;
+        if (Date.now() - this._mathAdoptionAttemptAt < MATH_ADOPTION_RETRY_MS) return;
+        this._mathAdoptionAttemptAt = Date.now();
+        await this._runMathMetricAdoption(family);
+    }
 
-            const adopted = await this._adoptMathFontMetrics(familyName);
-            if (adopted) {
-                await this._afterMetricAdoption();
-                this._log('[Local Font Loader] Math font metrics adopted on a later attempt');
+    /** 同代任务共享Promise，旧代不会解除新代任务；Only the job owner clears its lock. */
+    async _runMathMetricAdoption(family: string): Promise<void> {
+        const generation = this._mathGeneration;
+        if (this._mathAdoptionJob?.generation === generation) return this._mathAdoptionJob.promise;
+        const promise = (async () => {
+            try {
+                const adopted = await this._adoptMathFontMetrics(family);
+                if (adopted && generation === this._mathGeneration) await this._afterMetricAdoption();
+            } catch (error) {
+                this._logError('[Local Font Loader] Could not adopt math font metrics:', error);
             }
-        } catch (error) {
-            this._logError('[Local Font Loader] Could not adopt the math font metrics:', error);
-        }
+        })();
+        this._mathAdoptionJob = { generation, promise };
+        await promise;
+        if (this._mathAdoptionJob?.promise === promise) this._mathAdoptionJob = null;
     }
 
     /**
@@ -2303,6 +2247,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 return { kind: 'declined', adapterName: adapter.name };
             }
 
+            if (adapter.id === 'fallback-measure' && !(await this._waitForMathFont(familyName))) {
+                return { kind: 'declined', adapterName: adapter.name };
+            }
             const binary = await this.app.vault.adapter.readBinary(record.path);
             const result = buildMathMetrics(binary, familyName);
             if (!result) {
@@ -2310,7 +2257,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 return { kind: 'declined', adapterName: adapter.name };
             }
 
-            this._log(`[Local Font Loader] Math metrics from "${result.adapterName}" (${result.metrics.source})`);
             return { kind: 'metrics', metrics: result.metrics, adapterName: result.adapterName };
         } catch (error) {
             // A broken adapter must not stop the measuring fallback from trying.
@@ -2335,31 +2281,18 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const snapshot: MathFontMetricSnapshot = { chars: [], delimiters: [] };
             let adopted = 0;
 
-            for (const variantName of Object.keys(fontData.variant ?? {})) {
-                const chars = fontData.variant[variantName]?.chars;
-                if (!chars) {
-                    continue;
-                }
-                for (const code of Object.keys(metrics.chars)) {
-                    const wanted = metrics.chars[code];
-                    const entry = chars[code];
-                    if (!Array.isArray(entry) || entry.length < 3) {
-                        continue;
-                    }
-                    const before = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
-                    if (before[0] === wanted[0] && before[1] === wanted[1] && before[2] === wanted[2]) {
-                        continue;
-                    }
-                    snapshot.chars.push({ variantName, code, values: before });
-                    entry[0] = wanted[0];
-                    entry[1] = wanted[1];
-                    entry[2] = wanted[2];
-                    adopted++;
-                }
+            for (const [code, entry] of replaceableMathEntries(fontData)) {
+                const wanted = metrics.chars[code];
+                if (!wanted || !wanted.every(Number.isFinite)) continue;
+                const before = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
+                if (before.every((value, i) => value === wanted[i])) continue;
+                snapshot.chars.push({ variantName: 'normal', code, values: before });
+                entry[0] = wanted[0]; entry[1] = wanted[1]; entry[2] = wanted[2];
+                adopted++;
             }
 
             if (adopted === 0) {
-                this._log('[Local Font Loader] The family adapter found nothing to change; leaving MathJax metrics as they are.');
+
                 return false;
             }
 
@@ -2373,10 +2306,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
                         ? 'Worked out from rendered text — a guess, not the font\u2019s own numbers'
                         : 'Read from the font file';
             this._mathCoverageGaps = metrics.gaps ?? [];
-            for (const note of metrics.notes ?? []) {
-                this._log(`[Local Font Loader] ${adapterName}: ${note}`);
-            }
-            this._log(`[Local Font Loader] Adopted ${adopted} glyph boxes from ${adapterName}; delimiter sizes left to MathJax.`);
+
+
             return true;
         } catch (error) {
             this._logError('[Local Font Loader] Could not apply the font\'s own metrics:', error);
@@ -2385,8 +2316,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     async _adoptMathFontMetrics(familyName: string) {
+        const generation = this._mathGeneration;
         const mathJax = window.MathJax;
-        if (!familyName || !mathJax || !document.fonts) {
+        if (!familyName || !mathJax || !activeDocument.fonts) {
             return false;
         }
 
@@ -2401,8 +2333,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // user's font — the mismatch shows up as glyphs whose ink does not fit the box MathJax
         // sized for them, i.e. digits that look cut off.
         const fontData = await this._waitForMathFontData();
+        if (generation !== this._mathGeneration) return false;
         if (!fontData) {
-            this._log('[Local Font Loader] MathJax\'s font table never became available; metrics not adopted');
+
             return false;
         }
 
@@ -2416,6 +2349,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         //
         // This path needs the font *file*, not a rendered face, so it runs before the wait below.
         const fromStandard = await this._resolveMathMetricsFromStandards(familyName);
+        if (generation !== this._mathGeneration) return false;
         if (fromStandard.kind === 'metrics') {
             return this._applyMathMetrics(fontData, fromStandard.metrics, fromStandard.adapterName);
         }
@@ -2425,103 +2359,21 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // leave the metrics exactly as they are.
             this._mathAdaptationLayer = `${fromStandard.adapterName} declined — MathJax's own numbers kept`;
             this._mathAdaptationSource = 'The MathJax defaults';
-            this._log(`[Local Font Loader] ${fromStandard.adapterName} declined this family; nothing measured.`);
+
             return false;
         }
 
-        if (!(await this._waitForMathFont(familyName))) {
-            this._log(`[Local Font Loader] Math font "${familyName}" did not become available; metrics not adopted`);
-            return false;
-        }
-
-        const canvas = createEl('canvas');
-        canvas.width = 8;
-        canvas.height = 8;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            return false;
-        }
-
-        const SIZE = 200;
-        const measure = (char: string) => {
-            try {
-                ctx.font = `${SIZE}px "${familyName}"`;
-                const m = ctx.measureText(char);
-                return {
-                    h: (m.actualBoundingBoxAscent || 0) / SIZE,
-                    d: (m.actualBoundingBoxDescent || 0) / SIZE,
-                    w: m.width / SIZE
-                };
-            } catch {
-                return null;
-            }
-        };
-
-        // Start from the pristine table every time, so repeated runs cannot compound.
-        this._restoreMathFontMetrics();
-
-        const snapshot: MathFontMetricSnapshot = { chars: [], delimiters: [] };
-        let adopted = 0;
-
-        Object.keys(fontData.variant).forEach(variantName => {
-            const chars = fontData.variant[variantName].chars;
-            if (!chars) return;
-
-            Object.keys(chars).forEach(code => {
-                const entry = chars[code];
-                if (!Array.isArray(entry) || entry.length < 3) return;
-
-                const extra = (entry[3] || {}) as { c?: string; ic?: number; sk?: number };
-                const codePoint = Number(code);
-                // The plugin's own content override draws the Unicode math-italic character for
-                // the italic alphabet, so those are measured at their own codepoint; everything
-                // else is drawn as the table's substitute character.
-                const isMathItalicRange = (codePoint >= 0x1D434 && codePoint <= 0x1D467);
-                const drawChar = isMathItalicRange
-                    ? String.fromCodePoint(codePoint)
-                    : (extra.c ? String(extra.c) : String.fromCodePoint(codePoint));
-
-                const measured = measure(drawChar);
-                if (!measured || (measured.w === 0 && measured.h === 0)) {
-                    // The font does not provide this glyph; leave MathJax's own value in place so
-                    // its own face still lays the fallback out correctly.
-                    return;
-                }
-
-                snapshot.chars.push({ variantName, code, values: [Number(entry[0]), Number(entry[1]), Number(entry[2])] });
-                entry[0] = measured.h;
-                entry[1] = measured.d;
-                entry[2] = measured.w;
-                adopted++;
-            });
-        });
-
-        // Horizontal and vertical stretchy assemblies carry their own height/depth/width.
-        Object.keys(fontData.delimiters || {}).forEach(code => {
-            const delimiter = fontData.delimiters[code];
-            if (!delimiter || !Array.isArray(delimiter.HDW)) return;
-
-            const measured = measure(String.fromCodePoint(Number(code)));
-            if (!measured || (measured.w === 0 && measured.h === 0)) return;
-
-            snapshot.delimiters.push({ code, values: delimiter.HDW.slice() });
-            delimiter.HDW = [measured.h, measured.d, measured.w];
-        });
-
-        this._mathFontSnapshot = snapshot;
-        // Recorded for the status command: today this path always measures, so say so plainly.
-        this._mathAdaptationLayer = `Worked out by rendering the text — ${adopted} glyph sizes measured`;
-        this._mathAdaptationSource = 'Worked out from rendered text — a guess, not the font\u2019s own numbers';
-        this._mathCoverageGaps = [];
-        this._log(`[Local Font Loader] Math font metrics adopted from "${familyName}": ${adopted} glyphs, ${snapshot.delimiters.length} delimiters`);
-
-        return true;
+        // 适配器无法读取时保留原生度量；Keep native metrics if no adapter can read the font.
+        return false;
     }
 
     /**
      * Puts MathJax's original metrics back.
      */
     _restoreMathFontMetrics() {
+        this._mathAdaptationLayer = null;
+        this._mathAdaptationSource = 'The MathJax defaults';
+        this._mathCoverageGaps = [];
         const snapshot = this._mathFontSnapshot;
         if (!snapshot) {
             return;
@@ -2548,7 +2400,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
         });
 
-        this._log(`[Local Font Loader] Math font metrics restored (${snapshot.chars.length} glyphs)`);
         this._mathFontSnapshot = null;
     }
 
@@ -2577,77 +2428,20 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @returns the CSS block, or an empty string when there is no table to read
      */
     _buildMathGlyphRules(): string {
-        try {
-            const fontData = this._getMathFontData();
-            if (!fontData || !fontData.variant) {
-                return '';
-            }
-
-            const guards: Record<string, string> = {
-                normal: '',
-                bold: '.TEX-B',
-                italic: '.TEX-I',
-                'bold-italic': '.TEX-BI',
-            };
-
-            // Only glyphs whose box actually changed need a rule.
-            //
-            // Emitting one rule per glyph in the table produced thousands of declarations the
-            // browser had to parse at startup, most of them restating exactly what MathJax's own
-            // stylesheet already said. The snapshot keeps the value each glyph had before adoption,
-            // so "our number differs from the one MathJax uses" is the precise, minimal set.
-            const original = new Map<string, string>();
-            for (const saved of this._mathFontSnapshot?.chars ?? []) {
-                original.set(`${saved.variantName}@${saved.code}`, saved.values.map(v => Number(v).toFixed(4)).join(','));
-            }
-
-            let css = '/* Per-glyph boxes that differ from MathJax\'s own, so display does not depend on its stylesheet */\n';
-            let count = 0;
-            for (const variantName of Object.keys(guards)) {
-                const variant = fontData.variant[variantName];
-                const chars = variant && variant.chars;
-                if (!chars) {
-                    continue;
-                }
-                const guard = guards[variantName];
-                for (const code of Object.keys(chars)) {
-                    const entry = chars[code];
-                    if (!Array.isArray(entry) || entry.length < 3) {
-                        continue;
-                    }
-                    const height = Number(entry[0]);
-                    const depth = Number(entry[1]);
-                    const width = Number(entry[2]);
-                    if (!Number.isFinite(height) || !Number.isFinite(depth) || !Number.isFinite(width)) {
-                        continue;
-                    }
-
-                    const key = `${variantName}@${code}`;
-                    const now = [height, depth, width].map(v => v.toFixed(4)).join(',');
-                    if (original.get(key) === now) {
-                        continue;
-                    }
-
-                    // Padding cannot be negative: a CSS shorthand carrying a negative value is
-                    // invalid and the whole declaration is dropped, which would leave the glyph with
-                    // no box at all. Longhand lets one side be zeroed without losing the others, and
-                    // a negative box extent simply means "the ink stays on this side of the baseline".
-                    const glyphClass = 'mjx-c' + Number(code).toString(16).toUpperCase();
-                    css += `body mjx-c.${glyphClass}${guard} {\n`;
-                    css += `  padding-top: ${Math.max(0, height).toFixed(4)}em !important;\n`;
-                    css += `  padding-right: ${Math.max(0, width).toFixed(4)}em !important;\n`;
-                    css += `  padding-bottom: ${Math.max(0, depth).toFixed(4)}em !important;\n`;
-                    css += `  padding-left: 0 !important;\n`;
-                    css += `}\n`;
-                    count++;
-                }
-            }
-
-            return count ? css + '\n' : '';
-        } catch (error) {
-            this._logError('[Local Font Loader] Could not generate the per-glyph rules:', error);
-            return '';
+        const font = this._getMathFontData();
+        if (!font || !this._mathFontSnapshot) return '';
+        const modern = Number(window.MathJax?.version?.split('.')[0]) >= 4;
+        let css = '';
+        for (const saved of this._mathFontSnapshot.chars) {
+            const entry = font.variant[saved.variantName]?.chars[saved.code];
+            if (!entry) continue;
+            const dimensions = [Number(entry[0]), Number(entry[1]), Number(entry[2])];
+            if (!dimensions.every(Number.isFinite)) continue;
+            const [h, d, w] = dimensions.map(value => Math.max(0, value).toFixed(4));
+            css += mathGlyphSelector(saved.code, entry, modern) + ' {\n'
+                + '  padding: ' + h + 'em ' + w + 'em ' + d + 'em 0 !important;\n}\n';
         }
+        return css;
     }
 
     async _rebuildMathJaxStyles() {
@@ -2658,7 +2452,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // rebuilt sheet covered the scratch formula alone and every other glyph lost its
         // advance — the maths collapsed into overlapping ink. The advances are emitted as CSS by
         // `_buildMathGlyphRules` now, which is what makes the display stable.
-        return !!document.getElementById('MJX-CHTML-styles');
+        return !!activeDocument.getElementById('MJX-CHTML-styles');
     }
     /**
      * Re-renders open reading views so the rebuilt stylesheet reaches them.
@@ -2705,14 +2499,14 @@ export default class LocalFontLoaderPlugin extends Plugin {
         };
         const TOLERANCE = 0.1;
 
-        if (!familyName || typeof document === 'undefined' || !document.fonts) {
+        if (!familyName || typeof activeDocument === 'undefined' || !activeDocument.fonts) {
             return { status: 'unavailable', deviations: [] };
         }
 
         // An unloaded family would be measured against its fallback, giving a verdict about the
         // wrong font entirely — better to stay silent until it is actually available.
         try {
-            if (!document.fonts.check(`16px "${familyName}"`)) {
+            if (!activeDocument.fonts.check(`16px "${familyName}"`)) {
                 return { status: 'unavailable', deviations: [] };
             }
         } catch {
@@ -2836,18 +2630,18 @@ export default class LocalFontLoaderPlugin extends Plugin {
         return this._fontExistsMap[font.name] !== false;
     }
 
-
     // Apply fonts config (load from cache only)
     async applyFonts() {
         const startTime = performance.now();
+        this.removeFontStyles();
+        const generation = this._mathGeneration;
         try {
-            this._log('[Local Font Loader] Starting to apply fonts...');
 
             // Get the preset of the current device (new)
             const devicePreset = this._getDevicePreset();
 
             if (!devicePreset) {
-                this._log('[LocalFontLoader] No preset found for current device, using default preset');
+
                 return;
             }
 
@@ -2856,17 +2650,17 @@ export default class LocalFontLoaderPlugin extends Plugin {
             const latinFontEnabled = devicePreset.latinFontEnabled || false;
             const headingApplyToFileTitle = devicePreset.headingApplyToFileTitle || false;
 
-            const usedFonts = new Set();
-            const usedFamilies = new Set(); // font family name (supports multiple variants)
+            const usedFonts = new Set<string>();
+            const usedFamilies = new Set<string>(); // font family name (supports multiple variants)
             const missingFonts = []; // record missing fonts
 
             // Iterate over all configured fonts and check existence
-            for (const fontName of Object.values(fontsConfig)) {
+            for (const fontName of [fontsConfig.ui, fontsConfig.text, fontsConfig.heading, fontsConfig.monospace, fontsConfig.math, fontsConfig.latin]) {
                 if (fontName) {
                     // Check if the font exists in the vault
                     if (!this.isFontAvailable(fontName)) {
                         missingFonts.push(fontName);
-                        this._log(`[Local Font Loader] ⚠️ Font "${fontName}" not found in vault, will fallback to system default`);
+
                         continue; // skip missing fonts and fall back to the system default
                     }
 
@@ -2888,17 +2682,13 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
 
             if (usedFonts.size === 0) {
-                this._log('[Local Font Loader] No fonts configured');
+
                 this.removeFontStyles();
                 return;
             }
 
-            this._log('[Local Font Loader] Fonts to load:', Array.from(usedFonts));
-            this._log('[Local Font Loader] Font families involved:', Array.from(usedFamilies));
-
             // Initialize @font-face CSS
             let fontFaceCss = '/* Local Font Loader - Font Faces */\n\n';
-            let loadedCount = 0;
             let failedFonts = [];
 
             // Collect fonts to load
@@ -2912,12 +2702,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     );
 
                     if (familyFonts.length === 0) {
-                        this._log(`[Local Font Loader] Font family not found: ${familyOrFontName}`);
+
                         failedFonts.push(`${familyOrFontName} (未找到)`);
                         continue;
                     }
-
-                    this._log(`[Local Font Loader] Loading font family: ${familyOrFontName}, contains ${familyFonts.length} variants`);
 
                     // Build each variant's @font-face rule from its own resource URL.
                     //
@@ -2932,7 +2720,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                         }
 
                         const built = this._buildFontFaceCss(font, deviceFontContext, fontResourceSrc);
-                        this._log(`[Local Font Loader] ✓ Resolved variant: ${font.name} (${font.subfamilyName || 'Unknown'})`);
+
                         return { success: true, css: built.css, font };
                     }));
 
@@ -2940,7 +2728,6 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     for (const result of results) {
                         if (result.success) {
                             fontFaceCss += result.css + '\n';
-                            loadedCount++;
                         } else {
                             failedFonts.push(`${result.font.name} (读取失败: ${result.error?.message ?? 'unknown'})`);
                         }
@@ -2948,12 +2735,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
                 } catch (error) {
                     this._logError(`[Local Font Loader] ✗ 无法加载字体家族 ${familyOrFontName}:`, error);
-                    failedFonts.push(`${familyOrFontName} (读取失败: ${error.message})`);
+                    failedFonts.push(`${familyOrFontName} (读取失败: ${error instanceof Error ? error.message : "unknown error"})`);
                 }
             }
 
-            this._log(`[Local Font Loader] @font-face CSS total size: ${(fontFaceCss.length / 1024 / 1024).toFixed(2)} MB`);
-
+            if (generation !== this._mathGeneration) return;
             // Apply @font-face CSS
             this.applyCss(fontFaceCss, FONT_FACES_ID);
 
@@ -3046,17 +2832,16 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     varsCss += '}\n\n';
                 }
 
-                this._log(`[Local Font Loader] ${fontDeclarations.length} font variables declared on :root and re-declared on <body> to override Obsidian core inline styles`);
             }
 
             // UI font: one shared template covers workspace chrome and floating UI.
             if (fontsConfig.ui && latinFontEnabled && fontsConfig.latin && this.settings.latinFontForUI) {
                 // Latin font separation: Latin first, then the non-Latin UI font as fallback
                 varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.ui)}"`);
-                this._log(`[Local Font Loader] Latin font also applied to UI elements (desktop + mobile)`);
+
             } else if (fontsConfig.ui) {
                 varsCss += this._buildUiFontRules(`"${this._escapeCssString(fontsConfig.ui)}"`);
-                this._log(`[Local Font Loader] UI font applied (workspace chrome + floating UI)`);
+
             }
 
             // Universal for mobile and desktop: apply directly to elements
@@ -3068,10 +2853,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 if (latinFontEnabled && fontsConfig.latin) {
                     // Latin font first (due to unicode-range restriction), non-Latin font as fallback
                     textFontFamily = `"${this._escapeCssString(fontsConfig.latin)}", "${this._escapeCssString(fontsConfig.text)}"`;
-                    this._log(`[Local Font Loader] Enable Latin font separation: ${fontsConfig.latin} (Latin) + ${fontsConfig.text} (Non-Latin)`);
-                    if (this.settings.latinFontForUI) {
-                        this._log(`[Local Font Loader] Latin font also applied to UI elements`);
-                    }
+
+
                 }
 
                 // Reading mode
@@ -3089,7 +2872,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 // All code-font rules come from one shared template (inline code / code blocks /
                 // line numbers) so priority is decided in exactly one place.
                 varsCss += this._buildCodeFontRules(fontsConfig.monospace);
-                this._log(`[Local Font Loader] Code font applied (inline code, code blocks, line numbers)`);
+
             }
 
             // Heading font
@@ -3134,165 +2917,56 @@ export default class LocalFontLoaderPlugin extends Plugin {
                     }
 
                     varsCss += ` {\n  font-family: ${headingFontFamily} !important;\n}\n\n`;
-                    this._log(`[Local Font Loader] Apply heading font: ${headingFontFamily}${headingApplyToFileTitle ? ' (including file title)' : ''}`);
+
                 }
             }
 
             // Math fonts (map MathJax Unicode classes to correct characters)
-            if (fontsConfig.math) {
+            if (fontsConfig.math && usedFonts.has(fontsConfig.math)) {
+                this._activeMathFamily = fontsConfig.math;
                 varsCss += `/* LaTeX Math Font (High Priority) - Fixes MathJax CHTML content */\n`;
 
-                // Performance: pre-build all math glyph CSS rules to avoid runtime loops
-                const mathItalicUpperStart = 0x1D434; // A-Z
-                const mathItalicLowerStart = 0x1D44E; // a-z
 
-                for (let i = 0; i < 26; i++) {
-                    const upperCode = mathItalicUpperStart + i;
-                    const lowerCode = mathItalicLowerStart + i;
-                    varsCss += `body .mjx-c${upperCode.toString(16).toUpperCase()}.TEX-I::before { content: "${String.fromCodePoint(upperCode)}" !important; }\n`;
-                    varsCss += `body .mjx-c${lowerCode.toString(16).toUpperCase()}.TEX-I::before { content: "${String.fromCodePoint(lowerCode)}" !important; }\n`;
+                // 保留所有原生尺寸变体与拼接件；Preserve all native size and assembly faces.
+                const base = 'body mjx-c:not([class*="TEX-"]):not(.mjx-c221A):not(mjx-stretchy-h *):not(mjx-stretchy-v *)';
+                const italic = 'body mjx-c.TEX-I:not(mjx-stretchy-h *):not(mjx-stretchy-v *)';
+                // 空元素才有伪元素字形；The :empty guard keeps MathJax 4 text from being duplicated.
+                const target = base + ',\n' + base + ':empty::before,\n' + italic + ':empty::before';
+                varsCss += target + ' {\n  font-family: "' + this._escapeCssString(fontsConfig.math)
+                    + '", MJX-TEX-ZERO, MJX-TEX-N, MJXZERO, MJXTEX, serif !important;\n}\n';
+                varsCss += base + ':not(:empty) { clip-path: none !important; }\n';
+                for (const [from, to] of [[0x1d434, 0x1d467], [0x1d6e2, 0x1d71b]]) {
+                for (let code = from; code <= to; code++) {
+                    if (code === 0x1d455) continue;
+                    varsCss += mathGlyphSelector(String(code), [0, 0, 0, { f: 'I' }], false)
+                        .replace('::before', ':empty::before')
+                        + ' { content: "' + String.fromCodePoint(code) + '" !important; }\n';
                 }
-
-                varsCss += `\n/* Apply fonts */\n`;
-
-                // TEMPORARY MEASURE — pending replacement.
-                //
-                // MathJax's stretchy size variants (TEX-S1 .. TEX-S4) are purpose-built tall glyph
-                // sets, not uniform scalings: measured at 100px the surd's advance saturates at 100
-                // while its ink height grows 120 -> 180 -> 240, and the parenthesis narrows relative
-                // to its height. No size-adjust can reproduce that, so these variants are excluded
-                // from the font override and keep MathJax's own families.
-                //
-                // Overriding them was what broke roots over tall content: the selector swapped in a
-                // normal-size glyph while MathJax's padding — computed for the tall variant — stayed
-                // in place, leaving the surd's hook short of the radical's bar.
-                //
-                // The catch is that this mixes typefaces: ordinary glyphs come from the user's math
-                // font while stretched ones come from MathJax's. That is a stopgap, not the intended
-                // end state. It exists because no ordinary font ships taller variants of its own, and
-                // it becomes unnecessary once the configured math font is metrically compatible with
-                // MathJax's TeX fonts (Computer Modern metrics — e.g. Latin Modern Math), where the
-                // variants can be dropped and one typeface used throughout.
-                //
-                // Note too that excluding them does NOT fix radicals over short content: those use the
-                // base surd, whose metrics still differ from MathJax's baked padding. The same font
-                // swap resolves both.
-                const sizeVariantGuard = [1, 2, 3, 4].map(n => `:not(.TEX-S${n})`).join('');
-
-                // Every rule below is emitted at two levels: the glyph element, and its ::before.
-                //
-                // Which of the two carries the character depends on MathJax. Version 3 draws a
-                // glyph with `::before { content: "…" }`, so the font belongs to the pseudo-element.
-                // Version 4 — the build Obsidian 1.14 ships — puts the character in the element's
-                // own text (`<mjx-c class="mjx-c36">6</mjx-c>`, whose `::before` has no content at
-                // all), so a `::before`-only rule matches nothing and every glyph keeps MathJax's
-                // TeX faces: the container showed the configured font while the symbols did not.
-                // Emitting both keeps one stylesheet correct on either version.
-                varsCss += `/* Italic variables */\n`;
-                varsCss += `body mjx-c.TEX-I${sizeVariantGuard},\n`;
-                varsCss += `body mjx-c.TEX-I${sizeVariantGuard}::before {\n`;
-                varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXTEX-I, MJXZERO, serif !important;\n`;
-                varsCss += `  font-style: normal !important;\n`;
-                varsCss += `}\n\n`;
-                varsCss += `/* Numbers and operators */\n`;
-                varsCss += `body mjx-mn mjx-c${sizeVariantGuard},\n`;
-                varsCss += `body mjx-mn mjx-c${sizeVariantGuard}::before,\n`;
-                varsCss += `body mjx-mo mjx-c${sizeVariantGuard},\n`;
-                varsCss += `body mjx-mo mjx-c${sizeVariantGuard}::before,\n`;
-                varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard},\n`;
-                varsCss += `body mjx-c:not(.TEX-I)${sizeVariantGuard}::before {\n`;
-                varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
-                varsCss += `}\n\n`;
-                // MathJax 4 clips every glyph to its own padding box plus two pixels, a safety
-                // net built for its own fonts: their ink fits the boxes its metrics lay out. A
-                // font the user supplies has its own ink and its own baseline, so that net cuts
-                // the bottom off descenders, subscripts and the like — every formula missing a
-                // slice at the bottom, which is what applying a custom math font to MathJax 4
-                // produced. MathJax 3 drew glyphs through ::before and had no such rule, so the
-                // net is dropped here for the glyphs the plugin takes over, while the stretchy
-                // assembly pieces below keep their own clip.
-                varsCss += `/* Glyphs are clipped to their box by MathJax; that net is for its own fonts */\n`;
-                varsCss += `body mjx-c { clip-path: none !important; }\n\n`;
-
-                // Every glyph's advance is written here instead of being left to MathJax.
-                //
-                // MathJax keeps a glyph's advance in a per-glyph rule it emits as formulas are
-                // laid out, so a glyph the sheet does not happen to cover has no advance at all:
-                // it collapses onto its neighbour and the formula turns into overlapping ink.
-                // Emitting the rules from the metrics table — which is already patched with the
-                // configured font's own numbers — makes the display independent of what
-                // MathJax's stylesheet happens to contain, and of whether it has been rebuilt.
-                // Per-glyph box overrides are not part of this block: they describe the boxes the
-                // metric adoption is about to change, and adoption runs after this file is written.
-                // They are applied under their own id — see FONT_GLYPHS_ID.
-
-                varsCss += `/* Container */\n`;
-                varsCss += `body mjx-container,\n`;
-                varsCss += `body.is-mobile mjx-container {\n`;
-                varsCss += `  font-family: '${this._escapeCssString(fontsConfig.math)}', MJXZERO, MJXTEX, serif !important;\n`;
-                varsCss += `}\n\n`;
-
-                // Stretchy assembly pieces must keep MathJax's own font.
-                //
-                // A stretchy delimiter is assembled from pieces addressed by PRIVATE USE
-                // codepoints — \underbrace, for instance, is built from U+E152 / U+E153 / U+E154 /
-                // U+E156. Those glyphs exist only in MathJax's TeX fonts; no general math font
-                // carries them, so pointing them at the user's font renders empty boxes and the
-                // brace breaks into a row of squares. This cannot be fixed by metrics: the glyph
-                // is simply absent, so the pieces have to stay on MathJax's faces.
-                //
-                // Emitted after the blanket rules and carrying the SAME guard chain plus the
-                // stretchy scope, which puts it one element-level above them (5-4 against 5-3).
-                // A shorter selector does not win: the guards are :not() pseudo-classes and
-                // contribute five class-level points to the very rule being overridden.
-                varsCss += `/* Stretchy assembly pieces — keep MathJax's own glyphs */\n`;
-                const stretchyScopes = [
-                    'mjx-stretchy-h mjx-c',
-                    'mjx-stretchy-v mjx-c',
-                    'mjx-stretchy-h mjx-ext mjx-c',
-                    'mjx-stretchy-v mjx-ext mjx-c'
-                ];
-                stretchyScopes.forEach((scope, index) => {
-                    varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard},\n`;
-                    varsCss += `body ${scope}:not(.TEX-I)${sizeVariantGuard}::before`;
-                    varsCss += (index === stretchyScopes.length - 1) ? ' {\n' : ',\n';
-                });
-                varsCss += `  font-family: MJXZERO, MJXTEX, serif !important;\n`;
-                varsCss += `}\n\n`;
-
-                this._log(`[Local Font Loader] Math font applied with high priority selectors`);
+                }
+                varsCss += mathGlyphSelector(String(0x210e), [0, 0, 0, { f: 'I' }], false)
+                    .replace('::before', ':empty::before')
+                    + ' { content: "' + String.fromCodePoint(0x210e) + '" !important; }\n';
 
                 // Adopt the font's own metrics, then have MathJax rebuild the geometry it derives
                 // from them. Drawing the glyph is not enough on its own: without matching metrics
                 // the layout is computed for a different font, which is what breaks radicals and
                 // scripts. Both steps are one-off, so rendering afterwards costs nothing extra.
-                window.setTimeout(() => {
-                    this._adoptMathFontMetrics(fontsConfig.math)
-                        .then(adopted => {
-                            if (!adopted) return;
-                            return this._afterMetricAdoption();
-                        })
-                        .catch(error => {
-                            this._logError('[Local Font Loader] Failed to adopt math font metrics:', error);
-                        });
+                const generation = this._mathGeneration;
+                this._mathAdoptionTimer = window.setTimeout(() => {
+                    this._mathAdoptionTimer = null;
+                    if (generation !== this._mathGeneration) return;
+                    void this._runMathMetricAdoption(fontsConfig.math);
                 }, 300);
             }
 
             this.applyCss(varsCss, 'local-font-loader-vars');
 
-            const endTime = performance.now();
-            this._log(`[Local Font Loader] ✓ Fonts applied successfully. Loaded ${loadedCount} variants, failed ${failedFonts.length}. Time: ${(endTime - startTime).toFixed(2)}ms`);
-
-            if (failedFonts.length > 0) {
-                this._log(`[Local Font Loader] Failed fonts:`, failedFonts);
-            }
 
         } catch (error) {
             const endTime = performance.now();
             this._logError(`[Local Font Loader] Apply fonts失败，耗时 ${(endTime - startTime).toFixed(2)}ms:`, error);
         }
     }
-
 
     /**
      * Resolves a font file to a CSS `url("…")` value through Obsidian's resource API.
@@ -3394,7 +3068,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
                 continue;
             }
             if (!element) {
-                element = doc.createElement('style');
+                element = doc.head.createEl('style');
                 element.id = FONT_FACES_ID;
                 doc.head.appendChild(element);
             }
@@ -3450,7 +3124,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
         if (cssId === FONT_FACES_ID) this._applyRuntimeFontFaces('');
 
         // Clear legacy per-id styles too. Obsidian's snippet style has no id and is not matched.
-        const element = document.getElementById(cssId);
+        const element = activeDocument.getElementById(cssId);
         if (element) {
             element.remove();
         }
@@ -3503,7 +3177,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
         this._snippetEnabled = true;
         customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
-        this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off elsewhere; switching it back on.`);
+
     }
 
     async _syncSnippet(): Promise<void> {
@@ -3533,7 +3207,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
             this._snippetEnabled = false;
             customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, false);
-            this._log(`[Local Font Loader] No generated CSS left; the "${FONT_CSS_SNIPPET}" snippet is switched off.`);
+
             return;
         }
 
@@ -3549,7 +3223,7 @@ export default class LocalFontLoaderPlugin extends Plugin {
             if (!isSnippetEnabled) {
                 this._snippetEnabled = true;
                 customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
-                this._log(`[Local Font Loader] The "${FONT_CSS_SNIPPET}" snippet was switched off; switching it back on.`);
+
             }
             return;
         }
@@ -3561,9 +3235,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
         if (!isSnippetEnabled) {
             this._snippetEnabled = true;
             customCss.setCssEnabledStatus(FONT_CSS_SNIPPET, true);
-            this._log(`[Local Font Loader] Enabling the "${FONT_CSS_SNIPPET}" snippet (nothing else can reach the PDF export).`);
+
         }
-        this._log(`[Local Font Loader] Applied ${(css.length / 1024).toFixed(1)} KB of portable CSS through the "${FONT_CSS_SNIPPET}" snippet.`);
+
     }
 
     /**
@@ -3606,6 +3280,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     removeFontStyles() {
+        this._mathGeneration++;
+        this._activeMathFamily = '';
+        if (this._mathAdoptionTimer !== null) window.clearTimeout(this._mathAdoptionTimer);
+        this._mathAdoptionTimer = null;
         this._removeGeneratedStyles(FONT_FACES_ID);
         this._removeGeneratedStyles(FONT_GLYPHS_ID);
         this._removeGeneratedStyles('local-font-loader-vars');
@@ -3614,6 +3292,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // renderer, so leaving them adopted after the plugin stops managing the font would keep
         // shaping maths from a table the plugin no longer stands behind.
         this._restoreMathFontMetrics();
+        // 新实例尚无内存片段时也清理上次状态；Also disable a snippet inherited from a previous session.
+        this._queueSnippetSync();
     }
 
     /**
@@ -3626,16 +3306,16 @@ export default class LocalFontLoaderPlugin extends Plugin {
         try {
             // A save of our own is in flight: skip reloading to avoid rolling back newer in-memory settings with a stale disk snapshot
             if (this._isSaving) {
-                this._log('[Local Font Loader] Save in progress, skipping reload');
+
                 return;
             }
-            const data = await this.loadData();
+            const data: unknown = await this.loadData();
 
             // A file the sync is still writing is not a change to react to. Reacting
             // would load the defaults over the real settings and then save them back,
             // so the reload waits for a read that looks like a whole document.
             if (!this._isCompleteSettingsSnapshot(data)) {
-                this._log('[Local Font Loader] data.json is incomplete on disk; waiting for the write to finish');
+
                 if (this._dataReloadTimer) {
                     window.clearTimeout(this._dataReloadTimer);
                 }
@@ -3648,12 +3328,11 @@ export default class LocalFontLoaderPlugin extends Plugin {
             // Content matches in-memory settings = written by this plugin (or nothing changed),
             // skip reloading to avoid rebuilding the whole settings UI and losing input focus.
             if (this._settingsEqual(data, this.settings)) {
-                this._log('[Local Font Loader] data.json content unchanged, skipping reload');
+
                 return;
             }
             // External change (e.g. multi-device sync): reload settings and refresh the UI
             await this.loadSettings();
-            this._log('[Local Font Loader] Settings reloaded from data.json');
 
             // A merge conflict unions the two sides' device maps, so the duplicate
             // this leaves behind is collapsed here, right where it appears. The
@@ -3668,10 +3347,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
             // Re-apply the font configuration (when auto-load is enabled)
             if (this.settings.autoLoadOnStartup) {
-                this._log('[Local Font Loader] Re-applying fonts after settings reload...');
+
                 try {
                     await this.applyFonts();
-                    this._log('[Local Font Loader] Fonts re-applied successfully');
+
                 } catch (error) {
                     this._logError('[Local Font Loader] Failed to re-apply fonts:', error);
                 }

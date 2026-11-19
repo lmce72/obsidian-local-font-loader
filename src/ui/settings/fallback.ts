@@ -27,10 +27,11 @@ export function renderFallbackSection(tab: FontManagerSettingTab, containerEl: H
         new Setting(containerEl)
             .setName(t('deleteUnusedFonts'))
             .setDesc(t('deleteUnusedFontsDesc'))
-            .addButton(btn => btn
-                .setButtonText(t('deleteUnusedFonts'))
-                .setDestructive()
-                .onClick(async () => {
+            .addButton(btn => {
+                // 沿用宿主危险按钮样式，兼容早期 SDK；The native warning class predates setDestructive().
+                btn.buttonEl.addClass('mod-warning');
+                btn.setButtonText(t('deleteUnusedFonts'))
+                .onClick(() => {
                     const unusedFonts = tab._getUnusedFonts();
                     if (unusedFonts.length === 0) {
                         new Notice(t('noUnusedFonts'));
@@ -46,8 +47,8 @@ export function renderFallbackSection(tab: FontManagerSettingTab, containerEl: H
                         },
                         true  // isDangerous = true
                     );
-                })
-            );
+                });
+            });
 
         // Apply Now
         new Setting(containerEl)

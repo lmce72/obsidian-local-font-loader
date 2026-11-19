@@ -2,7 +2,6 @@
  * Settings UI for font management, presets and device assignment.
  */
 import { App, Component, PluginSettingTab, Setting, Notice, MarkdownRenderer, TextComponent, setIcon } from 'obsidian';
-import type { SettingDefinitionItem } from 'obsidian';
 
 import { t, isLatinScriptLocale } from '../i18n';
 import { showConfirmDialog } from './modals';
@@ -13,6 +12,12 @@ import { renderDirectoryAndApplicationSection } from './settings/directory-appli
 import { renderFontStatusSection } from './settings/font-status';
 import { renderFallbackSection } from './settings/fallback';
 import { setFontFamilyExpanded, isFontFamilyExpanded } from './font-family-view';
+
+/** 结构类型兼容旧 SDK；The runtime definition shape does not require the 1.13 type export. */
+interface SettingsPageDefinition {
+    type: 'group';
+    items: Array<{ name: string; render: (setting: Setting) => void }>;
+}
 
 export default class FontManagerSettingTab extends PluginSettingTab {
     /** The plugin this tab configures. `import type` keeps this free of a runtime cycle. */
@@ -34,6 +39,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** Debounce handle for display(), which is requested repeatedly while typing. */
     _displayDebounceTimer: number | null = null;
     _displayDebounceDelay = 300;
+
+    /** 使过期的滚动恢复失效；Invalidate scroll restoration from an older render. */
+    private _renderToken: object = {};
 
     /** Whether the tab is on screen — guards re-rendering while it is hidden. */
     _isVisible = false;
@@ -75,7 +83,19 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         // The DOM only knows `EventListener`; the generic is what lets a call site name the event
         // it is handed (DragEvent, MouseEvent) without an assertion at every one of them. The one
         // cast the widening needs lives here, and the same reference is kept for removal.
-        const listener = handler as EventListener;
+        const listener: EventListener = eventObject => {
+            // 统一处理异步事件失败；Handle synchronous and asynchronous listener failures together.
+            const reportError = (error: unknown) => {
+                this.plugin._logError('[Local Font Loader] Settings action failed:', error);
+                new Notice(error instanceof Error ? error.message : t('deleteError'));
+            };
+            try {
+                // preventDefault 必须同步生效；Keep drag/drop cancellation synchronous.
+                void Promise.resolve(handler(eventObject as E)).catch(reportError);
+            } catch (error) {
+                reportError(error);
+            }
+        };
         element.addEventListener(event, listener, options);
         this._eventListeners.push({ element, event, handler: listener, options });
     }
@@ -100,7 +120,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         const component = new Component();
         component.load();
         this._markdownComponents.push(component);
-        MarkdownRenderer.render(this.app, markdown, el, '', component);
+        void MarkdownRenderer.render(this.app, markdown, el, '', component).catch(error => {
+            this.plugin._logError('[Local Font Loader] Could not render settings help:', error);
+        });
     }
 
     /**
@@ -162,14 +184,49 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     }
 
 
-    /**
-     * Obsidian 1.13 replaced `display()` with `getSettingDefinitions()`, and a tab that returns
-     * definitions never has `display()` called at all. The declarative model is row-shaped,
-     * though: it has no entry point for a whole page — callouts, headings, a drag-and-drop device
-     * list — so the page is hosted by a single `render` definition, and the tab is refreshed
-     * through `update()`, which re-runs the definitions.
-     */
-    getSettingDefinitions(): SettingDefinitionItem[] {
+    /** 旧版设置页入口；Legacy settings entry point, ignored by the declarative renderer. */
+    display(): void {
+        this._renderPage(this.containerEl);
+    }
+
+    /** 所有刷新共用同一兼容入口；Keep old and declarative settings refreshes on one path. */
+    update(): void {
+        const restoreScroll = this._captureScroll(this.containerEl);
+        const host = PluginSettingTab.prototype as PluginSettingTab & { update?: () => void };
+        if (typeof host.update === 'function') {
+            host.update.call(this);
+        } else {
+            this._renderPage(this.containerEl);
+        }
+        restoreScroll();
+    }
+
+    /** 在核心重建 DOM 前保存滚动；Capture scrolling ancestors before core rebuilds the DOM. */
+    private _captureScroll(containerEl: HTMLElement): () => void {
+        const positions: Array<{ element: HTMLElement; top: number; left: number }> = [];
+        for (let element: HTMLElement | null = containerEl; element; element = element.parentElement) {
+            positions.push({ element, top: element.scrollTop, left: element.scrollLeft });
+        }
+        const token = {};
+        this._renderToken = token;
+        const restore = () => {
+            if (!this._isVisible || token !== this._renderToken) return;
+            for (const { element, top, left } of positions) {
+                element.scrollTop = top;
+                element.scrollLeft = left;
+            }
+        };
+        return () => {
+            // 不让嵌套 render 使外层快照失效；The outer update owns the final snapshot.
+            this._renderToken = token;
+            restore();
+            const ownerWindow = containerEl.ownerDocument.defaultView;
+            ownerWindow?.requestAnimationFrame(() => ownerWindow.requestAnimationFrame(restore));
+        };
+    }
+
+    /** 新版声明式入口；Modern declarative entry point, hosted in one native setting row. */
+    getSettingDefinitions(): SettingsPageDefinition[] {
         return [{
             type: 'group',
             items: [{
@@ -191,11 +248,8 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** Renders the tab's contents into the given container. */
     _renderPage(containerEl: HTMLElement) {
         this._isVisible = true; // Mark the settings tab visible (settings-changed guard)
+        const restoreScroll = this._captureScroll(containerEl);
         this._cleanupEventListeners();
-
-        // Save the scroll position
-        const scrollParent = containerEl.closest('.vertical-tab-content');
-        const savedScrollTop = scrollParent ? scrollParent.scrollTop : 0;
 
         containerEl.empty();
 
@@ -230,15 +284,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
         renderFontStatusSection(this, containerEl);
         renderFallbackSection(this, containerEl);
 
-        // Restore the scroll position (after all UI is built)
-        if (scrollParent && savedScrollTop > 0) {
-            // Use double requestAnimationFrame to ensure the DOM is fully rendered
-            window.requestAnimationFrame(() => {
-                window.requestAnimationFrame(() => {
-                    scrollParent.scrollTop = savedScrollTop;
-                });
-            });
-        }
+        restoreScroll();
     }
 
     // Add Latin font separation options
@@ -424,18 +470,17 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     // Render font families (collapsible)
     renderFontFamilies(containerEl: HTMLElement, filter = 'all') {
         // Group by family
-        const familiesMap = new Map();
+        const familiesMap = new Map<string, FontInfo[]>();
 
         this.plugin.settings.availableFonts.forEach(font => {
             const familyName = font.familyName || font.name;
-            if (!familiesMap.has(familyName)) {
-                familiesMap.set(familyName, []);
-            }
-            familiesMap.get(familyName).push(font);
+            const family = familiesMap.get(familyName) ?? [];
+            family.push(font);
+            familiesMap.set(familyName, family);
         });
 
         // Filter families by the filter condition
-        const filteredFamilies = Array.from(familiesMap.entries()).filter(([familyName, fonts]) => {
+        const filteredFamilies = Array.from(familiesMap.entries()).filter(([, fonts]) => {
             if (filter === 'all') {
                 return true; // show all
             } else if (filter === 'available') {
@@ -454,7 +499,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             if (filter === 'notExist') {
                 emptyMessage = t('noNotExistFonts') || '没有缺失的字体';
             }
-            containerEl.createEl('div', {
+            containerEl.createDiv({
                 text: emptyMessage,
                 cls: 'lfl-empty-note'
             });
@@ -562,10 +607,9 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     async deleteSingleFont(font: FontInfo) {
         try {
             // Delete the source file
-            try {
+            // 不把权限或 IO 失败当成文件不存在；Only remove the entry after a successful file deletion.
+            if (await this.plugin.app.vault.adapter.exists(font.path)) {
                 await this.plugin.app.vault.adapter.remove(font.path);
-            } catch {
-                this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
             }
 
             // Remove from the list
@@ -578,7 +622,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             new Notice(t('deletedFont', { fontName: font.name }));
         } catch (error) {
             this.plugin._logError(`[Local Font Loader] 删除失败: ${font.name}`, error);
-            new Notice(t('deleteFailedError', { error: error.message }));
+            new Notice(t('deleteFailedError', { error: error instanceof Error ? error.message : t('deleteError') }));
         }
     }
 
@@ -620,17 +664,14 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
         // Confirmation logic removed; handled by the UI layer
 
-        this.plugin._log(`[Local Font Loader] Starting to delete unused fonts (${unusedFonts.length} fonts)...`);
         let deleted = 0;
 
         try {
             for (const font of unusedFonts) {
                 try {
                     // Delete the original font file
-                    try {
+                    if (await this.app.vault.adapter.exists(font.path)) {
                         await this.app.vault.adapter.remove(font.path);
-                    } catch {
-                        this.plugin._log(`[Local Font Loader] 源文件不存在，跳过删除: ${font.path}`);
                     }
 
                     // Remove from the list
@@ -649,7 +690,6 @@ export default class FontManagerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
 
             new Notice(t('deletedUnusedFonts', { count: deleted }));
-            this.plugin._log(`[Local Font Loader] Deleted ${deleted} unused fonts`);
 
             this.update(); // refresh the UI
 
@@ -661,6 +701,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
 
     hide() {
         this._isVisible = false;
+        this._renderToken = {};
         // Clear the debounced-render timer so display() is not re-triggered while hidden
         if (this._displayDebounceTimer) {
             window.clearTimeout(this._displayDebounceTimer);

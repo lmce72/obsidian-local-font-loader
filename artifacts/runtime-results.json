@@ -1,0 +1,97 @@
+{
+    "date":  "2026-11-19",
+    "build":  "1.7.3",
+    "scenarios":  [
+                      {
+                          "scenario":  "type mode persists across app reload",
+                          "result":  {
+                                         "mode":  true,
+                                         "preset":  "Computer Test"
+                                     }
+                      },
+                      {
+                          "scenario":  "UI unassign deletes mapping and falls back to individual binding",
+                          "result":  {
+                                         "mode":  true,
+                                         "assignment":  null,
+                                         "chosen":  "Default"
+                                     }
+                      },
+                      {
+                          "scenario":  "auto-load false restart before stale-snippet cleanup",
+                          "result":  {
+                                         "auto":  false,
+                                         "active":  "",
+                                         "snapshot":  false,
+                                         "snippet":  true,
+                                         "faces":  false
+                                     }
+                      },
+                      {
+                          "scenario":  "390px Obsidian mobile emulation",
+                          "result":  {
+                                         "viewport":  390,
+                                         "overflow":  false,
+                                         "mode":  true,
+                                         "rows":  [
+                                                      {
+                                                          "label":  "电脑",
+                                                          "width":  306.3999938964844
+                                                      },
+                                                      {
+                                                          "label":  "平板",
+                                                          "width":  306.3999938964844
+                                                      },
+                                                      {
+                                                          "label":  "手机",
+                                                          "width":  306.3999938964844
+                                                      }
+                                                  ],
+                                         "draggable":  0
+                                     }
+                      },
+                      {
+                          "scenario":  "auto-load false clean restart leaves no custom faces, metrics, or snippet",
+                          "result":  {
+                                         "version":  "1.7.3",
+                                         "vault":  "isolated-test-vault",
+                                         "auto":  false,
+                                         "active":  "",
+                                         "snapshot":  false,
+                                         "snippet":  false,
+                                         "faces":  false
+                                     }
+                      },
+                      {
+                          "scenario":  "legacy destructive confirmation renders and focuses Cancel",
+                          "result":  {
+                                         "focus":  "Cancel",
+                                         "titles":  [
+                                                        "Local Font Loader",
+                                                        "Delete preset"
+                                                    ],
+                                         "cancelled":  true
+                                     }
+                      },
+                      {
+                          "scenario":  "final formula smoke on Obsidian 1.15.1",
+                          "result":  {
+                                         "version":  "1.7.3",
+                                         "app":  "Math checks - AstroScope-Test - Obsidian 1.15.1",
+                                         "mathJax":  "4.1.3",
+                                         "errors":  0,
+                                         "formulas":  8
+                                     }
+                      },
+                      {
+                          "scenario":  "final formula smoke on Obsidian 1.5.12",
+                          "result":  {
+                                         "version":  "1.7.3",
+                                         "app":  "Math checks - AstroScope-Test - Obsidian v1.5.12",
+                                         "mathJax":  "3.2.2",
+                                         "errors":  0,
+                                         "formulas":  8
+                                     }
+                      }
+                  ]
+}

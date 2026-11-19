@@ -74,7 +74,7 @@ export const measurementFallbackAdapter: MathFontAdapter = {
             return null;
         }
 
-        const canvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+        const canvas = typeof document !== 'undefined' ? createEl('canvas') : null;
         const c2d = canvas ? canvas.getContext('2d') : null;
         if (!c2d) {
             return null;

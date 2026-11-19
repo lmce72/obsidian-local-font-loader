@@ -11,7 +11,7 @@
  * mapped into MathJax's table. Nothing is measured; nothing is guessed.
  */
 
-import type { GlyphMetrics, MathConstants } from './types';
+import type { MathConstants } from './types';
 
 /** One part of a glyph assembly — how a stretchy delimiter is built from pieces. */
 export interface GlyphPart {
@@ -110,7 +110,8 @@ export function readOpenTypeMathTable(binary: ArrayBuffer): OpenTypeMathTable | 
 
         const header = findTable(new DataView(binary, base), 'MATH');
         if (!header) return null;
-        const mathOff = base + header.offset;
+        // TTC 表偏移相对整个文件，不能再次加成员目录偏移；TTC table offsets are already file-absolute.
+        const mathOff = header.offset;
         if (mathOff + 10 > binary.byteLength) return null;
 
         const version = dv.getUint16(mathOff);
@@ -148,7 +149,7 @@ function readUnitsPerEm(dv: DataView, base: number): number {
         const head = findTable(new DataView(dv.buffer, dv.byteOffset + base), 'head');
         if (!head) return 0;
         // unitsPerEm sits at offset 18 in `head`.
-        return dv.getUint16(base + head.offset + 18);
+        return dv.getUint16(head.offset + 18);
     } catch {
         return 0;
     }
@@ -202,7 +203,7 @@ function readConstants(r: Reader, at: number, toEm: (n: number) => number): Math
         // fractionNumeratorShiftUp, fractionNumeratorDisplayStyleShiftUp,
         // fractionDenominatorShiftDown, fractionDenominatorDisplayStyleShiftDown,
         // fractionNumeratorGapMin, fractionNumDisplayStyleGapMin
-        p += 31 * 4;
+        p += 32 * 4;
         out.fractionRuleThickness = valueRecord(r, p, toEm);
         p += 4;
         // fractionDenominatorGapMin, fractionDenomDisplayStyleGapMin,
@@ -253,7 +254,6 @@ function readGlyphInfo(r: Reader, at: number, toEm: (n: number) => number) {
     const extendedShapes = new Set<number>();
     try {
         const italicsOff = at + r.u16(at);
-        const topAccentOff = at + r.u16(at + 2);
         const extShapeOff = at + r.u16(at + 4);
         // MathKernInfo at at+6 — not needed for metrics adoption.
 
@@ -325,7 +325,8 @@ function readConstruction(r: Reader, at: number, toEm: (n: number) => number): G
             const partCount = r.u16(a + 4);
             const parts: GlyphPart[] = [];
             for (let i = 0; i < partCount; i++) {
-                const rec = a + 6 + i * 8;
+                // GlyphPart 是五个 16-bit 字段；Each GlyphPart occupies five 16-bit fields.
+                const rec = a + 6 + i * 10;
                 parts.push({
                     glyphId: r.u16(rec),
                     startConnectorLength: toEm(r.u16(rec + 2)),

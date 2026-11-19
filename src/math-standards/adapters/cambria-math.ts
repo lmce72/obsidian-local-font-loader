@@ -231,7 +231,7 @@ function readHhea(dv: DataView): HheaInfo | null {
             descent: dv.getInt16(ref.offset + 6),
             numHMetrics: dv.getUint16(ref.offset + 34),
         };
-    } catch (e) {
+    } catch {
         return null;
     }
 }

@@ -27,7 +27,7 @@
 1. Download the latest release from [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases)
 2. Extract `main.js`, `manifest.json`, and `styles.css` to your vault's plugins folder:
    ```
-   <vault>/.obsidian/plugins/obsidian-local-font-loader/
+   <vault>/.obsidian/plugins/local-font-loader/
    ```
 3. Reload Obsidian or enable the plugin in Settings → Community plugins
 
@@ -78,7 +78,7 @@
 
 ### Requirements
 
-- Obsidian v1.13.0 or higher
+- Obsidian v1.5.7 or higher
 - Font files in TTF, OTF, WOFF, or WOFF2 format
 
 ### Privacy
@@ -188,7 +188,7 @@ release with the changelog section as its body.
 1. 从 [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases) 下载最新版本
 2. 将 `main.js`、`manifest.json` 和 `styles.css` 解压到仓库的插件文件夹：
    ```
-   <仓库>/.obsidian/plugins/obsidian-local-font-loader/
+   <仓库>/.obsidian/plugins/local-font-loader/
    ```
 3. 重新加载 Obsidian 或在 设置 → 第三方插件 中启用插件
 
@@ -283,7 +283,7 @@ release with the changelog section as its body.
 1. 從 [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases) 下載最新版本
 2. 將 `main.js`、`manifest.json` 和 `styles.css` 解壓縮到儲存庫的外掛程式資料夾：
    ```
-   <儲存庫>/.obsidian/plugins/obsidian-local-font-loader/
+   <儲存庫>/.obsidian/plugins/local-font-loader/
    ```
 3. 重新載入 Obsidian，或在 設定 → 社群外掛程式 中啟用外掛程式
 
@@ -378,7 +378,7 @@ release with the changelog section as its body.
 1. [Releases](https://github.com/lmce72/obsidian-local-font-loader/releases) から最新版をダウンロード
 2. `main.js`、`manifest.json`、`styles.css` を Vault のプラグインフォルダに展開：
    ```
-   <vault>/.obsidian/plugins/obsidian-local-font-loader/
+   <vault>/.obsidian/plugins/local-font-loader/
    ```
 3. Obsidian を再読み込みするか、設定 → コミュニティプラグイン でプラグインを有効化
 
@@ -473,7 +473,7 @@ release with the changelog section as its body.
 1. [Releases](https://github.com/lmce72/obsidian-local-font-loader/releases)에서 최신 버전 다운로드
 2. `main.js`, `manifest.json`, `styles.css`를 보관함의 플러그인 폴더에 압축 해제:
    ```
-   <vault>/.obsidian/plugins/obsidian-local-font-loader/
+   <vault>/.obsidian/plugins/local-font-loader/
    ```
 3. Obsidian을 다시 로드하거나 설정 → 커뮤니티 플러그인에서 플러그인 활성화
 
@@ -568,7 +568,7 @@ release with the changelog section as its body.
 1. Descarga la última versión desde [GitHub Releases](https://github.com/lmce72/obsidian-local-font-loader/releases)
 2. Extrae `main.js`, `manifest.json` y `styles.css` a la carpeta de complementos de tu bóveda:
    ```
-   <bóveda>/.obsidian/plugins/obsidian-local-font-loader/
+   <bóveda>/.obsidian/plugins/local-font-loader/
    ```
 3. Recarga Obsidian o habilita el complemento en Configuración → Complementos de la comunidad
 
@@ -637,3 +637,17 @@ Este plugin fue desarrollado con la asistencia de **Claude** (Anthropic), un asi
 ### Soporte
 
 Si encuentras algún problema o tienes solicitudes de funciones, por favor [abre un issue en GitHub](https://github.com/lmce72/obsidian-local-font-loader/issues).
+
+## Device type mode / 设备类型模式
+
+Optional and off by default. Enable **Group font presets by device type** in settings to assign presets to computers, tablets and phones. The platform signals match Better Plugins Manager. A configured type overrides the individual device assignment; an unassigned type falls back to that assignment. Switching the mode off restores the preserved individual bindings. Old mobile records can be classified manually.
+
+默认关闭。开启「按设备类型区分字体预设」后，可分别为电脑、平板、手机选择预设。未分配的类型沿用单设备绑定；关闭后恢复原绑定。无法识别类型的旧移动设备可手动分类。
+
+Compatibility: source checked against the Obsidian 1.5.7 SDK; application tests run on 1.5.12 (MathJax 3.2.2) and 1.15.1 (MathJax 4.1.3). See [the validation report](TESTING-1.7.3.md) for coverage and limits.
+
+```sh
+bun run check          # types, requested source-review rules, regression tests
+bun run check:legacy   # compile against the official 1.5.7 SDK (downloads its declarations)
+bun run lint:audit     # full recommended audit; see the documented dynamic-font style finding
+```

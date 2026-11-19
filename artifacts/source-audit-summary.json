@@ -1,0 +1,12 @@
+{
+  "requestedRules": 0,
+  "fullRecommendedFindings": [
+    {
+      "file": "src/plugin.ts",
+      "line": 3071,
+      "rule": "obsidianmd/no-forbidden-elements",
+      "severity": 2,
+      "message": "Creating and attaching \"style\" elements is not allowed. For loading CSS, use a \"styles.css\" file instead, which Obsidian loads for you."
+    }
+  ]
+}

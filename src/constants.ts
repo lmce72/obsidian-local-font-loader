@@ -10,6 +10,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     availableFonts: [],       // Global font list (shared by all presets)
     fontFamilies: [],         // Global font family grouping info (shared by all presets)
     autoLoadOnStartup: true,
+    deviceTypeModeEnabled: false,
+    deviceTypePresets: {},
+    deviceTypeOverrides: {},
 
     // Device identification (synced via cloud)
     // NOTE: the real per-device identity lives in device-local storage, NOT here — see

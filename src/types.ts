@@ -98,8 +98,12 @@ export interface FontPreset {
 }
 
 /** What a device records about itself, and what other devices see about it. */
+export type DeviceType = 'computer' | 'tablet' | 'phone';
+
 export interface DeviceMeta {
     platform: 'mobile' | 'desktop';
+    /** 自动记录设备形态；Optional for settings written by older versions. */
+    type?: DeviceType;
     /** `ipados` is distinct from `ios`: since iPadOS 13 an iPad reports a desktop-class UA. */
     os: 'ios' | 'ipados' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown';
     /** What the user agent exposes — an Android build code, or the Apple device family. */
@@ -132,6 +136,10 @@ export interface PluginSettings {
     availableFonts: FontInfo[];
     fontFamilies: FontFamily[];
     autoLoadOnStartup: boolean;
+    /** 默认关闭，保留原有按设备 ID 分配；Type bindings never replace legacy bindings. */
+    deviceTypeModeEnabled: boolean;
+    deviceTypePresets: Partial<Record<DeviceType, string>>;
+    deviceTypeOverrides: Record<string, DeviceType>;
     /** Legacy fingerprint → device id. A one-time migration ledger, consumed on first run. */
     deviceFingerprints: Record<string, string>;
     deviceNameMap: Record<string, string>;

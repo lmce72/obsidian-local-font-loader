@@ -156,7 +156,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
                 // Only refresh the font list and button states, not the whole page
                 fontListEl.empty();
                 if (tab.plugin.settings.availableFonts.length === 0) {
-                    fontListEl.createEl('div', {
+                    fontListEl.createDiv({
                         text: t('notFoundFontFamily'),
                         cls: 'lfl-empty-note'
                     });
@@ -173,7 +173,7 @@ export function renderFontStatusSection(tab: FontManagerSettingTab, containerEl:
 
         // Initialize the font list content
         if (tab.plugin.settings.availableFonts.length === 0) {
-            fontListEl.createEl('div', {
+            fontListEl.createDiv({
                 text: t('notFoundFontFamily'),
                 cls: 'lfl-empty-note'
             });

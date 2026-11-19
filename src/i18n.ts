@@ -1,10 +1,31 @@
 /**
  * Translations and locale helpers.
  */
-import { getLanguage } from 'obsidian';
+import * as Obsidian from 'obsidian';
+
+/** 旧宿主保存语言于本地配置；Use the app's live language setting on both old and new hosts. */
+function getHostLanguage(): string {
+    const languageApi = Obsidian as { getLanguage?: () => string };
+    const locale = typeof languageApi.getLanguage === 'function'
+        ? languageApi.getLanguage()
+        : (typeof window !== 'undefined' ? window.localStorage?.getItem('language') : null);
+    return locale || 'en';
+}
 
 export const TRANSLATIONS = {
     en: {
+        deviceTypeMode: 'Group font presets by device type',
+        deviceTypeModeDesc: 'Optional computer / tablet / phone mode. Assigned types take priority; unassigned types keep individual device bindings. Turning this off restores those bindings.',
+        deviceTypePresetDesc: 'Use this preset for every device of this type. Leave unassigned to keep individual bindings.',
+        deviceTypeUseDeviceBinding: 'Use individual device bindings',
+        deviceTypeLabel: 'Device type',
+        deviceTypeAutomatic: 'Automatic',
+        deviceTypeUnknown: 'Not classified (keep individual binding)',
+        deviceTypeCardsDesc: 'Cards below show saved individual bindings. Type assignments above override them while this mode is on. Classify older mobile devices manually if needed.',
+        deviceType_computer: 'Computer',
+        deviceType_tablet: 'Tablet',
+        deviceType_phone: 'Phone',
+        deviceTypeSaveFailed: 'Could not save or apply the device setting. See the console for details.',
         // Plugin Info
         pluginName: 'Local Font Loader',
         pluginDesc: 'Load custom fonts from your local vault',
@@ -237,6 +258,18 @@ export const TRANSLATIONS = {
     },
 
     zh: {
+        deviceTypeMode: '按设备类型区分字体预设',
+        deviceTypeModeDesc: '可选的电脑／平板／手机模式。已分配类型优先生效，未分配类型沿用单设备绑定；关闭后恢复原有绑定。',
+        deviceTypePresetDesc: '同类型设备共用此预设；不选择则沿用各设备原有绑定。',
+        deviceTypeUseDeviceBinding: '沿用单设备绑定',
+        deviceTypeLabel: '设备类型',
+        deviceTypeAutomatic: '自动识别',
+        deviceTypeUnknown: '待分类（沿用单设备绑定）',
+        deviceTypeCardsDesc: '下方卡片展示保留的单设备绑定。此模式开启时，上方类型预设优先生效；旧版移动设备可手工补充类型。',
+        deviceType_computer: '电脑',
+        deviceType_tablet: '平板',
+        deviceType_phone: '手机',
+        deviceTypeSaveFailed: '设备设置保存或应用失败，请查看控制台。',
         // Plugin Info
         pluginName: '本地字体加载器',
         pluginDesc: '从本地 Vault 加载自定义字体',
@@ -858,6 +891,18 @@ export const TRANSLATIONS = {
     },
 
     'zh-TW': {
+        deviceTypeMode: '依裝置類型區分字型預設',
+        deviceTypeModeDesc: '可選的電腦／平板／手機模式。已分配類型優先生效，未分配類型沿用個別裝置綁定；關閉後恢復原有綁定。',
+        deviceTypePresetDesc: '同類型裝置共用此預設；不選擇則沿用各裝置原有綁定。',
+        deviceTypeUseDeviceBinding: '沿用個別裝置綁定',
+        deviceTypeLabel: '裝置類型',
+        deviceTypeAutomatic: '自動辨識',
+        deviceTypeUnknown: '待分類（沿用個別裝置綁定）',
+        deviceTypeCardsDesc: '下方卡片展示保留的個別裝置綁定。此模式開啟時，上方類型預設優先生效；舊版行動裝置可手動補充類型。',
+        deviceType_computer: '電腦',
+        deviceType_tablet: '平板',
+        deviceType_phone: '手機',
+        deviceTypeSaveFailed: '裝置設定儲存或套用失敗，請查看主控台。',
         // Plugin Info
         pluginName: '本地字型載入器',
         pluginDesc: '從本地 Vault 載入自訂字型',
@@ -1110,7 +1155,7 @@ export function t(
 
     // Auto-detect locale from Obsidian if not provided
     if (!locale) {
-        const fullLocale = getLanguage() || 'en';
+        const fullLocale = getHostLanguage();
 
         // Prefer the full locale code (e.g., zh-TW)
         if (TRANSLATIONS_BY_LOCALE[fullLocale]) {
@@ -1138,7 +1183,7 @@ export function t(
  * @returns {string} Current language code
  */
 export function getCurrentLocale() {
-    return (getLanguage() || 'en').split('-')[0];
+    return getHostLanguage().split('-')[0];
 }
 
 /**

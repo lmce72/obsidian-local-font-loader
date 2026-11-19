@@ -28,13 +28,12 @@ export function renderDirectoryAndApplicationSection(tab: FontManagerSettingTab,
             .setName(t('fontSourceDir'))
             .setDesc(t('fontSourceDirDesc'));
 
-        addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, async (value) => {
-            try {
-                tab.plugin.settings.fontSourceDir = value;
-                await tab.plugin.saveSettings();
-            } catch (error) {
+        addFolderPathInput(sourceDirSetting, tab.app, tab.plugin.settings.fontSourceDir, (value) => {
+            tab.plugin.settings.fontSourceDir = value;
+            void tab.plugin.saveSettings().catch(error => {
                 tab.plugin._logError('[Local Font Loader] Failed to save the font source directory:', error);
-            }
+                new Notice(t('deleteError'));
+            });
         }, 'Local-Fonts');
 
         sourceDirSetting.addButton(btn => btn

@@ -2,9 +2,15 @@
  * Modal components — they replace the browser-native prompt/confirm, which would
  * steal window focus from Obsidian.
  */
-import { App, Modal, ConfirmationModal, setIcon } from 'obsidian';
+import { App, Modal, Notice, setIcon } from 'obsidian';
 
 import { t } from '../i18n';
+
+/** 弹窗操作统一捕获失败；Keep async modal failures visible instead of unhandled. */
+function reportModalError(error: unknown): void {
+    console.error('[Local Font Loader] Modal action failed:', error);
+    new Notice(error instanceof Error ? error.message : 'Could not complete the action');
+}
 
 /**
  * Text input modal (replaces prompt)
@@ -16,9 +22,9 @@ export class TextInputModal extends Modal {
     titleText: string;
     placeholder: string;
     defaultValue: string;
-    onSubmit: (value: string) => void;
+    onSubmit: (value: string) => void | Promise<void>;
 
-    constructor(app: App, title: string, placeholder: string, defaultValue: string, onSubmit: (value: string) => void) {
+    constructor(app: App, title: string, placeholder: string, defaultValue: string, onSubmit: (value: string) => void | Promise<void>) {
         super(app);
         this.titleText = title;
         this.placeholder = placeholder;
@@ -59,8 +65,13 @@ export class TextInputModal extends Modal {
         submitBtn.addEventListener('click', () => {
             const value = inputEl.value.trim();
             if (value) {
-                this.onSubmit(value);
-                this.close();
+                submitBtn.disabled = true;
+                void Promise.resolve().then(() => this.onSubmit(value)).then(() => {
+                    this.close();
+                }).catch(error => {
+                    reportModalError(error);
+                    submitBtn.disabled = false;
+                });
             } else {
                 // Highlight the input border when empty
                 inputEl.addClass('is-invalid');
@@ -139,12 +150,12 @@ export class FontImportModal extends Modal {
         };
 
         // File selection handler
-        input.onchange = async () => {
+        input.onchange = () => {
             const files = input.files;
             if (!files || files.length === 0) return;
 
             this.close();
-            await this.onImport(files);
+            void Promise.resolve().then(() => this.onImport(files)).catch(reportModalError);
         };
 
         // Drag-and-drop handlers
@@ -157,7 +168,7 @@ export class FontImportModal extends Modal {
             dropZone.removeClass('is-dragover');
         };
 
-        dropZone.ondrop = async (e) => {
+        dropZone.ondrop = (e) => {
             e.preventDefault();
             dropZone.removeClass('is-dragover');
 
@@ -168,7 +179,7 @@ export class FontImportModal extends Modal {
             if (files.length === 0) return;
 
             this.close();
-            await this.onImport(files);
+            void Promise.resolve().then(() => this.onImport(files)).catch(reportModalError);
         };
     }
 
@@ -193,7 +204,8 @@ export function showConfirmDialog(
     onConfirm: () => void | Promise<void>,
     isDangerous = false
 ) {
-    const modal = new ConfirmationModal(app);
+    // 使用早期版本已有的 Modal；Modal preserves the native host lifecycle on pre-1.13 apps.
+    const modal = new Modal(app);
     modal.setTitle(title);
 
     // Create the message content
@@ -202,20 +214,21 @@ export function showConfirmDialog(
         cls: 'lfl-confirm-message'
     });
 
-    // Add the confirm button
-    modal.addButton((btn) => {
-        btn.setButtonText(t('confirm'));
-        btn.setCta();
-        if (isDangerous) {
-            btn.buttonEl.addClass('mod-warning'); // dangerous operation, applies warning styling
-        }
-        btn.onClick(() => {
-            onConfirm();
+    const buttons = modal.contentEl.createDiv({ cls: 'modal-button-container' });
+    const cancel = buttons.createEl('button', { text: t('cancel') });
+    cancel.addEventListener('click', () => modal.close());
+    const confirm = buttons.createEl('button', {
+        text: t('confirm'), cls: isDangerous ? 'mod-warning' : 'mod-cta',
+    });
+    confirm.addEventListener('click', () => {
+        confirm.disabled = true;
+        void Promise.resolve().then(onConfirm).then(() => modal.close()).catch(error => {
+            reportModalError(error);
+            confirm.disabled = false;
         });
     });
-
-    // Add the cancel button
-    modal.addCancelButton(t('cancel'));
+    // 危险操作默认聚焦取消；Focus the safe action for destructive confirmations.
+    (isDangerous ? cancel : confirm).setAttribute('autofocus', '');
 
     modal.open();
 }

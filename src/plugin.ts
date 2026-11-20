@@ -51,12 +51,16 @@ const SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 /**
  * The snippet synced between devices contains only portable font variables and layout rules.
- * Font faces belong to runtime DOM styles: their resource URLs are device- and session-specific.
+ * Font faces belong to the in-memory plugin stylesheet: their URLs are device- and session-specific.
  */
 const FONT_CSS_SNIPPET = 'local-font-loader';
 
-/** The runtime style id for session-local font faces. */
+/** The legacy style id, also used as the runtime CSS cache key. */
 const FONT_FACES_ID = 'local-font-loader-faces';
+
+// styles.css 中唯一的运行期字体区域；Unique runtime font slot in the Obsidian-loaded stylesheet.
+const FONT_FACES_START = '/* local-font-loader:font-faces:start */';
+const FONT_FACES_END = '/* local-font-loader:font-faces:end */';
 
 /**
  * The id the per-glyph box overrides are generated under.
@@ -132,6 +136,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     /** Documents receiving session-local font faces, including desktop popouts. */
     _fontDocuments = new Set<Document>();
+
+    // Obsidian 可在 onload 返回后才装载 styles.css；Watch for styles.css arriving after onload.
+    _fontStyleObservers = new Map<Document, MutationObserver>();
 
     /** The portable CSS each id currently contributes to the snippet. */
     _snippetCss = new Map<string, string>();
@@ -437,15 +444,17 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     async onload() {
 
-        this._fontDocuments.add(activeDocument);
+        this._trackFontDocument(activeDocument);
         this.app.workspace.iterateAllLeaves(leaf => {
-            this._fontDocuments.add(leaf.view.containerEl.ownerDocument);
+            this._trackFontDocument(leaf.view.containerEl.ownerDocument);
         });
         this.registerEvent(this.app.workspace.on('window-open', (_win, openedWindow) => {
-            this._fontDocuments.add(openedWindow.document);
+            this._trackFontDocument(openedWindow.document);
             this._applyRuntimeFontFaces(this._appliedCss.get(FONT_FACES_ID) || '');
         }));
         this.registerEvent(this.app.workspace.on('window-close', (_win, closedWindow) => {
+            this._fontStyleObservers.get(closedWindow.document)?.disconnect();
+            this._fontStyleObservers.delete(closedWindow.document);
             this._fontDocuments.delete(closedWindow.document);
         }));
         // Old snippets may arrive from desktop sync before this plugin starts.
@@ -692,6 +701,8 @@ export default class LocalFontLoaderPlugin extends Plugin {
             this._dataReloadTimer = null;
         }
 
+        for (const observer of this._fontStyleObservers.values()) observer.disconnect();
+        this._fontStyleObservers.clear();
         this.removeFontStyles();
         this._fontDocuments.clear();
 
@@ -3056,23 +3067,40 @@ export default class LocalFontLoaderPlugin extends Plugin {
         return { css, fontFamily, variantType, fontWeight, fontStyle };
     }
 
+    /** 跟随 Obsidian 样式装载与热重载；Follow Obsidian's stylesheet loading and hot reload. */
+    _trackFontDocument(doc: Document): void {
+        this._fontDocuments.add(doc);
+        if (this._fontStyleObservers.has(doc) || !doc.defaultView) return;
+        const isFontStyle = (node: Node | null): boolean =>
+            node?.nodeName === 'STYLE' && !!node.textContent?.includes(FONT_FACES_START);
+        const observer = new doc.defaultView.MutationObserver(records => {
+            if (records.some(record => isFontStyle(record.target) || isFontStyle(record.target.parentNode)
+                || Array.from(record.addedNodes).some(isFontStyle))) {
+                this._applyRuntimeFontFaces(this._appliedCss.get(FONT_FACES_ID) || '');
+            }
+        });
+        observer.observe(doc.head, { childList: true, subtree: true, characterData: true });
+        this._fontStyleObservers.set(doc, observer);
+    }
+
     /**
-     * Keep font resource URLs in DOM styles for this session only. PDF export clones these
-     * style nodes, while the synced snippet carries only portable variables and layout rules.
+     * 仅更新 Obsidian 从 styles.css 加载的字体区域，不创建样式节点，不写入会话地址。
+     * Update only the font slot in Obsidian's loaded styles.css, without creating style elements
+     * or writing session URLs to disk. Its text is also copied to popouts and PDF export.
      */
     _applyRuntimeFontFaces(css: string): void {
         for (const doc of this._fontDocuments) {
-            let element = doc.getElementById(FONT_FACES_ID);
-            if (!css) {
-                element?.remove();
-                continue;
+            // 清理旧版本节点，但保留 Obsidian 管理的样式表；Remove legacy nodes only.
+            doc.getElementById(FONT_FACES_ID)?.remove();
+            for (const element of doc.head.querySelectorAll('style')) {
+                const text = element.textContent || '';
+                const start = text.indexOf(FONT_FACES_START);
+                const end = text.indexOf(FONT_FACES_END, start + FONT_FACES_START.length);
+                if (start < 0 || end < 0) continue;
+                const updated = text.slice(0, start + FONT_FACES_START.length)
+                    + `\n${css}\n` + text.slice(end);
+                if (text !== updated) element.textContent = updated;
             }
-            if (!element) {
-                element = doc.head.createEl('style');
-                element.id = FONT_FACES_ID;
-                doc.head.appendChild(element);
-            }
-            if (element.textContent !== css) element.textContent = css;
         }
     }
 

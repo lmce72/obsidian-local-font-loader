@@ -151,13 +151,18 @@ bun run sync-version   # copy the version from package.json into manifest.json
 | `src/ui/settings/directory-application.ts` | directory configuration and font application section |
 | `src/ui/settings/font-status.ts` | font file status section |
 | `src/ui/settings/fallback.ts` | fallback and maintenance section |
-| `src/ui/settings/styles.ts` | settings stylesheet |
+| `styles.css` | plugin stylesheet, including the runtime font-face slot |
 | `src/ui/modals.ts` | modal dialogs |
 | `src/i18n.ts` | translations and locale helpers |
 | `src/constants.ts` | default settings |
 | `src/font-metadata.ts` | OpenType / TrueType name-table reader |
 
 The sources are TypeScript; Bun strips the types when bundling, so nothing is emitted for them at runtime. `obsidian` is kept external.
+
+Obsidian loads `styles.css`. Keep its `local-font-loader:font-faces:start` and
+`local-font-loader:font-faces:end` markers: the plugin fills that slot in the loaded stylesheet
+in memory, including after stylesheet reloads. Font resource URLs are never written back to
+`styles.css` or the synced snippet. Popouts and PDF export copy the current stylesheet text.
 
 **Releasing:** add a `CHANGELOG.md` section for the version, set it in `package.json`, run
 `bun run sync-version`, then push a tag. CI builds `main.js` from `src/` and publishes the

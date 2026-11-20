@@ -16,18 +16,37 @@ mock.module('obsidian', () => ({
 Object.assign(globalThis, { window: { navigator: {} } });
 const { default: LocalFontLoaderPlugin } = await import('../src/plugin');
 
-// Small DOM test double: verifies style lifecycle, not font rendering in a WebView.
+const stylesheetTemplate = '/* static rules */\nbody { color: inherit; }\n'
+    + '/* local-font-loader:font-faces:start */\n/* local-font-loader:font-faces:end */';
+
+// 不提供节点创建方法，验证既有样式表更新；Verify updates without allowing DOM node creation.
 function documentDouble() {
     const nodes = new Map<string, any>();
+    const stylesheet = { nodeName: 'STYLE', textContent: stylesheetTemplate };
+    const stylesheets = [stylesheet];
+    let onMutation = (_records: unknown[]) => {};
     return {
         nodes,
+        stylesheet,
+        stylesheets,
+        defaultView: { MutationObserver: class {
+            constructor(callback: typeof onMutation) { onMutation = callback; }
+            observe() {}
+            disconnect() { onMutation = () => {}; }
+        } },
+        stylesheetChanged: (added = false) => onMutation([{
+            target: added ? { nodeName: 'HEAD', parentNode: null } : stylesheet,
+            addedNodes: added ? [stylesheet] : [],
+        }]),
         getElementById: (id: string) => nodes.get(id) || null,
-        createElement: (tag: string) => ({ tagName: tag, id: '', textContent: '', remove() { nodes.delete(this.id); } }),
-        head: {
-            createEl: (tag: string) => ({ tagName: tag, id: '', textContent: '', remove() { nodes.delete(this.id); } }),
-            appendChild: (node: any) => nodes.set(node.id, node),
-        },
+        head: { querySelectorAll: () => stylesheets },
     };
+}
+
+function runtimeCss(doc: ReturnType<typeof documentDouble>) {
+    expect(doc.nodes.size).toBe(0);
+    expect(doc.stylesheet.textContent).toContain('body { color: inherit; }');
+    return doc.stylesheet.textContent;
 }
 const roots: string[] = [];
 afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }); });
@@ -41,7 +60,7 @@ async function fixture(prefix = 'app://desktop-session/') {
     const errors: unknown[] = [];
     plugin._log = () => {};
     plugin._logError = (...args: unknown[]) => errors.push(args);
-    plugin._fontDocuments.add(doc);
+    plugin._trackFontDocument(doc);
     const snippetPath = '.obsidian/snippets/local-font-loader.css';
     const customCss = {
         enabledSnippets: new Set<string>(), csscache: new Map<string, string>(),
@@ -198,7 +217,7 @@ describe('session-local font resources', () => {
         expect(css).toContain('--font-text');
         expect(css).not.toContain('app://');
         expect(css).not.toContain('@font-face');
-        expect(doc.nodes.get('local-font-loader-faces').textContent).toContain('app://desktop-session/Fonts/Test.TTF');
+        expect(runtimeCss(doc)).toContain('app://desktop-session/Fonts/Test.TTF');
         expect(customCss.enabledSnippets.has('local-font-loader')).toBe(true);
         expect(errors).toEqual([]);
     });
@@ -212,7 +231,7 @@ describe('session-local font resources', () => {
         Platform.isDesktopApp = false; Platform.isMobile = true;
         plugin.applyCss(faces(plugin), 'local-font-loader-faces');
         await plugin._snippetSync;
-        expect(doc.nodes.get('local-font-loader-faces').textContent).toContain('http://localhost/_capacitor_file_/Fonts/Test.TTF');
+        expect(runtimeCss(doc)).toContain('http://localhost/_capacitor_file_/Fonts/Test.TTF');
         expect(errors).toEqual([]);
         Platform.isDesktopApp = true; Platform.isMobile = false;
     });
@@ -227,7 +246,7 @@ describe('session-local font resources', () => {
         plugin.applyCss(faces(plugin), 'local-font-loader-faces');
         await plugin._snippetSync;
         expect(await readFile(join(root, snippetPath), 'utf8')).toBe(before);
-        expect(doc.nodes.get('local-font-loader-faces').textContent).toContain('file:///mobile/Test.TTF');
+        expect(runtimeCss(doc)).toContain('file:///mobile/Test.TTF');
     });
 
     test('popout receives updated font faces and removing faces clears every document', async () => {
@@ -235,10 +254,56 @@ describe('session-local font resources', () => {
         const popout = documentDouble();
         plugin._fontDocuments.add(popout);
         plugin.applyCss(faces(plugin), 'local-font-loader-faces');
-        expect(popout.nodes.get('local-font-loader-faces').textContent).toBe(doc.nodes.get('local-font-loader-faces').textContent);
+        expect(runtimeCss(popout)).toBe(runtimeCss(doc));
         plugin._removeGeneratedStyles('local-font-loader-faces');
         expect(popout.nodes.size).toBe(0);
         expect(doc.nodes.size).toBe(0);
+        expect(runtimeCss(doc)).not.toContain('@font-face');
+        expect(runtimeCss(popout)).not.toContain('@font-face');
+        await plugin._snippetSync;
+    });
+
+    test('stylesheet reload and a newly opened window regain faces without changing static CSS', async () => {
+        const { plugin, doc } = await fixture();
+        const css = faces(plugin);
+        plugin.applyCss(css, 'local-font-loader-faces');
+        const applied = runtimeCss(doc);
+        doc.stylesheet.textContent = stylesheetTemplate;
+        const popout = documentDouble();
+        plugin._trackFontDocument(popout);
+        doc.stylesheetChanged();
+        expect(runtimeCss(doc)).toBe(applied);
+        expect(runtimeCss(popout)).toBe(applied);
+        plugin._applyRuntimeFontFaces(css);
+        expect(runtimeCss(doc)).toBe(applied);
+        await plugin._snippetSync;
+    });
+
+    test('fonts applied before styles.css arrives are restored when Obsidian loads it', async () => {
+        const { plugin, doc } = await fixture();
+        doc.stylesheets.length = 0;
+        plugin.applyCss(faces(plugin), 'local-font-loader-faces');
+        expect(doc.stylesheet.textContent).not.toContain('@font-face');
+        doc.stylesheets.push(doc.stylesheet);
+        doc.stylesheetChanged(true);
+        expect(runtimeCss(doc)).toContain('app://desktop-session/Fonts/Test.TTF');
+        plugin._fontStyleObservers.get(doc).disconnect();
+        doc.stylesheet.textContent = stylesheetTemplate;
+        doc.stylesheetChanged();
+        expect(doc.stylesheet.textContent).not.toContain('@font-face');
+        await plugin._snippetSync;
+    });
+
+    test('legacy font nodes are removed while unrelated styles remain unchanged', async () => {
+        const { plugin, doc } = await fixture();
+        const unrelated = { nodeName: 'STYLE', textContent: 'body { color: red; }' };
+        doc.stylesheets.unshift(unrelated);
+        doc.nodes.set('local-font-loader-faces', {
+            remove: () => doc.nodes.delete('local-font-loader-faces'),
+        });
+        plugin.applyCss(faces(plugin), 'local-font-loader-faces');
+        expect(runtimeCss(doc)).toContain('@font-face');
+        expect(unrelated.textContent).toBe('body { color: red; }');
         await plugin._snippetSync;
     });
 
@@ -262,7 +327,7 @@ describe('session-local font resources', () => {
         const css = await readFile(join(root, snippetPath), 'utf8');
         expect(css).toContain('--font-text: "Test"');
         expect(css).not.toContain('file:///');
-        expect(doc.nodes.get('local-font-loader-faces').textContent).toContain('file:///mobile/Fonts/Test.TTF');
+        expect(runtimeCss(doc)).toContain('file:///mobile/Fonts/Test.TTF');
         expect(errors).toEqual([]);
     });
 

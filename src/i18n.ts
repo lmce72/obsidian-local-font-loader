@@ -3,13 +3,14 @@
  */
 import * as Obsidian from 'obsidian';
 
-/** 旧宿主保存语言于本地配置；Use the app's live language setting on both old and new hosts. */
+/** 优先语言 API，旧宿主使用其日期库语言；Prefer the API, with the host locale on older versions. */
 function getHostLanguage(): string {
     const languageApi = Obsidian as { getLanguage?: () => string };
     const locale = typeof languageApi.getLanguage === 'function'
         ? languageApi.getLanguage()
-        : (typeof window !== 'undefined' ? window.localStorage?.getItem('language') : null);
-    return locale || 'en';
+        : Obsidian.moment.locale();
+    // Moment 使用小写地区码，翻译表保留 zh-TW；Normalize Moment's regional locale spelling.
+    return locale?.replace(/^zh-(tw|hk|mo)$/i, 'zh-TW') || 'en';
 }
 
 export const TRANSLATIONS = {

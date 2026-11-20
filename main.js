@@ -3,15 +3,29 @@ var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+function __accessProp(key) {
+  return this[key];
+}
+var __toESMCache_node;
+var __toESMCache_esm;
 var __toESM = (mod, isNodeMode, target) => {
+  var canCache = mod != null && typeof mod === "object";
+  if (canCache) {
+    var cache = isNodeMode ? __toESMCache_node ??= new WeakMap : __toESMCache_esm ??= new WeakMap;
+    var cached = cache.get(mod);
+    if (cached)
+      return cached;
+  }
   target = mod != null ? __create(__getProtoOf(mod)) : {};
   const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
   for (let key of __getOwnPropNames(mod))
     if (!__hasOwnProp.call(to, key))
       __defProp(to, key, {
-        get: () => mod[key],
+        get: __accessProp.bind(mod, key),
         enumerable: true
       });
+  if (canCache)
+    cache.set(mod, to);
   return to;
 };
 // src/plugin.ts
@@ -21,8 +35,8 @@ var import_obsidian9 = require("obsidian");
 var Obsidian = __toESM(require("obsidian"));
 function getHostLanguage() {
   const languageApi = Obsidian;
-  const locale = typeof languageApi.getLanguage === "function" ? languageApi.getLanguage() : typeof window !== "undefined" ? window.localStorage?.getItem("language") : null;
-  return locale || "en";
+  const locale = typeof languageApi.getLanguage === "function" ? languageApi.getLanguage() : Obsidian.moment.locale();
+  return locale?.replace(/^zh-(tw|hk|mo)$/i, "zh-TW") || "en";
 }
 var TRANSLATIONS = {
   en: {
@@ -7502,6 +7516,8 @@ var RECORDED_META_KEYS = ["platform", "os", "model", "hostname", "firstSeen", "l
 var SEEN_REFRESH_MS = 6 * 60 * 60 * 1000;
 var FONT_CSS_SNIPPET = "local-font-loader";
 var FONT_FACES_ID = "local-font-loader-faces";
+var FONT_FACES_START = "/* local-font-loader:font-faces:start */";
+var FONT_FACES_END = "/* local-font-loader:font-faces:end */";
 var FONT_GLYPHS_ID = "local-font-loader-glyphs";
 var MATH_ADOPTION_RETRY_MS = 5000;
 
@@ -7518,6 +7534,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   _mathCoverageGaps = [];
   _appliedCss = new Map;
   _fontDocuments = new Set;
+  _fontStyleObservers = new Map;
   _snippetCss = new Map;
   _snippetEnabled = false;
   _snippetSync = Promise.resolve();
@@ -7695,15 +7712,17 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     return css;
   }
   async onload() {
-    this._fontDocuments.add(activeDocument);
+    this._trackFontDocument(activeDocument);
     this.app.workspace.iterateAllLeaves((leaf) => {
-      this._fontDocuments.add(leaf.view.containerEl.ownerDocument);
+      this._trackFontDocument(leaf.view.containerEl.ownerDocument);
     });
     this.registerEvent(this.app.workspace.on("window-open", (_win, openedWindow) => {
-      this._fontDocuments.add(openedWindow.document);
+      this._trackFontDocument(openedWindow.document);
       this._applyRuntimeFontFaces(this._appliedCss.get(FONT_FACES_ID) || "");
     }));
     this.registerEvent(this.app.workspace.on("window-close", (_win, closedWindow) => {
+      this._fontStyleObservers.get(closedWindow.document)?.disconnect();
+      this._fontStyleObservers.delete(closedWindow.document);
       this._fontDocuments.delete(closedWindow.document);
     }));
     await this._sanitizePersistedFontSnippet();
@@ -7842,6 +7861,9 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
       window.clearTimeout(this._dataReloadTimer);
       this._dataReloadTimer = null;
     }
+    for (const observer of this._fontStyleObservers.values())
+      observer.disconnect();
+    this._fontStyleObservers.clear();
     this.removeFontStyles();
     this._fontDocuments.clear();
     const presetStyle = activeDocument.getElementById("local-font-loader-preset-styles");
@@ -9253,20 +9275,34 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
 `;
     return { css, fontFamily, variantType, fontWeight, fontStyle };
   }
+  _trackFontDocument(doc) {
+    this._fontDocuments.add(doc);
+    if (this._fontStyleObservers.has(doc) || !doc.defaultView)
+      return;
+    const isFontStyle = (node) => node?.nodeName === "STYLE" && !!node.textContent?.includes(FONT_FACES_START);
+    const observer = new doc.defaultView.MutationObserver((records) => {
+      if (records.some((record) => isFontStyle(record.target) || isFontStyle(record.target.parentNode) || Array.from(record.addedNodes).some(isFontStyle))) {
+        this._applyRuntimeFontFaces(this._appliedCss.get(FONT_FACES_ID) || "");
+      }
+    });
+    observer.observe(doc.head, { childList: true, subtree: true, characterData: true });
+    this._fontStyleObservers.set(doc, observer);
+  }
   _applyRuntimeFontFaces(css) {
     for (const doc of this._fontDocuments) {
-      let element = doc.getElementById(FONT_FACES_ID);
-      if (!css) {
-        element?.remove();
-        continue;
+      doc.getElementById(FONT_FACES_ID)?.remove();
+      for (const element of doc.head.querySelectorAll("style")) {
+        const text2 = element.textContent || "";
+        const start = text2.indexOf(FONT_FACES_START);
+        const end = text2.indexOf(FONT_FACES_END, start + FONT_FACES_START.length);
+        if (start < 0 || end < 0)
+          continue;
+        const updated = text2.slice(0, start + FONT_FACES_START.length) + `
+${css}
+` + text2.slice(end);
+        if (text2 !== updated)
+          element.textContent = updated;
       }
-      if (!element) {
-        element = doc.head.createEl("style");
-        element.id = FONT_FACES_ID;
-        doc.head.appendChild(element);
-      }
-      if (element.textContent !== css)
-        element.textContent = css;
     }
   }
   async _sanitizePersistedFontSnippet() {

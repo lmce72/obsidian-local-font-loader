@@ -192,7 +192,7 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** 所有刷新共用同一兼容入口；Keep old and declarative settings refreshes on one path. */
     update(): void {
         const restoreScroll = this._captureScroll(this.containerEl);
-        const host = PluginSettingTab.prototype as PluginSettingTab & { update?: () => void };
+        const host = PluginSettingTab.prototype as { update?: () => void };
         if (typeof host.update === 'function') {
             host.update.call(this);
         } else {

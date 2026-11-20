@@ -6,6 +6,26 @@
   everything below it is the developer record and never reaches the release.
 -->
 
+## [1.7.6] - 2026-11-20
+
+修复社区审查中的样式加载与依赖问题，保留跨设备同步和 PDF 字体导出行为。
+
+### 修复与核对
+
+- 不再创建或附加 `style` / `link` 节点。字体规则写入 Obsidian 从 `styles.css` 装载的预留区域，仅在内存中更新，会话资源地址不落盘。
+- 跟随各窗口的样式装载与重载恢复字体规则，兼容 `styles.css` 晚于插件初始化完成的情况；关闭窗口和卸载插件时释放观察器。
+- 开发 SDK 升级至 `obsidian@1.14.4`，间接依赖 Moment 升至已修复漏洞的 `2.31.0`，锁文件同步对应的 CodeMirror peer 版本。
+- 保留 1.7.5 的设备表格、移动设备合并与最低 Obsidian `1.5.7` 兼容。设置页的新版刷新方法先检查可用性；语言优先使用 `getLanguage()`，旧宿主回退至内置 Moment 的语言并保留繁体中文。
+- 工具链通过 `eslint-plugin-n@17.23.2` override 移除有风险的 Minimatch 9 依赖，保留其他调用方兼容的已修复版本。
+
+### 验证
+
+- 55 项 Bun 测试、TypeScript 类型检查、构建、冻结锁文件安装通过；官方 Obsidian 1.5.7 SDK 兼容检查通过，`bun audit` 未发现漏洞。
+- `bun run lint:audit` 官方 recommended 全量检查通过；`no-forbidden-elements`、`no-unsupported-api`、`prefer-get-language` 已加入持续检查，无错误或警告；这不代表已通过线上社区审查。
+- Linux、独立空 Vault、Obsidian 1.15.0：常规/粗体/斜体与浮窗字体加载成功，字体应用没有新增样式节点；验证样式区域恢复、插件重载、清理字体后保留静态样式，控制台无警告或错误。
+- 实际 PDF 导出成功，`pdffonts` 确认 Noto Sans 常规、粗体、斜体均嵌入；同步片段不含字体资源地址。
+- 本次未运行 Obsidian 1.5.7 实例或移动端真机验证。
+
 ## [1.7.5] - 2026-11-19
 
 - 设备列表改用紧凑表格；启用设备区分后，可用单行箭头分别展开电脑、平板、手机和未分类设备。

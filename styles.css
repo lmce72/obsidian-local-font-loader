@@ -756,3 +756,7 @@
     margin-top: var(--size-4-4);
     text-align: right;
 }
+
+/* 会话字体仅在内存填充此区域；Session font rules fill this slot in memory only. */
+/* local-font-loader:font-faces:start */
+/* local-font-loader:font-faces:end */

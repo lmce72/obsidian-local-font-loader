@@ -1,6 +1,6 @@
 {
   "name": "obsidian-local-font-loader",
-  "version": "1.7.5",
+  "version": "1.7.6",
   "private": true,
   "description": "Load local fonts (TTF/OTF/WOFF/WOFF2) straight from your vault. Manage UI, text, code, and math fonts separately. Support cross-device font presets.",
   "author": "CoreVortex",
@@ -21,12 +21,15 @@
     "check:legacy": "node scripts/check-legacy-sdk.mjs",
     "check": "bun run typecheck && bun run lint:review && bun test"
   },
+  "overrides": {
+    "eslint-plugin-n": "17.23.2"
+  },
   "devDependencies": {
     "@eslint/js": "9",
     "@types/node": "24.12.2",
     "eslint": "9",
     "eslint-plugin-obsidianmd": "^0.6.0",
-    "obsidian": "1.13.1",
+    "obsidian": "1.14.4",
     "typescript": "6",
     "typescript-eslint": "^8.73.0"
   }

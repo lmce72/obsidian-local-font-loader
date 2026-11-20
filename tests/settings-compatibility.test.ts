@@ -25,6 +25,7 @@ mock.module('obsidian', () => ({
     TextComponent: Stub, Modal: Stub, Menu: Stub, setIcon() {},
     AbstractInputSuggest: Stub, FuzzySuggestModal: Stub, TFolder: Stub,
     Platform: {}, getLanguage: () => 'en',
+    normalizePath: (path: string) => path.replace(/\\/g, '/'),
 }));
 const { default: FontManagerSettingTab } = await import('../src/ui/settings-tab');
 const hostPrototype = Object.getPrototypeOf(FontManagerSettingTab.prototype);

@@ -108,6 +108,12 @@ declare global {
                     adaptor: { document: unknown };
                     /** The CHTML font table maths is laid out from. */
                     font?: MathJaxFontData;
+                    /**
+                     * The `<style>` element holding MathJax's generated CHTML rules. A glyph's
+                     * box is appended to it the first time that glyph is laid out, and the
+                     * browser reads the box from there — see `_restoreMathGlyphRules`.
+                     */
+                    chtmlStyles?: HTMLStyleElement | null;
                 };
                 document?: {
                     outputJax?: { font?: MathJaxFontData };

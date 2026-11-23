@@ -3038,6 +3038,7 @@ class FontManagerSettingTab extends import_obsidian8.PluginSettingTab {
   }
   _renderPage(containerEl) {
     this._isVisible = true;
+    this.plugin._checkSettingsFileChanged();
     const restoreScroll = this._captureScroll(containerEl);
     this._cleanupEventListeners();
     containerEl.empty();
@@ -7520,6 +7521,7 @@ var FONT_FACES_START = "/* local-font-loader:font-faces:start */";
 var FONT_FACES_END = "/* local-font-loader:font-faces:end */";
 var FONT_GLYPHS_ID = "local-font-loader-glyphs";
 var MATH_ADOPTION_RETRY_MS = 5000;
+var SETTINGS_FILE_POLL_MS = 5000;
 
 class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   currentDeviceId;
@@ -7529,6 +7531,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   _mathAdoptionJob = null;
   _mathAdoptionTimer = null;
   _mathFontSnapshot = null;
+  _mathRestoreRules = new Set;
   _mathAdaptationLayer = null;
   _mathAdaptationSource = "MathJax's own metrics";
   _mathCoverageGaps = [];
@@ -7541,6 +7544,7 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
   _isScanning = false;
   _isSaving = false;
   _dataReloadTimer = null;
+  _dataJsonStamp = null;
   _settingsFilePresent = false;
   _logError(...args) {
     console.error(...args);
@@ -7822,16 +7826,16 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     this.registerEvent(this.app.workspace.on("layout-change", () => {
       this._retryMathMetricAdoption();
     }));
-    this.registerEvent(this.app.vault.on("modify", (file) => {
-      if (file.path === `${this.manifest.dir}/data.json`) {
-        if (this._dataReloadTimer) {
-          window.clearTimeout(this._dataReloadTimer);
-        }
-        this._dataReloadTimer = window.setTimeout(() => {
-          this._reloadSettingsFromDisk();
-        }, 500);
-      }
-    }));
+    this.registerInterval(window.setInterval(() => {
+      this._checkSettingsFileChanged();
+    }, SETTINGS_FILE_POLL_MS));
+    this.registerDomEvent(window, "focus", () => {
+      this._checkSettingsFileChanged();
+    });
+    this.registerDomEvent(activeDocument, "visibilitychange", () => {
+      if (activeDocument.visibilityState === "visible")
+        this._checkSettingsFileChanged();
+    });
     if (this.settings.availableFonts.length === 0) {
       await this.scanFonts(false);
     }
@@ -7887,14 +7891,38 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     if (!this._isCompleteSettingsSnapshot(data) && this.settings)
       return;
     this.settings = normalizeSettings(data);
+    await this._refreshSettingsStamp();
   }
   async saveSettings() {
     this._isSaving = true;
     try {
       await this.saveData(this.settings);
+      await this._refreshSettingsStamp();
     } finally {
       this._isSaving = false;
     }
+  }
+  _settingsFilePath() {
+    return `${this.manifest.dir}/data.json`;
+  }
+  async _refreshSettingsStamp() {
+    const stat = await this.app.vault.adapter.stat(this._settingsFilePath()).catch(() => null);
+    this._dataJsonStamp = stat ? { mtime: stat.mtime, ctime: stat.ctime, size: stat.size } : null;
+  }
+  async _checkSettingsFileChanged() {
+    if (this._isSaving)
+      return;
+    const stat = await this.app.vault.adapter.stat(this._settingsFilePath()).catch(() => null);
+    if (!stat) {
+      this._dataJsonStamp = null;
+      return;
+    }
+    const previous = this._dataJsonStamp;
+    if (previous && previous.mtime === stat.mtime && previous.ctime === stat.ctime && previous.size === stat.size) {
+      return;
+    }
+    this._dataJsonStamp = { mtime: stat.mtime, ctime: stat.ctime, size: stat.size };
+    await this._reloadSettingsFromDisk();
   }
   async _persistStartupState() {
     if (!this._settingsFilePresent) {
@@ -8832,7 +8860,32 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
         fontData.delimiters[code].HDW = values.slice();
       }
     });
+    this._restoreMathGlyphRules(snapshot);
     this._mathFontSnapshot = null;
+  }
+  _restoreMathGlyphRules(snapshot) {
+    const styleEl = window.MathJax?.startup?.output?.chtmlStyles ?? activeDocument.getElementById("MJX-CHTML-styles");
+    const sheet = styleEl?.sheet;
+    if (!sheet)
+      return;
+    const modern = Number(window.MathJax?.version?.split(".")[0]) >= 4;
+    let index = sheet.cssRules.length;
+    for (const saved of snapshot.chars) {
+      const [h, d, w] = saved.values;
+      if (![h, d, w].every((value) => Number.isFinite(value)))
+        continue;
+      const glyph = `mjx-c.mjx-c${Number(saved.code).toString(16).toUpperCase()}`;
+      const selector = modern ? glyph : `${glyph},
+${glyph}::before`;
+      const rule = `${selector} { padding: ${h}em ${w}em ${d}em 0; }`;
+      if (this._mathRestoreRules.has(rule))
+        continue;
+      try {
+        sheet.insertRule(rule, index);
+        index++;
+        this._mathRestoreRules.add(rule);
+      } catch {}
+    }
   }
   _buildMathGlyphRules() {
     const font2 = this._getMathFontData();

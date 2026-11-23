@@ -75,6 +75,15 @@ const FONT_GLYPHS_ID = 'local-font-loader-glyphs';
 /** Shortest gap between two attempts at adopting the math metrics. */
 const MATH_ADOPTION_RETRY_MS = 5000;
 
+/**
+ * How often the synced settings file is compared against the signature this plugin last saw.
+ *
+ * Obsidian does not emit vault events for anything under `.obsidian/`, so a `data.json` written
+ * by Obsidian Sync (or by another instance) is silent: without this poll the plugin keeps running
+ * the configuration it loaded at startup until the app restarts.
+ */
+const SETTINGS_FILE_POLL_MS = 5000;
+
 export default class LocalFontLoaderPlugin extends Plugin {
 
     /**
@@ -102,6 +111,14 @@ export default class LocalFontLoaderPlugin extends Plugin {
 
     /** MathJax's original glyph metrics, kept so adoption can be undone. */
     _mathFontSnapshot: MathFontMetricSnapshot | null = null;
+
+    /**
+     * Restored-box rules already appended to MathJax's own stylesheet.
+     *
+     * Kept so a toggle round trip does not stack identical rules, and so the sheet is touched
+     * only for boxes it has not been told about before.
+     */
+    _mathRestoreRules = new Set<string>();
 
     /**
      * Which adaptation layer produced the math metrics currently in place.
@@ -151,6 +168,14 @@ export default class LocalFontLoaderPlugin extends Plugin {
     _isScanning = false;
     _isSaving = false;
     _dataReloadTimer: number | null = null;
+
+    /**
+     * The data.json signature last read or written by this plugin.
+     *
+     * Hidden config paths are outside the vault index, so the file is watched by comparing this
+     * signature rather than by listening for a `modify` event.
+     */
+    _dataJsonStamp: { mtime: number; ctime: number; size: number } | null = null;
 
     /**
      * Whether loadSettings() found settings on disk, as opposed to finding nothing at all.
@@ -638,21 +663,20 @@ export default class LocalFontLoaderPlugin extends Plugin {
         }));
 
         // Listen for data.json changes (for multi-device sync)
-        this.registerEvent(
-            this.app.vault.on('modify', (file) => {
-                // Check if it is this plugin's data.json
-                if (file.path === `${this.manifest.dir}/data.json`) {
-
-                    // Delay the reload to avoid frequent triggers
-                    if (this._dataReloadTimer) {
-                        window.clearTimeout(this._dataReloadTimer);
-                    }
-                    this._dataReloadTimer = window.setTimeout(() => {
-                        void this._reloadSettingsFromDisk();
-                    }, 500); // 500ms debounce
-                }
-            })
-        );
+        //
+        // 同步写入的配置不会触发 vault 事件；Obsidian emits no vault event for paths under
+        // `.obsidian/`, so `vault.on('modify')` never saw a synced data.json at all. The file
+        // signature is polled instead, and checked immediately when the window regains focus or
+        // becomes visible again — the moments a synced change is expected to have landed.
+        this.registerInterval(window.setInterval(() => {
+            void this._checkSettingsFileChanged();
+        }, SETTINGS_FILE_POLL_MS));
+        this.registerDomEvent(window, 'focus', () => {
+            void this._checkSettingsFileChanged();
+        });
+        this.registerDomEvent(activeDocument, 'visibilitychange', () => {
+            if (activeDocument.visibilityState === 'visible') void this._checkSettingsFileChanged();
+        });
 
         // Scan fonts (if the list is empty)
         if (this.settings.availableFonts.length === 0) {
@@ -738,15 +762,57 @@ export default class LocalFontLoaderPlugin extends Plugin {
         // 同步文件不完整时保留已加载设置；Keep live settings during partial sync writes.
         if (!this._isCompleteSettingsSnapshot(data) && this.settings) return;
         this.settings = normalizeSettings(data);
+        await this._refreshSettingsStamp();
     }
 
     async saveSettings() {
         this._isSaving = true;
         try {
             await this.saveData(this.settings);
+            // 记录自己写入的文件戳，轮询才不会把自己的保存当成同步；Ignore our own writes.
+            await this._refreshSettingsStamp();
         } finally {
             this._isSaving = false;
         }
+    }
+
+    /** Path of the synced settings file, relative to the vault root. */
+    _settingsFilePath(): string {
+        return `${this.manifest.dir}/data.json`;
+    }
+
+    /** Records the current file signature so the poll can tell a later write apart. */
+    async _refreshSettingsStamp(): Promise<void> {
+        const stat = await this.app.vault.adapter.stat(this._settingsFilePath()).catch(() => null);
+        this._dataJsonStamp = stat ? { mtime: stat.mtime, ctime: stat.ctime, size: stat.size } : null;
+    }
+
+    /**
+     * Picks up a settings file written behind the plugin's back (Obsidian Sync, another instance).
+     *
+     * Hidden config paths are outside the vault index, so there is no `modify` event to hang this
+     * on; the poll calls this and compares the file signature. A save of our own is not a change:
+     * `saveSettings` refreshes the signature itself.
+     */
+    async _checkSettingsFileChanged(): Promise<void> {
+        // Not gated on `_settingsFilePresent`: on a device that installed the plugin before sync
+        // delivered its data.json, that flag is false and nothing would ever read the file this
+        // poll exists to find. The reload below is what sets it.
+        if (this._isSaving) return;
+        const stat = await this.app.vault.adapter.stat(this._settingsFilePath()).catch(() => null);
+        if (!stat) {
+            // Nothing on disk (yet). Forget the old signature so a file that arrives later is
+            // read even when its mtime happens to land on the second the old one did.
+            this._dataJsonStamp = null;
+            return;
+        }
+        const previous = this._dataJsonStamp;
+        if (previous && previous.mtime === stat.mtime && previous.ctime === stat.ctime
+            && previous.size === stat.size) {
+            return;
+        }
+        this._dataJsonStamp = { mtime: stat.mtime, ctime: stat.ctime, size: stat.size };
+        await this._reloadSettingsFromDisk();
     }
 
     /**
@@ -2411,7 +2477,51 @@ export default class LocalFontLoaderPlugin extends Plugin {
             }
         });
 
+        // The table is restored, but MathJax copies a glyph's box into its own stylesheet the
+        // first time it lays that glyph out and never rewrites the rule. Glyphs first laid out
+        // while the adopted numbers were in the table therefore keep them — turning the math
+        // font off left those glyphs, and only those, with the removed font's geometry.
+        this._restoreMathGlyphRules(snapshot);
+
         this._mathFontSnapshot = null;
+    }
+
+    /**
+     * Re-states the restored boxes on MathJax's own stylesheet.
+     *
+     * The rules use the selector MathJax itself emits (`mjx-c.mjx-c<code>`), so they override
+     * the stale copies in place. The plugin's adopted-glyph rules are far more specific, so
+     * these never fight the on state; they only matter after it has been switched off.
+     *
+     * @param {Object} snapshot - The boxes that were adopted, with their original values
+     */
+    _restoreMathGlyphRules(snapshot: MathFontMetricSnapshot): void {
+        const styleEl: HTMLStyleElement | null = window.MathJax?.startup?.output?.chtmlStyles
+            ?? activeDocument.getElementById('MJX-CHTML-styles') as HTMLStyleElement | null;
+        const sheet = styleEl?.sheet;
+        if (!sheet) return;
+
+        // MathJax 3 draws a glyph through `::before` and keeps its box there; MathJax 4 puts the
+        // character in the element's own text and the box on the element. The rule has to match
+        // whichever shape this build emits, or it would override nothing.
+        const modern = Number(window.MathJax?.version?.split('.')[0]) >= 4;
+
+        let index = sheet.cssRules.length;
+        for (const saved of snapshot.chars) {
+            const [h, d, w] = saved.values;
+            if (![h, d, w].every(value => Number.isFinite(value))) continue;
+            const glyph = `mjx-c.mjx-c${Number(saved.code).toString(16).toUpperCase()}`;
+            const selector = modern ? glyph : `${glyph},\n${glyph}::before`;
+            const rule = `${selector} { padding: ${h}em ${w}em ${d}em 0; }`;
+            if (this._mathRestoreRules.has(rule)) continue;
+            try {
+                sheet.insertRule(rule, index);
+                index++;
+                this._mathRestoreRules.add(rule);
+            } catch {
+                // A code MathJax does not carry: there is no rule of its to override.
+            }
+        }
     }
 
     /**

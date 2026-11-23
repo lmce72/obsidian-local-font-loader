@@ -248,6 +248,8 @@ export default class FontManagerSettingTab extends PluginSettingTab {
     /** Renders the tab's contents into the given container. */
     _renderPage(containerEl: HTMLElement) {
         this._isVisible = true; // Mark the settings tab visible (settings-changed guard)
+        // 打开设置页时先对一次磁盘，同步来的配置不必等轮询；Check disk before painting.
+        void this.plugin._checkSettingsFileChanged();
         const restoreScroll = this._captureScroll(containerEl);
         this._cleanupEventListeners();
 

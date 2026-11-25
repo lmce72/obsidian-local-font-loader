@@ -284,7 +284,12 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
 
             // Get the device list to display
             let devicesToShow: string[] = [];
-            if (preset.id === 'default-preset') {
+            if (tab.plugin.settings.deviceTypeModeEnabled) {
+                // 类别模式下预设由设备类型决定，targetDevices 为空是正常状态；按它分组会把所有
+                // 设备都塞进全局预设。Show each device under the preset that actually applies.
+                devicesToShow = Object.keys(tab.plugin.settings.deviceNameMap || {})
+                    .filter(id => tab.plugin._getPresetForDevice(id)?.id === preset.id);
+            } else if (preset.id === 'default-preset') {
                 // Default global preset: show all unassigned devices
                 const allDeviceIds = new Set<string>();
 
@@ -547,9 +552,8 @@ export function renderDeviceAndPresetSection(tab: FontManagerSettingTab, contain
             }
 
             // Global zone footer: an explicit, confirmed cleanup for stale device entries.
-            // Shown only where duplicates actually surface, and it lists exactly which devices
-            // would go, so nothing is removed silently.
-            if (preset.id === 'default-preset') {
+            // 类别模式没有“未绑定”概念，清理入口只会误导；There is nothing unbound in category mode.
+            if (preset.id === 'default-preset' && !tab.plugin.settings.deviceTypeModeEnabled) {
                 const cleanupFooter = presetSection.createDiv({ cls: 'device-cleanup-footer' });
 
                 const cleanupBtn = cleanupFooter.createEl('button', {

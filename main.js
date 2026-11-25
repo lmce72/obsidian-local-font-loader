@@ -1363,6 +1363,12 @@ function resolveDeviceTypePreset(settings, type) {
   const id = group === "mobile" ? settings.mobileDevicePreset : settings.deviceTypePresets[group];
   return id ? settings.presets.find((preset2) => preset2.id === id) : undefined;
 }
+function resolveDevicePreset(settings, deviceId, type) {
+  const byType = resolveDeviceTypePreset(settings, type);
+  if (byType)
+    return byType;
+  return settings.presets.find((preset2) => preset2.targetDevices.includes(deviceId)) ?? settings.presets.find((preset2) => preset2.id === "default-preset") ?? settings.presets[0];
+}
 function bindDeviceTypeToPreset(settings, type, presetId) {
   if (!DEVICE_TYPES.includes(type) || !settings.presets.some((preset2) => preset2.id === presetId)) {
     throw new Error("Cannot assign a device type without a valid type and preset");
@@ -2175,7 +2181,9 @@ function renderDeviceAndPresetSection(tab, containerEl) {
       tab.update();
     });
     let devicesToShow = [];
-    if (preset2.id === "default-preset") {
+    if (tab.plugin.settings.deviceTypeModeEnabled) {
+      devicesToShow = Object.keys(tab.plugin.settings.deviceNameMap || {}).filter((id) => tab.plugin._getPresetForDevice(id)?.id === preset2.id);
+    } else if (preset2.id === "default-preset") {
       const allDeviceIds = new Set;
       if (tab.plugin.settings.deviceNameMap) {
         Object.keys(tab.plugin.settings.deviceNameMap).forEach((id) => {
@@ -2371,7 +2379,7 @@ function renderDeviceAndPresetSection(tab, containerEl) {
         });
       });
     }
-    if (preset2.id === "default-preset") {
+    if (preset2.id === "default-preset" && !tab.plugin.settings.deviceTypeModeEnabled) {
       const cleanupFooter = presetSection.createDiv({ cls: "device-cleanup-footer" });
       const cleanupBtn = cleanupFooter.createEl("button", {
         text: t("cleanupDevices"),
@@ -7939,18 +7947,10 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     return getRecordedDeviceType(this.settings.deviceMeta[deviceId]);
   }
   _getDevicePreset() {
-    const grouped = resolveDeviceTypePreset(this.settings, this.getDeviceType());
-    if (grouped)
-      return grouped;
-    const deviceId = this.currentDeviceId;
-    let preset2 = this.settings.presets.find((p) => p.targetDevices.includes(deviceId));
-    if (!preset2) {
-      preset2 = this.settings.presets.find((p) => p.id === "default-preset");
-    }
-    if (!preset2) {
-      preset2 = this.settings.presets[0];
-    }
-    return preset2;
+    return this._getPresetForDevice(this.currentDeviceId);
+  }
+  _getPresetForDevice(deviceId) {
+    return resolveDevicePreset(this.settings, deviceId, this.getDeviceType(deviceId));
   }
   _getDeviceFontContext() {
     const devicePreset = this._getDevicePreset();
@@ -8037,6 +8037,9 @@ class LocalFontLoaderPlugin extends import_obsidian9.Plugin {
     await this.saveSettings();
   }
   getPrunableDevices() {
+    if (this.settings.deviceTypeModeEnabled) {
+      return [];
+    }
     const boundDeviceIds = new Set;
     this.settings.presets.forEach((preset2) => {
       (preset2.targetDevices || []).forEach((id) => boundDeviceIds.add(id));

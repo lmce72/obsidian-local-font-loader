@@ -33,6 +33,22 @@ export function resolveDeviceTypePreset(settings: PluginSettings, type: DeviceTy
     return id ? settings.presets.find(preset => preset.id === id) : undefined;
 }
 
+/**
+ * 设备实际使用的预设；The preset a device actually runs with.
+ *
+ * 类别模式先按类型路由；单设备绑定是没有类型可用时的回退，全局默认是最后一层。设置页要按这个
+ * 结果分组，不能只看 `targetDevices`——类别模式下它是空的，会把所有设备都算到全局预设名下。
+ */
+export function resolveDevicePreset(
+    settings: PluginSettings, deviceId: string, type: DeviceType | undefined,
+): FontPreset | undefined {
+    const byType = resolveDeviceTypePreset(settings, type);
+    if (byType) return byType;
+    return settings.presets.find(preset => preset.targetDevices.includes(deviceId))
+        ?? settings.presets.find(preset => preset.id === 'default-preset')
+        ?? settings.presets[0];
+}
+
 /** 类型绑定独立保存，不覆盖历史设备绑定；Turning the mode off is lossless. */
 export function bindDeviceTypeToPreset(settings: PluginSettings, type: DeviceType, presetId: string): void {
     if (!DEVICE_TYPES.includes(type) || !settings.presets.some(preset => preset.id === presetId)) {

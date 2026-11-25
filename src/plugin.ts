@@ -8,7 +8,7 @@ import { t } from './i18n';
 import { replaceableMathEntries, mathGlyphSelector } from './math-glyph-policy';
 import { isRecord, normalizeSettings, parseFontFamilyMetadata } from './settings-validation';
 import type { FontFamilyMetadata } from './settings-validation';
-import { detectDeviceType, getRecordedDeviceType, resolveDeviceTypePreset, bindDeviceTypeToPreset } from './device-mode';
+import { detectDeviceType, getRecordedDeviceType, resolveDevicePreset, bindDeviceTypeToPreset } from './device-mode';
 import type { DeviceType, FontFamily, FontVariantType } from './types';
 import { parseFontMetadata } from './font-metadata';
 import { DEFAULT_SETTINGS } from './constants';
@@ -855,26 +855,12 @@ export default class LocalFontLoaderPlugin extends Plugin {
     }
 
     _getDevicePreset(): FontPreset | undefined {
-        const grouped = resolveDeviceTypePreset(this.settings, this.getDeviceType());
-        if (grouped) return grouped;
-        const deviceId = this.currentDeviceId;
+        return this._getPresetForDevice(this.currentDeviceId);
+    }
 
-        // Find the preset containing the current device
-        let preset = this.settings.presets.find(p =>
-            p.targetDevices.includes(deviceId)
-        );
-
-        if (!preset) {
-            // If the device has no preset, fall back to the default global preset
-            preset = this.settings.presets.find(p => p.id === 'default-preset');
-        }
-
-        if (!preset) {
-            // Final fallback: return the first preset
-            preset = this.settings.presets[0];
-        }
-
-        return preset;
+    /** 设备实际生效的预设；The preset a device runs with, type binding first. */
+    _getPresetForDevice(deviceId: string): FontPreset | undefined {
+        return resolveDevicePreset(this.settings, deviceId, this.getDeviceType(deviceId));
     }
 
     /**
@@ -1029,6 +1015,9 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * Lists devices that can be safely pruned: not this device, not bound to any preset,
      * and no longer referenced by the name map.
      *
+     * 类别模式下永远为空：绑定由类型决定，`targetDevices` 为空是正常状态，按它判断会把每台
+     * 设备都算成“未绑定”，清理一次就删掉全部设备记录。In category mode nothing is unbound.
+     *
      * The legacy fingerprint ledger is deliberately left untouched — a device that has not yet
      * been opened since the upgrade still needs its fingerprint entry to migrate onto its
      * original id. Pruning it would strand that device with a brand-new id and break its
@@ -1038,6 +1027,10 @@ export default class LocalFontLoaderPlugin extends Plugin {
      * @returns {Array<{id: string, name: string}>} The prunable devices
      */
     getPrunableDevices() {
+        if (this.settings.deviceTypeModeEnabled) {
+            return [];
+        }
+
         const boundDeviceIds = new Set();
         this.settings.presets.forEach(preset => {
             (preset.targetDevices || []).forEach(id => boundDeviceIds.add(id));

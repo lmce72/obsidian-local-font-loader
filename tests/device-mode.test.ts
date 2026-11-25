@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_SETTINGS } from '../src/constants';
-import { bindDeviceTypeToPreset, detectDeviceType, getRecordedDeviceType, isDeviceType, resolveDeviceTypePreset } from '../src/device-mode';
+import { bindDeviceTypeToPreset, detectDeviceType, getRecordedDeviceType, isDeviceType, resolveDevicePreset, resolveDeviceTypePreset } from '../src/device-mode';
 import type { DeviceMeta } from '../src/types';
 
 const desktop: DeviceMeta = { platform: 'desktop', os: 'windows', model: '', hostname: 'test' };
@@ -77,5 +77,29 @@ describe('optional device type mode', () => {
         expect(settings).toEqual(before);
         bindDeviceTypeToPreset(settings, 'computer', 'default-preset');
         expect(resolveDeviceTypePreset(settings, 'computer')).toBe(settings.presets[0]);
+    });
+
+    test('a device resolves to its type preset, then its own binding, then the global default', () => {
+        const settings = structuredClone(DEFAULT_SETTINGS);
+        const global = settings.presets[0];
+        const tablet = { ...structuredClone(global), id: 'tablet-preset', targetDevices: [] };
+        const individual = { ...structuredClone(global), id: 'individual-preset', targetDevices: ['device-a'] };
+        settings.presets.push(tablet, individual);
+
+        // Mode off: the device's own binding decides; everything else falls back to global.
+        expect(resolveDevicePreset(settings, 'device-a', 'tablet')).toBe(individual);
+        expect(resolveDevicePreset(settings, 'device-b', 'tablet')).toBe(global);
+
+        // Mode on but no type binding: the per-device binding still decides.
+        settings.deviceTypeModeEnabled = true;
+        expect(resolveDevicePreset(settings, 'device-a', 'tablet')).toBe(individual);
+
+        // A type binding wins over the per-device binding; an unclassified device keeps it.
+        bindDeviceTypeToPreset(settings, 'tablet', tablet.id);
+        expect(resolveDevicePreset(settings, 'device-a', 'tablet')).toBe(tablet);
+        expect(resolveDevicePreset(settings, 'device-a', undefined)).toBe(individual);
+        // A device whose type points at a deleted preset falls through to the global default.
+        settings.deviceTypePresets.tablet = 'deleted-preset';
+        expect(resolveDevicePreset(settings, 'device-b', 'tablet')).toBe(global);
     });
 });
